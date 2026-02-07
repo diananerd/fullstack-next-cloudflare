@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowDown, Bot, Image as ImageIcon, Lock } from "lucide-react";
+import {
+    ArrowDown,
+    Bot,
+    Image as ImageIcon,
+    Lock,
+    RefreshCw,
+    Send,
+    ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";

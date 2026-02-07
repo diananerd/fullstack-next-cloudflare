@@ -193,7 +193,7 @@ export async function createArtworkAction(formData: FormData) {
         }
         return {
             success: false,
-            error: error.message || "Failed to create artwork",
+            error: (error as Error).message || "Failed to create artwork",
         };
     }
 }
