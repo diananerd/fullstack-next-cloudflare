@@ -8,9 +8,9 @@ export default async function HomePage() {
     const session = await getSession();
 
     return (
-        <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-white selection:bg-blue-100">
-            {/* Background Texture - Grid & Gradient */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="relative min-h-screen flex flex-col bg-white selection:bg-blue-100">
+            {/* Background Texture - Grid & Gradient - Fixed Position so it stays while scrolling */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
                 <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_50%_200px,#C9EBFF,transparent)]"></div>
             </div>
@@ -39,30 +39,37 @@ export default async function HomePage() {
                 </div>
             </header>
 
-            <main className="relative z-10 max-w-4xl mx-auto px-6 text-center space-y-8 animate-in fade-in zoom-in duration-700 slide-in-from-bottom-4">
+            <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-20 flex flex-col items-center text-center animate-in fade-in zoom-in duration-700 slide-in-from-bottom-4">
                 
-                {/* Badge */}
-                <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 mb-4 shadow-sm">
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    Artist-First Protection
+                <div className="max-w-4xl mx-auto space-y-6 mb-10">
+                    {/* Badge */}
+                    <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 shadow-sm">
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        Artist-First Protection
+                    </div>
+
+                    {/* Main Heading */}
+                    <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.1]">
+                        Make your Art <br className="hidden md:block"/>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+                            impossible to mimic
+                        </span> <br className="hidden md:block"/>
+                        by AI models.
+                    </h1>
+
+                    {/* Subtitle - Shortened for impact */}
+                    <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
+                        Add an <strong>invisible protection layer</strong> that confuses AI models without changing how your art looks to humans.
+                    </p>
                 </div>
 
-                {/* Main Heading */}
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.1]">
-                    Make your Art <br className="hidden md:block"/>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                        impossible to mimic
-                    </span> <br className="hidden md:block"/>
-                    by AI models.
-                </h1>
+                {/* THE DEMO IS THE HERO VISUAL */}
+                <div className="w-full relative z-20 mb-10">
+                    <ProtectionDemo />
+                </div>
 
-                {/* Subtitle / Description */}
-                <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
-                    We add an <strong>invisible protection layer</strong> to your artworks. This &quot;cloaks&quot; the image, confusing AI models without changing how it looks to humans, ensuring any imitation attempt results in chaotic, unusable outputs.
-                </p>
-
-                {/* CTA Buttons */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6 pb-8">
+                {/* CTA Buttons - The logical next step */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                     <Link href={session ? "/artworks" : "/signup"}>
                         <Button size="lg" className="h-14 pl-20 pr-12 text-lg rounded-full shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 border-0">
                             {session ? "Go to Artworks" : "Get Started"}
@@ -70,20 +77,16 @@ export default async function HomePage() {
                         </Button>
                     </Link>
                     <Link href="/faq">
-                         <Button variant="outline" size="lg" className="h-14 px-8 text-lg rounded-full border-gray-300 hover:bg-gray-50 text-gray-700">
+                            <Button variant="outline" size="lg" className="h-14 px-8 text-lg rounded-full border-gray-300 hover:bg-gray-50 text-gray-700">
                             How it Works
                         </Button>
                     </Link>
                 </div>
 
-                {/* VISUAL DEMO SLIDER */}
-                <div className="w-full">
-                    <ProtectionDemo />
-                </div>
             </main>
 
             {/* Footer Minimal */}
-            <footer className="absolute bottom-6 w-full text-center text-gray-400 text-sm flex flex-col gap-2">
+            <footer className="w-full text-center text-gray-400 text-sm flex flex-col gap-2 pb-8 pt-12 relative z-10">
                 <div className="flex justify-center gap-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
                     <Link href="/faq" className="hover:text-blue-600 transition-colors">FAQ</Link>
                     <span>•</span>
