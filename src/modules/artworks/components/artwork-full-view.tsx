@@ -20,7 +20,7 @@ export function ArtworkFullView({
     onClose,
 }: ArtworkFullViewProps) {
     const actions = useArtworkActions(artwork);
-    const { isProtected, isProcessing } = actions;
+    const { isProtected, isProcessing, optimisticStatus } = actions;
 
     const [imageError, setImageError] = useState(false);
 
@@ -86,7 +86,7 @@ export function ArtworkFullView({
                             {/* Top-Left: Status & Filename */}
                             <div className="flex items-center gap-2 pointer-events-auto">
                                 <ArtworkStatusBadge
-                                    status={artwork.protectionStatus}
+                                    status={optimisticStatus}
                                 />
                                 <div
                                     className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded text-sm text-white max-w-[50vw] truncate select-none"

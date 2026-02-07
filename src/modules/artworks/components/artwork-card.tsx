@@ -16,7 +16,7 @@ interface ArtworkCardProps {
 
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
     const actions = useArtworkActions(artwork);
-    const { isProcessing, isProtected } = actions;
+    const { isProcessing, isProtected, optimisticStatus } = actions;
 
     const router = useRouter();
     const [_, startTransition] = useTransition();
@@ -87,20 +87,17 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
 
                     {/* Overlays */}
                     <div className="absolute inset-0 p-3 flex flex-col justify-between pointer-events-none">
-                        {/* Top Row */}
-                        <div className="flex items-center gap-2 w-full">
-                            {/* Status */}
-                            <ArtworkStatusBadge
-                                status={artwork.protectionStatus}
-                            />
+                        {/* Top Row: Empty now, but structure kept for potential future use */}
+                        <div className="flex justify-end w-full">
+                            {/* Empty or top-right items */}
                         </div>
 
                         {/* Bottom Row */}
                         <div className="flex justify-between items-end">
-                            {/* Bottom-Left: File Size */}
-                            <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-medium text-white/90 pointer-events-auto">
-                                {fileSize}
-                            </div>
+                            {/* Bottom-Left: Status (Optimistic) */}
+                            <ArtworkStatusBadge
+                                status={optimisticStatus}
+                            />
 
                             {/* Bottom-Right: Actions */}
                             <ArtworkActionButtons actions={actions} />

@@ -52,11 +52,20 @@ export function useArtworkActions(artwork: Artwork) {
     };
 
     const isProtected = artwork.protectionStatus === ProtectionStatus.PROTECTED;
-    const isProcessing =
+    const isActuallyProcessing =
         artwork.protectionStatus === ProtectionStatus.PENDING ||
         artwork.protectionStatus === ProtectionStatus.PROCESSING;
-    const isFailed = artwork.protectionStatus === ProtectionStatus.FAILED;
-    const isCanceled = artwork.protectionStatus === ProtectionStatus.CANCELED;
+    
+    // Optimistic processing state: true if actual DB says so OR if we are currently retrying
+    const isProcessing = isActuallyProcessing || isRetrying;
+    
+    const isFailed = !isRetrying && artwork.protectionStatus === ProtectionStatus.FAILED;
+    const isCanceled = !isRetrying && artwork.protectionStatus === ProtectionStatus.CANCELED;
+
+    // Derived optimistic status for badge display
+    const optimisticStatus = isRetrying 
+        ? ProtectionStatus.PROCESSING 
+        : artwork.protectionStatus;
 
     return {
         isPending,
@@ -71,5 +80,6 @@ export function useArtworkActions(artwork: Artwork) {
         isFailed,
         isCanceled,
         isRetrying,
+        optimisticStatus, // Expose this for UI components
     };
 }
