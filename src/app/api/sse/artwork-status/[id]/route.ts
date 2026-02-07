@@ -4,8 +4,6 @@ import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import { eq } from "drizzle-orm";
 import { verifySessionEdge } from "../../auth-edge";
 
-export const runtime = 'edge';
-
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
