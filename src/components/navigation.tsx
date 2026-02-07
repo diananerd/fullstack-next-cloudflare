@@ -19,6 +19,7 @@ export async function Navigation() {
                                 width={32}
                                 height={32}
                                 className="h-8 w-8"
+                                unoptimized
                             />
                             <span className="flex items-center gap-2 text-xl">
                                 <span className="font-bold text-gray-900">
