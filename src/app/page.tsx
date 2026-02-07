@@ -1,3 +1,4 @@
+import { ProtectionDemo } from "@/components/landing/protection-demo";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, ChevronRight } from "lucide-react";
@@ -61,7 +62,7 @@ export default async function HomePage() {
                 </p>
 
                 {/* CTA Buttons */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6 pb-8">
                     <Link href={session ? "/artworks" : "/signup"}>
                         <Button size="lg" className="h-14 pl-20 pr-12 text-lg rounded-full shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 border-0">
                             {session ? "Go to Artworks" : "Get Started"}
@@ -73,6 +74,11 @@ export default async function HomePage() {
                             How it Works
                         </Button>
                     </Link>
+                </div>
+
+                {/* VISUAL DEMO SLIDER */}
+                <div className="w-full">
+                    <ProtectionDemo />
                 </div>
             </main>
 
