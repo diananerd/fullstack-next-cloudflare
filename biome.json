@@ -6,7 +6,15 @@
         "useIgnoreFile": false
     },
     "files": {
-        "ignoreUnknown": false
+        "ignoreUnknown": false,
+        "ignore": [
+            "node_modules/**",
+            ".next/**",
+            ".open-next/**",
+            ".wrangler/**",
+            "dist/**",
+            "coverage/**"
+        ]
     },
     "formatter": {
         "enabled": true,

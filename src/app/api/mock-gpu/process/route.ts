@@ -145,6 +145,9 @@ export async function POST(req: NextRequest) {
         }
 
         // biome-ignore lint/suspicious/noExplicitAny: Error handling
-        return NextResponse.json({ error: (error as any).message }, { status: 500 });
+        return NextResponse.json(
+            { error: (error as any).message },
+            { status: 500 },
+        );
     }
 }

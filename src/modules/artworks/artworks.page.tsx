@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { ArtworkGallery } from "@/modules/artworks/components/artwork-gallery";
+import { ArtworkGallerySkeleton } from "@/modules/artworks/components/artwork-gallery.skeleton";
 
 export default async function ArtworksPage() {
     return (
@@ -15,7 +17,9 @@ export default async function ArtworksPage() {
             </div>
 
             <div className="px-2 pb-6">
-                <ArtworkGallery />
+                <Suspense fallback={<ArtworkGallerySkeleton />}>
+                    <ArtworkGallery />
+                </Suspense>
             </div>
         </div>
     );

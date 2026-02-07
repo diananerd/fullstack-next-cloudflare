@@ -67,6 +67,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                                     : "group-hover:opacity-95",
                             )}
                             loading="lazy"
+                            decoding="async"
                             onError={() => setImageError(true)}
                         />
                     ) : (
