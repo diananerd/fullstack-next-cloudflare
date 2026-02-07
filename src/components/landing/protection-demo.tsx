@@ -349,10 +349,8 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                                 </span>
                             </div>
                         )}
-                        // biome-ignore lint/a11y/useKeyWithClickEvents: Demo
-                        interactive element // biome-ignore
-                        lint/a11y/noStaticElementInteractions: Demo interactive
-                        element
+                        {/* biome-ignore lint/a11y/useKeyWithClickEvents: Demo interactive element */}
+                        {/* biome-ignore lint/a11y/noStaticElementInteractions: Demo interactive element */}
                         <div
                             className={cn(
                                 "relative group transition-all duration-300",
