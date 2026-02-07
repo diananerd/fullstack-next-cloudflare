@@ -47,7 +47,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
         // Start simulation automatically on mount
         const timer = setTimeout(() => {
              setStatus("typing_prompt");
-        }, 2200);
+        }, 3800);
         return () => clearTimeout(timer);
     }, []);
 

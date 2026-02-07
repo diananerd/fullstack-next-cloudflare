@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ShieldCheck, ChevronRight } from "lucide-react";
 import { getSession } from "@/modules/auth/utils/auth-utils";
 
+import { TypewriterTitle } from "@/components/landing/typewriter-title";
+
 export default async function HomePage() {
     const session = await getSession();
 
@@ -45,17 +47,11 @@ export default async function HomePage() {
                     {/* Badge */}
                     <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 shadow-sm">
                         <ShieldCheck className="mr-2 h-4 w-4" />
-                        Artist-First Protection
+                        AI Shield
                     </div>
 
                     {/* Main Heading */}
-                    <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.1]">
-                        Make your Art <br className="hidden md:block"/>
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                            impossible to mimic
-                        </span> <br className="hidden md:block"/>
-                        by AI models.
-                    </h1>
+                    <TypewriterTitle />
 
                     {/* Subtitle - Shortened for impact */}
                     <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
