@@ -23,9 +23,13 @@ const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png"];
 
 export async function createArtworkAction(formData: FormData) {
     try {
+        const hash = formData.get("hash") as string;
+        console.log(`[CreateArtworkAction] Starting action for ${hash || "unknown"}`);
+        
         const user = await requireAuth();
 
         const imageFile = formData.get("image") as File | null;
+        console.log(`[CreateArtworkAction] Validating file. Size: ${imageFile?.size}, Type: ${imageFile?.type}`);
 
         if (!imageFile || imageFile.size === 0) {
             return { success: false, error: "Image file is required" };
@@ -78,13 +82,14 @@ export async function createArtworkAction(formData: FormData) {
             };
         }
 
-        const hash = formData.get("hash") as string;
         if (!hash) {
             return {
                 success: false,
                 error: "File hash is required for integrity verification.",
             };
         }
+
+        console.log(`[CreateArtworkAction] Uploading raw image to R2: ${hash}`);
 
         // Upload to R2 (raw folder) with HASH as filename
         const uploadResult: UploadResult = await uploadToR2(
@@ -94,11 +99,14 @@ export async function createArtworkAction(formData: FormData) {
         );
 
         if (!uploadResult.success || !uploadResult.key || !uploadResult.url) {
+            console.error(`[CreateArtworkAction] R2 Upload failed: ${uploadResult.error}`);
             return {
                 success: false,
                 error: uploadResult.error || "Failed to upload image",
             };
         }
+        
+        console.log(`[CreateArtworkAction] Upload success. Key: ${uploadResult.key}`);
 
         const title = formData.get("title") as string;
         const descriptionRaw = formData.get("description");
@@ -134,6 +142,8 @@ export async function createArtworkAction(formData: FormData) {
         };
 
         const db = await getDb();
+        console.log(`[CreateArtworkAction] Saving to DB. User: ${user.id}, Key: ${uploadResult.key}`);
+
         // biome-ignore lint/suspicious/noExplicitAny: DB result type
         let result: any;
         try {
@@ -141,8 +151,10 @@ export async function createArtworkAction(formData: FormData) {
                 .insert(artworks)
                 .values(safeData)
                 .returning({ insertedId: artworks.id });
+                
+             console.log(`[CreateArtworkAction] DB Insert Success. Result: ${JSON.stringify(result)}`);
         } catch (dbError) {
-            console.error("DB Insert Failed, cleaning up R2...", dbError);
+            console.error(`[CreateArtworkAction] DB Insert Failed: ${dbError}. Cleaning up R2...`);
             if (uploadResult.key) {
                 await deleteFromR2(uploadResult.key);
             }
@@ -153,7 +165,7 @@ export async function createArtworkAction(formData: FormData) {
 
         if (newArtworkId) {
             console.log(
-                `Enqueueing protection for ID ${newArtworkId}`,
+                `[CreateArtworkAction] Enqueueing protection for ID ${newArtworkId}, URL: ${uploadResult.url}`,
             );
             
             await sendToQueue({
@@ -163,13 +175,16 @@ export async function createArtworkAction(formData: FormData) {
                     fileUrl: uploadResult.url,
                 }
             });
+            console.log(`[CreateArtworkAction] Enqueue Success for ID ${newArtworkId}`);
+        } else {
+             console.error(`[CreateArtworkAction] No ID returned from DB insert!`);
         }
 
         revalidatePath(DASHBOARD_ROUTE);
 
         return { success: true };
     } catch (error: unknown) {
-        console.error("Create artwork error:", error);
+        console.error(`[CreateArtworkAction] Critical Error:`, error);
         // Return Zod errors if available
         // biome-ignore lint/suspicious/noExplicitAny: Zod error check
         if ((error as any).flatten) {

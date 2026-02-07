@@ -36,6 +36,8 @@ export async function uploadToR2(
 
         // Convert File to ArrayBuffer
         const arrayBuffer = await file.arrayBuffer();
+        
+        console.log(`[R2] Uploading ${key} (${arrayBuffer.byteLength} bytes) to bucket`);
 
         // Upload to R2
         // !starterconf - update this to match your R2 bucket binding name
@@ -53,11 +55,14 @@ export async function uploadToR2(
         });
 
         if (!result) {
+            console.error(`[R2] Upload FAILED for ${key}`);
             return {
                 success: false,
                 error: "Upload failed",
             };
         }
+        
+        console.log(`[R2] Upload SUCCESS for ${key}`);
 
         // Return URL proxied through the application
         // biome-ignore lint/suspicious/noExplicitAny: Env variables not typed in Cloudflare types yet
