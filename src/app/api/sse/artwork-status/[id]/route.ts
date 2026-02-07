@@ -1,14 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getDb } from "@/db";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import { eq } from "drizzle-orm";
-// import { getSession } from "@/modules/auth/utils/auth-utils"; // Removed to avoid Node.js deps in Edge
 import { verifySessionEdge } from "../../auth-edge";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 
-// Use edge runtime for better streaming support on Cloudflare
 export const runtime = 'edge';
-// export const dynamic = 'force-dynamic'; // runtime=edge implies dynamic usually
 
 export async function GET(
     request: NextRequest,
@@ -16,99 +13,109 @@ export async function GET(
 ) {
     const { id } = await params;
     const artworkId = parseInt(id);
-    console.log(`[SSE] New connection request for artwork ${artworkId}`);
 
-    // 1. Auth check (Edge compatible)
+    // 1. Auth & Setup
     const session = await verifySessionEdge(request);
-    
     if (!session?.user) {
-        console.log(`[SSE] Unauthorized access attempt for artwork ${artworkId}`);
-        return new NextResponse('Unauthorized', { status: 401 });
+        return new Response('Unauthorized', { status: 401 });
     }
 
+    // 2. TransformStream Pattern (Standard Web API)
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
     const encoder = new TextEncoder();
 
+    // 3. Status Loop
+    // We run this async function to push data into the stream.
+    // The stream returning in the Response keeps the connection open.
+    const runStream = async () => {
+        let db: any;
+        try {
+            db = await getDb();
+        } catch (e) {
+            console.error("[SSE] DB Init failed", e);
+            await writer.close();
+            return;
+        }
 
-    // 2. Pre-fetch DB instance to avoid ALS context issues in callbacks
-    // We get the DB *before* creating the stream to ensure we have the context
-    let db: any;
-    try {
-        db = await getDb();
-    } catch (e) {
-        console.error("[SSE] Failed to get DB instance:", e);
-        return new NextResponse('Internal Server Error', { status: 500 });
-    }
+        // Send initial connection confirmation (comment)
+        try {
+            await writer.write(encoder.encode(": connected\n\n"));
+        } catch (e) {
+            // Client likely disconnected immediately
+            return;
+        }
 
-    const stream = new ReadableStream({
-        async start(controller) {
-            // Send initial ping to confirm connection
+        const startTime = Date.now();
+        // Limit connection to ~29 seconds to avoid Cloudflare hard timeouts.
+        // The client (EventSource) will automatically reconnect.
+        const MAX_DURATION = 29000; 
+
+        while (true) {
             try {
-                controller.enqueue(encoder.encode(": ping\n\n"));
-            } catch (e) {
-                 // Stream closed immediately
-                 return;
-            }
-
-            try {
-                // Loop until client disconnects or we initiate close
-                while (!request.signal.aborted) {
-                    try {
-                        const artwork = await db.query.artworks.findFirst({
-                            where: eq(artworks.id, artworkId),
-                            columns: {
-                                protectionStatus: true,
-                                userId: true
-                            }
-                        });
-
-                        if (!artwork) {
-                            console.log(`[SSE] Artwork ${artworkId} not found`);
-                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: "ERROR", error: "Not found" })}\n\n`));
-                            break;
-                        }
-
-                        if (artwork.userId !== session.user.id) {
-                            console.log(`[SSE] User mismatch for artwork ${artworkId}`);
-                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: "ERROR", error: "Unauthorized" })}\n\n`));
-                            break;
-                        }
-
-                        // Send status
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: artwork.protectionStatus })}\n\n`));
-
-                        // Check terminal state
-                        if (artwork.protectionStatus === ProtectionStatus.PROTECTED || 
-                            artwork.protectionStatus === ProtectionStatus.FAILED ||
-                            artwork.protectionStatus === ProtectionStatus.CANCELED) {
-                            console.log(`[SSE] Final state reached for ${artworkId}: ${artwork.protectionStatus}`);
-                            break;
-                        }
-                    } catch (err) {
-                        console.error("[SSE] Error during polling cycle:", err);
-                        // Optional: break; 
-                    }
-
-                    // Sleep for 1 second before next poll
-                    // This keeps the execution context alive within the stream's start method
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                // Check disconnect
+                if (request.signal.aborted) {
+                    break;
                 }
-            } catch (error) {
-                console.error("[SSE] Stream error:", error);
-            } finally {
-                console.log(`[SSE] Closing stream for artwork ${artworkId}`);
-                try {
-                    controller.close(); 
-                } catch(e) { /* ignore if already closed */ }
+                
+                // Check duration limit
+                if (Date.now() - startTime > MAX_DURATION) {
+                     // Graceful close for rotation
+                    break;
+                }
+
+                const artwork = await db.query.artworks.findFirst({
+                    where: eq(artworks.id, artworkId),
+                    columns: {
+                        protectionStatus: true,
+                        userId: true
+                    }
+                });
+
+                if (!artwork || artwork.userId !== session.user.id) {
+                    // Send error event and close
+                    const msg = JSON.stringify({ status: "ERROR", error: "Not found or Unauthorized" });
+                    await writer.write(encoder.encode(`data: ${msg}\n\n`));
+                    break;
+                }
+
+                // Send Status
+                const msg = JSON.stringify({ status: artwork.protectionStatus });
+                await writer.write(encoder.encode(`data: ${msg}\n\n`));
+
+                // Terminal states
+                if (artwork.protectionStatus === ProtectionStatus.PROTECTED || 
+                    artwork.protectionStatus === ProtectionStatus.FAILED ||
+                    artwork.protectionStatus === ProtectionStatus.CANCELED) {
+                    break;
+                }
+
+                // Wait 1s
+                await new Promise(r => setTimeout(r, 1000));
+
+            } catch (err) {
+                console.error("[SSE] Loop error", err);
+                break;
             }
         }
-    });
+        
+        try {
+            await writer.close();
+        } catch(e) {
+            // Ignore close errors
+        }
+    };
 
-    return new NextResponse(stream, {
+    // Start the loop (do not await, let it run in background of the stream)
+    runStream();
+
+    // 4. Return Response (Standard, not NextResponse)
+    return new Response(readable, {
         headers: {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache, no-transform',
             'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no', // Disable buffering for Nginx/Proxies
+            'X-Accel-Buffering': 'no',
         },
     });
 }
