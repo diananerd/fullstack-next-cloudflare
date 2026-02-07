@@ -47,7 +47,19 @@ export async function GET(
 
         if (!authed && !isSystemRequest) {
             console.warn("[AssetProxy] Unauthorized access attempt");
-            return new NextResponse("Unauthorized", { status: 401 });
+            
+            // Return debug info in body to help diagnose (only for 401s)
+            return NextResponse.json({
+                error: "Unauthorized",
+                debug: {
+                    hasAuthHeader: !!authHeader,
+                    authHeaderLen: authHeader ? authHeader.length : 0,
+                    hasSystemToken: !!systemToken,
+                    systemTokenLen: systemToken ? systemToken.length : 0,
+                    envKeys: Object.keys(env || {}).filter(k => !k.includes("SECRET") && !k.includes("KEY")), // Safe keys
+                    processEnvKeys: Object.keys(process.env || {}).filter(k => !k.includes("SECRET") && !k.includes("KEY"))
+                }
+            }, { status: 401 });
         }
 
         const params = await props.params;

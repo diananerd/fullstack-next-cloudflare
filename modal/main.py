@@ -123,7 +123,12 @@ class MistProcessor:
                  print(f"[Modal] WARNING: AUTH_TOKEN not found in env")
 
             r = requests.get(req.image_url, stream=True, timeout=30, headers=headers)
-            r.raise_for_status()
+            try:
+                r.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                print(f"[Modal] Download failed. Status: {r.status_code}")
+                print(f"[Modal] Response Body: {r.text}")
+                raise e
             
             input_path = f"{input_dir}/image.png"
             with open(input_path, "wb") as f:
