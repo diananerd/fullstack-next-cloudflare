@@ -27,14 +27,17 @@ export async function POST(req: NextRequest) {
 
         const body = (await req.json()) as ProtectionResult;
         const { artwork_id, status, protected_image_url, file_metadata, error_message } = body;
+        
+        // Ensure artwork_id is a number (Modal sends it as string)
+        const numericArtworkId = Number(artwork_id);
 
-        console.log(`[Webhook] Received update for artwork ${artwork_id}: ${status}`);
+        console.log(`[Webhook] Received update for artwork ${numericArtworkId}: ${status}`);
         
         const db = await getDb();
 
         // 2. Cancellation Check
         const currentArtwork = await db.query.artworks.findFirst({
-            where: eq(artworks.id, artwork_id),
+            where: eq(artworks.id, numericArtworkId),
             columns: { protectionStatus: true }
         });
 
@@ -72,13 +75,17 @@ export async function POST(req: NextRequest) {
                     metadata: file_metadata,
                     updatedAt: new Date().toISOString()
                 })
-                .where(eq(artworks.id, artwork_id));
+                .where(eq(artworks.id, numericArtworkId));
         } else {
             await db
                 .update(artworks)
                 .set({
                     protectionStatus: ProtectionStatus.FAILED,
+                    metadata: { error: error_message }, // Store error in metadata
                     updatedAt: new Date().toISOString()
+                })
+                .where(eq(artworks.id, numericArtworkId));
+        }                    updatedAt: new Date().toISOString()
                 })
                 .where(eq(artworks.id, artwork_id));
              console.error(`[Webhook] Job failed for ${artwork_id}: ${error_message}`);
