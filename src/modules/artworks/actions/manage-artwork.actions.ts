@@ -3,7 +3,7 @@
 import { and, count, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { deleteFromR2 } from "@/lib/r2";
+import { sendToQueue } from "@/lib/queue";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
@@ -76,21 +76,20 @@ export async function deleteArtworkAction(artworkId: number) {
             }
         }
 
-        const deletionPromises = [];
-        if (shouldDeleteRaw && artwork.r2Key) {
-            console.log(`[Delete] Deleting Raw R2: ${artwork.r2Key}`);
-            deletionPromises.push(deleteFromR2(artwork.r2Key));
-        }
-        if (shouldDeleteProtected && artwork.protectedR2Key) {
-            console.log(
-                `[Delete] Deleting Protected R2: ${artwork.protectedR2Key}`,
-            );
-            deletionPromises.push(deleteFromR2(artwork.protectedR2Key));
-        }
-
-        await Promise.allSettled(deletionPromises);
-
+        // Delete from DB first
         await db.delete(artworks).where(eq(artworks.id, artworkId));
+
+        // Enqueue file cleanup
+        if ((shouldDeleteRaw && artwork.r2Key) || (shouldDeleteProtected && artwork.protectedR2Key)) {
+            console.log(`[Delete] Enqueuing file cleanup for ID ${artworkId}`);
+            await sendToQueue({
+                type: "DELETE_ARTWORK_FILES",
+                payload: {
+                    r2Key: shouldDeleteRaw ? artwork.r2Key : null,
+                    protectedR2Key: shouldDeleteProtected ? artwork.protectedR2Key : null,
+                }
+            });
+        }
 
         revalidatePath(DASHBOARD_ROUTE);
         return { success: true };
@@ -138,26 +137,23 @@ export async function retryProtectionAction(artworkId: number) {
         if (artwork.userId !== user.id)
             return { success: false, error: "Unauthorized" };
 
-        // Set back to PENDING
+        // Set back to PENDING and trigger queue
         await db
             .update(artworks)
             .set({ protectionStatus: ProtectionStatus.PENDING })
             .where(eq(artworks.id, artworkId));
 
-        // Trigger Mock GPU Processing again
-        const appUrl =
-            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         console.log(
-            `Re-triggering mock GPU at ${appUrl}/api/mock-gpu/process for ID ${artworkId}`,
+            `Re-queuing protection for ID ${artworkId}`,
         );
-        await fetch(`${appUrl}/api/mock-gpu/process`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+        
+        await sendToQueue({
+            type: "PROCESS_ARTWORK",
+            payload: {
                 artworkId: artworkId,
                 fileUrl: artwork.url,
-            }),
-        }).catch((err) => console.error("Failed to re-trigger mock GPU:", err));
+            }
+        });
 
         revalidatePath(DASHBOARD_ROUTE);
         return { success: true };
