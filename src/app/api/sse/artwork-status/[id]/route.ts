@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import { eq } from "drizzle-orm";
-import { getSession } from "@/modules/auth/utils/auth-utils";
+// import { getSession } from "@/modules/auth/utils/auth-utils"; // Removed to avoid Node.js deps in Edge
+import { verifySessionEdge } from "../../auth-edge";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 
 // Use edge runtime for better streaming support on Cloudflare
-// export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
+// export const dynamic = 'force-dynamic'; // runtime=edge implies dynamic usually
 
 export async function GET(
     request: NextRequest,
@@ -17,14 +18,16 @@ export async function GET(
     const artworkId = parseInt(id);
     console.log(`[SSE] New connection request for artwork ${artworkId}`);
 
-    // 1. Auth check
-    const session = await getSession();
+    // 1. Auth check (Edge compatible)
+    const session = await verifySessionEdge(request);
+    
     if (!session?.user) {
         console.log(`[SSE] Unauthorized access attempt for artwork ${artworkId}`);
         return new NextResponse('Unauthorized', { status: 401 });
     }
 
     const encoder = new TextEncoder();
+
 
     // 2. Pre-fetch DB instance to avoid ALS context issues in callbacks
     // We get the DB *before* creating the stream to ensure we have the context
