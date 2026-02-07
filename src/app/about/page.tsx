@@ -53,21 +53,26 @@ export default function AboutPage() {
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
                     <Link href="/signup">
-                        <Button size="lg" className="h-14 px-8 text-lg rounded-full shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 border-0">
+                        <Button size="lg" className="h-14 px-12 text-lg rounded-full shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 border-0">
                             Get Started 
                             <ChevronRight className="ml-2 h-5 w-5" />
                         </Button>
                     </Link>
-                    <Link href="/login">
+                    <Link href="/faq">
                          <Button variant="outline" size="lg" className="h-14 px-8 text-lg rounded-full border-gray-300 hover:bg-gray-50 text-gray-700">
-                            Access Vault
+                            How it Works
                         </Button>
                     </Link>
                 </div>
             </main>
 
             {/* Footer Minimal */}
-            <footer className="absolute bottom-6 w-full text-center text-gray-400 text-sm">
+            <footer className="absolute bottom-6 w-full text-center text-gray-400 text-sm flex flex-col gap-2">
+                <div className="flex justify-center gap-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    <Link href="/faq" className="hover:text-blue-600 transition-colors">FAQ</Link>
+                    <span>•</span>
+                    <Link href="/login" className="hover:text-blue-600 transition-colors">Login</Link>
+                </div>
                 <p>© 2026 Drimit AI Shield. Protecting your Art.</p>
             </footer>
         </div>

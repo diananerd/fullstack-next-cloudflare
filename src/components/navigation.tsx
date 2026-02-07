@@ -12,12 +12,12 @@ export function Navigation() {
                     <div className="flex items-center space-x-6">
                         <Link
                             href="/dashboard"
-                            className="text-xl text-gray-900 flex items-center gap-2"
+                            className="flex items-center gap-2"
                         >
-                            <img src="/icon.png" alt="AI Shield Logo" className="h-8 w-8" />
-                            <span className="flex items-center gap-4">
-                                <span className="font-bold">Drimit</span>
-                                <span className="font-normal text-lg text-blue-500">AI Shield</span>
+                            <img src="/icon.png" alt="Drimit AI Shield" className="h-8 w-8" />
+                            <span className="flex items-center gap-2 text-xl">
+                                <span className="font-bold text-gray-900">Drimit</span>
+                                <span className="font-normal text-blue-500">AI Shield</span>
                             </span>
                         </Link>
                     </div>
