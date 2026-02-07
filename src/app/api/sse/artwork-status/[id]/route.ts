@@ -41,66 +41,65 @@ export async function GET(
 
     const stream = new ReadableStream({
         async start(controller) {
-            let interval: NodeJS.Timeout;
-            
             // Send initial ping to confirm connection
-            controller.enqueue(encoder.encode(": ping\n\n"));
+            try {
+                controller.enqueue(encoder.encode(": ping\n\n"));
+            } catch (e) {
+                 // Stream closed immediately
+                 return;
+            }
 
-            const checkStatus = async () => {
-                try {
-                    const artwork = await db.query.artworks.findFirst({
-                        where: eq(artworks.id, artworkId),
-                        columns: {
-                            protectionStatus: true,
-                            userId: true
+            try {
+                // Loop until client disconnects or we initiate close
+                while (!request.signal.aborted) {
+                    try {
+                        const artwork = await db.query.artworks.findFirst({
+                            where: eq(artworks.id, artworkId),
+                            columns: {
+                                protectionStatus: true,
+                                userId: true
+                            }
+                        });
+
+                        if (!artwork) {
+                            console.log(`[SSE] Artwork ${artworkId} not found`);
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: "ERROR", error: "Not found" })}\n\n`));
+                            break;
                         }
-                    });
 
-                    if (!artwork) {
-                        console.log(`[SSE] Artwork ${artworkId} not found`);
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: "ERROR", error: "Not found" })}\n\n`));
-                        clearInterval(interval);
-                        controller.close();
-                        return;
+                        if (artwork.userId !== session.user.id) {
+                            console.log(`[SSE] User mismatch for artwork ${artworkId}`);
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: "ERROR", error: "Unauthorized" })}\n\n`));
+                            break;
+                        }
+
+                        // Send status
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: artwork.protectionStatus })}\n\n`));
+
+                        // Check terminal state
+                        if (artwork.protectionStatus === ProtectionStatus.PROTECTED || 
+                            artwork.protectionStatus === ProtectionStatus.FAILED ||
+                            artwork.protectionStatus === ProtectionStatus.CANCELED) {
+                            console.log(`[SSE] Final state reached for ${artworkId}: ${artwork.protectionStatus}`);
+                            break;
+                        }
+                    } catch (err) {
+                        console.error("[SSE] Error during polling cycle:", err);
+                        // Optional: break; 
                     }
 
-                    if (artwork.userId !== session.user.id) {
-                         console.log(`[SSE] User mismatch for artwork ${artworkId}`);
-                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: "ERROR", error: "Unauthorized" })}\n\n`));
-                         clearInterval(interval);
-                         controller.close();
-                         return;
-                    }
-
-                    // Send current status
-                    // console.log(`[SSE] Sending status for ${artworkId}: ${artwork.protectionStatus}`);
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: artwork.protectionStatus })}\n\n`));
-
-                    // If final state, close stream
-                    if (artwork.protectionStatus === ProtectionStatus.PROTECTED || 
-                        artwork.protectionStatus === ProtectionStatus.FAILED ||
-                        artwork.protectionStatus === ProtectionStatus.CANCELED) {
-                        console.log(`[SSE] Final state reached for ${artworkId}: ${artwork.protectionStatus}`);
-                        clearInterval(interval);
-                        controller.close();
-                    }
-                } catch (error) {
-                    console.error("[SSE] Polling Error", error);
-                    // attempt to keep alive
+                    // Sleep for 1 second before next poll
+                    // This keeps the execution context alive within the stream's start method
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
-            };
-
-            // Check immediately
-            await checkStatus();
-
-            // Poll every 1 second (faster updates)
-            interval = setInterval(checkStatus, 1000);
-
-            // Cleanup when client disconnects
-            request.signal.addEventListener('abort', () => {
-                console.log(`[SSE] Client disconnected for artwork ${artworkId}`);
-                clearInterval(interval);
-            });
+            } catch (error) {
+                console.error("[SSE] Stream error:", error);
+            } finally {
+                console.log(`[SSE] Closing stream for artwork ${artworkId}`);
+                try {
+                    controller.close(); 
+                } catch(e) { /* ignore if already closed */ }
+            }
         }
     });
 
