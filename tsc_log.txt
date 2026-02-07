@@ -1,0 +1,1 @@
+src/app/api/webhooks/modal/route.ts(84,33): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type 'SQL<unknown> | SQLiteColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}> | { inputSha256?: string | undefined; outputSha256?: string | undefined; mistTimeSeconds?: number | undefined; processingTime?: number | undefined; }'.

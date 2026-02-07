@@ -30,6 +30,7 @@ export const artworks = sqliteTable(
              outputSha256?: string;
              mistTimeSeconds?: number;
              processingTime?: number;
+             error?: string;
         }>(),
         width: integer("width"),
         height: integer("height"),

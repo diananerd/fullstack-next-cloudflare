@@ -85,10 +85,7 @@ export async function POST(req: NextRequest) {
                     updatedAt: new Date().toISOString()
                 })
                 .where(eq(artworks.id, numericArtworkId));
-        }                    updatedAt: new Date().toISOString()
-                })
-                .where(eq(artworks.id, artwork_id));
-             console.error(`[Webhook] Job failed for ${artwork_id}: ${error_message}`);
+             console.error(`[Webhook] Job failed for ${numericArtworkId}: ${error_message}`);
         }
 
         return NextResponse.json({ success: true });
