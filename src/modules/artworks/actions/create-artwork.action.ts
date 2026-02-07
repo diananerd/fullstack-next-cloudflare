@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
+import { sendToQueue } from "@/lib/queue";
 import { deleteFromR2, type UploadResult, uploadToR2 } from "@/lib/r2";
 import {
     ProtectionStatus,
@@ -150,31 +151,18 @@ export async function createArtworkAction(formData: FormData) {
 
         const newArtworkId = result[0]?.insertedId;
 
-        // Trigger Mock GPU Processing (Fire and Forget-ish)
-        // Since we are in an action, we can't easily do fire-and-forget without holding up the response
-        // in some environments, but we'll try to just fetch without awaiting the result fully?
-        // Actually, best practice in Next.js Server Actions is usually to await, or offload to a queue.
-        // For this Hackathon/MVP: we will fetch async but NOT await the response body, just trigger it.
-        // BUT, Next.js serverless functions might die if we don't await.
-        // So we will await the fetch call initiation.
-
         if (newArtworkId) {
-            const appUrl =
-                process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-            // Await the fetch to ensure it fires in the serverless environment
             console.log(
-                `Triggering mock GPU at ${appUrl}/api/mock-gpu/process for ID ${newArtworkId}`,
+                `Enqueueing protection for ID ${newArtworkId}`,
             );
-            await fetch(`${appUrl}/api/mock-gpu/process`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+            
+            await sendToQueue({
+                type: "PROCESS_ARTWORK",
+                payload: {
                     artworkId: newArtworkId,
                     fileUrl: uploadResult.url,
-                }),
-            }).catch((err) =>
-                console.error("Failed to trigger mock GPU:", err),
-            );
+                }
+            });
         }
 
         revalidatePath(DASHBOARD_ROUTE);
