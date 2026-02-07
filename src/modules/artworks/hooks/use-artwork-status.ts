@@ -22,16 +22,18 @@ export function useArtworkStatus(artworkId: number, initialStatus: ProtectionSta
 
         if (!isProcessing) return;
 
-        console.log(`[SSE] Connecting for artwork ${artworkId}`);
-        const eventSource = new EventSource(`/api/sse/artwork-status/${artworkId}`);
+        console.log(`[Polling] Starting polling for artwork ${artworkId}`);
 
-        eventSource.onmessage = (event) => {
+        const checkStatus = async () => {
             try {
-                const data = JSON.parse(event.data);
+                const res = await fetch(`/api/sse/artwork-status/${artworkId}`);
+                if (!res.ok) return;
+                const data = (await res.json()) as { status?: ProtectionStatusType | "ERROR" };
+
                 if (data.status && data.status !== "ERROR") {
                     // Only update if changed
                     setStatus((prev) => {
-                        if (prev !== data.status) return data.status;
+                        if (prev !== data.status) return data.status as ProtectionStatusType;
                         return prev;
                     });
 
@@ -42,39 +44,27 @@ export function useArtworkStatus(artworkId: number, initialStatus: ProtectionSta
                         data.status === ProtectionStatus.CANCELED;
 
                     if (isFinal) {
-                        console.log(`[SSE] Job finished: ${data.status}. Refreshing...`);
-                        eventSource.close();
+                        console.log(`[Polling] Job finished: ${data.status}. Refreshing...`);
                         startTransition(() => {
                             router.refresh();
                         });
                     }
                 }
             } catch (e) {
-                console.error("[SSE] Parse error", e);
+                console.error("[Polling] Error", e);
             }
         };
 
-        eventSource.onerror = (e) => {
-            // EventSource automatically retries on connection loss.
-            // We only close on explicit error if needed, but for now let it retry.
-            // But if it's a 404 or 401, the browser usually closes it.
-            // valid connection state: 0=connecting, 1=open, 2=closed
-            if (eventSource.readyState === 2) { 
-                console.log("[SSE] Connection closed by server or network error.");
-            }
-        };
+        // Initial check
+        checkStatus();
+
+        // Poll every minute
+        const intervalId = setInterval(checkStatus, 60000); 
 
         return () => {
-            eventSource.close();
+            clearInterval(intervalId);
         };
-        // We only want to restart if artworkId changes.
-        // If status changes (e.g. QUEUED -> PROCESSING), we don't need to reconnect,
-        // the stream just keeps sending the new status.
-        // So we do NOT include 'status' in dependency array.
-        // But we need to verify if 'isProcessing' check at the top relies on stale closure.
-        // NO, because we only start the effect if INITIAL status (or current state) implies processing at mount.
-        // Wait, if we use Query/State, we need to be careful.
-    }, [artworkId, initialStatus]); // Added initialStatus to reset if we navigate or hard refresh
+    }, [artworkId, initialStatus, status]); 
 
     return status;
 }
