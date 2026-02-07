@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
+import { useArtworkStatus } from "../hooks/use-artwork-status";
 import { useArtworkActions } from "../hooks/use-artwork-actions";
 import { ArtworkActionButtons } from "./artwork-action-buttons";
 import { ArtworkFullView } from "./artwork-full-view";
@@ -15,9 +16,18 @@ interface ArtworkCardProps {
 }
 
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
-    const actions = useArtworkActions(artwork);
-    const { isProcessing, isProtected, optimisticStatus } = actions;
+    // Live status updates via SSE (replaces polling)
+    const liveStatus = useArtworkStatus(artwork.id, artwork.protectionStatus);
+    
+    // Memoize the live artwork object to prevent unnecessary re-renders of hooks
+    const liveArtwork = {
+        ...artwork,
+        protectionStatus: liveStatus
+    };
 
+    const actions = useArtworkActions(liveArtwork);
+    const { isProcessing, isProtected, optimisticStatus } = actions;
+    
     const router = useRouter();
     const [_, startTransition] = useTransition();
     const [showFullView, setShowFullView] = useState(false);
@@ -28,18 +38,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
         setImageError(false);
     }, [artwork.url, artwork.protectedUrl]);
 
-    // Auto-refresh poll if processing
-    useEffect(() => {
-        if (!isProcessing) return;
-
-        const interval = setInterval(() => {
-            startTransition(() => {
-                router.refresh();
-            });
-        }, 5000); // Poll every 5 seconds
-
-        return () => clearInterval(interval);
-    }, [isProcessing, router]);
+    // Note: Polling logic removed in favor of SSE in useArtworkStatus
 
     const displayUrl =
         isProtected && artwork.protectedUrl

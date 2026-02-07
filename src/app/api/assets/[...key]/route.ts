@@ -63,6 +63,11 @@ export async function GET(
         }
 
         const params = await props.params;
+        const objectKey = params.key.join("/");
+
+        if (!objectKey) {
+            return new NextResponse("Key required", { status: 400 });
+        }
 
         // Security: Ensure we are not allowing directory traversal if that were possible (R2 is flat, but good practice)
         // const sanitizedKey = objectKey.replace(/\.\./g, "");

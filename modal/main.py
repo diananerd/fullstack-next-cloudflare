@@ -183,7 +183,7 @@ class MistProcessor:
                 "--pgd_eps", epsilon,
                 "--resolution", "512",
                 "--mixed_precision", "fp16",
-                "--wandb_disable"
+                # "--wandb_disable"  # Removed: Not supported by argparser
             ]
             
             print(f"[Modal] Executing Mist: {' '.join(cmd)}")
