@@ -53,7 +53,7 @@ export default function AboutPage() {
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
                     <Link href="/signup">
-                        <Button size="lg" className="h-14 px-12 text-lg rounded-full shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 border-0">
+                        <Button size="lg" className="h-14 pl-20 pr-12 text-lg rounded-full shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 border-0">
                             Get Started 
                             <ChevronRight className="ml-2 h-5 w-5" />
                         </Button>
