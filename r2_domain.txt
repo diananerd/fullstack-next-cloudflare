@@ -1,5 +1,0 @@
-
- ⛅️ wrangler 4.35.0 (update available 4.63.0)
-─────────────────────────────────────────────
-Listing custom domains connected to bucket 'drimit-shield-bucket'...
-There are no custom domains connected to this bucket.

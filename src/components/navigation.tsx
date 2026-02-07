@@ -1,9 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import LogoutButton from "../modules/auth/components/logout-button";
+import { getCurrentUser } from "@/modules/auth/utils/auth-utils";
 import { NavbarUploadButton } from "./navbar-upload";
+import { NavigationUserMenu } from "./navigation-user-menu";
 
-export function Navigation() {
+export async function Navigation() {
+    const user = await getCurrentUser();
+
     return (
         <nav className="border-b bg-white sticky top-0 z-50">
             <div className="w-full px-4 md:px-6 py-3">
@@ -27,10 +30,9 @@ export function Navigation() {
                             </span>
                         </Link>
                     </div>
-
                     <div className="flex items-center gap-4">
                         <NavbarUploadButton />
-                        <LogoutButton />
+                        {user && <NavigationUserMenu user={user} />}
                     </div>
                 </div>
             </div>
