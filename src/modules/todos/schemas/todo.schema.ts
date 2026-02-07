@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { TODO_VALIDATION_MESSAGES } from "@/constants/validation.constant";
@@ -39,7 +39,11 @@ export const todos = sqliteTable("todos", {
     updatedAt: text("updated_at")
         .notNull()
         .$defaultFn(() => new Date().toISOString()),
-});
+}, (table) => ([
+    index("idx_todos_user_id").on(table.userId),
+    index("idx_todos_created_at").on(table.createdAt),
+    index("idx_todos_completed").on(table.completed),
+]));
 
 // Zod schemas for validation
 export const insertTodoSchema = createInsertSchema(todos, {

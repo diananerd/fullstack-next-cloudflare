@@ -1,0 +1,4 @@
+
+ ⛅️ wrangler 4.35.0 (update available 4.63.0)
+─────────────────────────────────────────────
+Public access is enabled at 'https://pub-831afc3642444150a325c2a0a56b4864.r2.dev'.

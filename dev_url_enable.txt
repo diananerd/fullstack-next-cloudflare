@@ -1,0 +1,7 @@
+
+ ⛅️ wrangler 4.35.0 (update available 4.63.0)
+─────────────────────────────────────────────
+? Are you sure you enable public access for bucket 'drimit-shield-bucket'? The contents of your bucket will be made publicly available at its r2.dev URL
+🤖 Using fallback value in non-interactive context: yes
+Enabling public access for bucket 'drimit-shield-bucket'...
+✨ Public access enabled at 'https://pub-831afc3642444150a325c2a0a56b4864.r2.dev'.

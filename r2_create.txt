@@ -1,0 +1,22 @@
+
+wrangler r2 bucket domain add <bucket>
+
+Connect a custom domain to an R2 bucket
+
+POSITIONALS
+  bucket  The name of the R2 bucket to connect a custom domain to  [string] [required]
+
+GLOBAL FLAGS
+  -c, --config    Path to Wrangler configuration file  [string]
+      --cwd       Run as if Wrangler was started in the specified directory instead of the current working directory  [string]
+  -e, --env       Environment to use for operations, and for selecting .env and .dev.vars files  [string]
+      --env-file  Path to an .env file to load - can be specified multiple times - values from earlier files are overridden by values in later files  [array]
+  -h, --help      Show help  [boolean]
+  -v, --version   Show version number  [boolean]
+
+OPTIONS
+      --domain        The custom domain to connect to the R2 bucket  [string] [required]
+      --zone-id       The zone ID associated with the custom domain  [string] [required]
+      --min-tls       Set the minimum TLS version for the custom domain (defaults to 1.0 if not set)  [string] [choices: "1.0", "1.1", "1.2", "1.3"]
+  -J, --jurisdiction  The jurisdiction where the bucket exists  [string]
+  -y, --force         Skip confirmation  [boolean] [default: false]

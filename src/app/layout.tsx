@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "Next.js Cloudflare App",
+    title: "AI Shield by Drimit",
     description:
-        "Full-stack Next.js application with Cloudflare Workers, D1 db, R2 storage, and Drizzle ORM.",
+        "AI Shield - Protect your images from generative AI editing. Powered by Drimit.",
 };
 
 export const dynamic = "force-dynamic";

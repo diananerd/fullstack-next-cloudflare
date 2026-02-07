@@ -14,11 +14,10 @@ export default async function Dashboard() {
         <div className="container mx-auto py-12 px-4">
             <div className="text-center mb-12">
                 <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                    Welcome to TodoApp
+                    Welcome to AI Shield
                 </h1>
                 <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                    A simple and elegant todo application built with Next.js 15,
-                    TailwindCSS, and shadcn/ui components.
+                    Protect your images from being edited by generative AI models like Stable Diffusion or Nano Banana.
                 </p>
             </div>
 
@@ -27,17 +26,17 @@ export default async function Dashboard() {
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <List className="mr-2 h-5 w-5" />
-                            View Todos
+                            View Gallery
                         </CardTitle>
                         <CardDescription>
-                            Browse and manage all your todos in one place
+                            Browse your protected images
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Link href="/dashboard/todos">
                             <Button className="w-full">
                                 <CheckSquare className="mr-2 h-4 w-4" />
-                                Go to Todos
+                                Go to Gallery
                             </Button>
                         </Link>
                     </CardContent>
@@ -47,17 +46,17 @@ export default async function Dashboard() {
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <Plus className="mr-2 h-5 w-5" />
-                            Create Todo
+                            Protect Image
                         </CardTitle>
                         <CardDescription>
-                            Add a new task to your todo list
+                            Upload and shield a new image
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Link href="/dashboard/todos/new">
                             <Button className="w-full" variant="outline">
                                 <Plus className="mr-2 h-4 w-4" />
-                                Create New Todo
+                                Shield New Image
                             </Button>
                         </Link>
                     </CardContent>
@@ -73,31 +72,32 @@ export default async function Dashboard() {
                         <div className="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
                             <CheckSquare className="h-6 w-6 text-blue-600" />
                         </div>
-                        <h3 className="font-semibold mb-2">Task Management</h3>
+                        <h3 className="font-semibold mb-2">Feature Poisoning</h3>
                         <p className="text-gray-600 text-sm">
-                            Create, edit, and delete todos with ease
+                            Disrupts AI model feature extraction
                         </p>
                     </div>
                     <div className="text-center">
                         <div className="bg-green-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
                             <List className="h-6 w-6 text-green-600" />
                         </div>
-                        <h3 className="font-semibold mb-2">Categories</h3>
+                        <h3 className="font-semibold mb-2">Secure Storage</h3>
                         <p className="text-gray-600 text-sm">
-                            Organize your todos with custom categories
+                            Images are stored securely in R2
                         </p>
                     </div>
                     <div className="text-center">
                         <div className="bg-purple-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
                             <Plus className="h-6 w-6 text-purple-600" />
                         </div>
-                        <h3 className="font-semibold mb-2">Rich Features</h3>
+                        <h3 className="font-semibold mb-2">Drimit Powered</h3>
                         <p className="text-gray-600 text-sm">
-                            Priorities, due dates, images, and more
+                            Built with Drimit technology
                         </p>
                     </div>
                 </div>
             </div>
+
         </div>
     );
 }
