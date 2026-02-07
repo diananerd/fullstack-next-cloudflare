@@ -7,35 +7,39 @@ import {
     type ProtectionStatusType,
 } from "@/modules/artworks/models/artwork.enum";
 
-export const artworks = sqliteTable("artworks", {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    title: text("title").notNull(),
-    description: text("description"),
-    userId: text("user_id")
-        .notNull()
-        .references(() => user.id, { onDelete: "cascade" }),
-    r2Key: text("r2_key").notNull(),
-    url: text("url").notNull(),
-    protectedUrl: text("protected_url"),
-    protectedR2Key: text("protected_r2_key"),
-    protectionStatus: text("protection_status")
-        .$type<ProtectionStatusType>()
-        .notNull()
-        .default(ProtectionStatus.PENDING),
-    width: integer("width"),
-    height: integer("height"),
-    size: integer("size"),
-    createdAt: text("created_at")
-        .notNull()
-        .$defaultFn(() => new Date().toISOString()),
-    updatedAt: text("updated_at")
-        .notNull()
-        .$defaultFn(() => new Date().toISOString()),
-}, (table) => ([
-    index("idx_artworks_user_id").on(table.userId),
-    index("idx_artworks_created_at").on(table.createdAt),
-    index("idx_artworks_status").on(table.protectionStatus),
-]));
+export const artworks = sqliteTable(
+    "artworks",
+    {
+        id: integer("id").primaryKey({ autoIncrement: true }),
+        title: text("title").notNull(),
+        description: text("description"),
+        userId: text("user_id")
+            .notNull()
+            .references(() => user.id, { onDelete: "cascade" }),
+        r2Key: text("r2_key").notNull(),
+        url: text("url").notNull(),
+        protectedUrl: text("protected_url"),
+        protectedR2Key: text("protected_r2_key"),
+        protectionStatus: text("protection_status")
+            .$type<ProtectionStatusType>()
+            .notNull()
+            .default(ProtectionStatus.PENDING),
+        width: integer("width"),
+        height: integer("height"),
+        size: integer("size"),
+        createdAt: text("created_at")
+            .notNull()
+            .$defaultFn(() => new Date().toISOString()),
+        updatedAt: text("updated_at")
+            .notNull()
+            .$defaultFn(() => new Date().toISOString()),
+    },
+    (table) => [
+        index("idx_artworks_user_id").on(table.userId),
+        index("idx_artworks_created_at").on(table.createdAt),
+        index("idx_artworks_status").on(table.protectionStatus),
+    ],
+);
 
 // Zod schemas for validation
 export const insertArtworkSchema = createInsertSchema(artworks, {
@@ -46,7 +50,9 @@ export const insertArtworkSchema = createInsertSchema(artworks, {
     url: z.string().url("Invalid URL"),
     protectedUrl: z.string().url().optional(),
     protectedR2Key: z.string().optional(),
-    protectionStatus: z.enum(Object.values(ProtectionStatus) as [string, ...string[]]).optional(),
+    protectionStatus: z
+        .enum(Object.values(ProtectionStatus) as [string, ...string[]])
+        .optional(),
     width: z.number().int().optional(),
     height: z.number().int().optional(),
     size: z.number().int().optional(),

@@ -13,7 +13,9 @@ export function ArtworkMasonry({ artworks }: ArtworkMasonryProps) {
         <MasonryGrid
             items={artworks}
             keyExtractor={(artwork) => artwork.id}
-            render={(artwork) => <ArtworkCard key={artwork.id} artwork={artwork} />}
+            render={(artwork) => (
+                <ArtworkCard key={artwork.id} artwork={artwork} />
+            )}
         />
     );
 }

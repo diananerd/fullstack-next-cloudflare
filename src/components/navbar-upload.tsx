@@ -13,13 +13,13 @@ interface UploadArtworkButtonProps extends ButtonProps {
     showIcon?: boolean;
 }
 
-export function UploadArtworkButton({ 
-    className, 
-    variant = "default", 
-    size = "sm", 
-    text, 
+export function UploadArtworkButton({
+    className,
+    variant = "default",
+    size = "sm",
+    text,
     showIcon = true,
-    ...props 
+    ...props
 }: UploadArtworkButtonProps) {
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
@@ -33,7 +33,9 @@ export function UploadArtworkButton({
         const buffer = await file.arrayBuffer();
         const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+        const hashHex = hashArray
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
         return hashHex;
     };
 
@@ -47,7 +49,8 @@ export function UploadArtworkButton({
             e.target.value = ""; // Reset
             return;
         }
-        if (file.size > 50 * 1024 * 1024) { // 50MB
+        if (file.size > 50 * 1024 * 1024) {
+            // 50MB
             toast.error("File size exceeds 50MB limit.");
             e.target.value = ""; // Reset
             return;
@@ -57,12 +60,14 @@ export function UploadArtworkButton({
         e.target.value = "";
 
         // Start loading toast immediately
-        const toastId = toast.loading("Uploading artwork...", { id: "upload-toast" });
+        const toastId = toast.loading("Uploading artwork...", {
+            id: "upload-toast",
+        });
 
         try {
             const fileHash = await computeSHA256(file);
             const formData = new FormData();
-            formData.append("title", file.name.split('.')[0]); 
+            formData.append("title", file.name.split(".")[0]);
             formData.append("image", file);
             formData.append("hash", fileHash);
 
@@ -70,16 +75,24 @@ export function UploadArtworkButton({
                 try {
                     const result = await createArtworkAction(formData);
                     if (result.success) {
-                        toast.success("Artwork uploaded successfully", { id: toastId });
+                        toast.success("Artwork uploaded successfully", {
+                            id: toastId,
+                        });
                         router.refresh();
                     } else {
                         // Handle server-returned errors
-                        toast.error(result.error || "Upload failed. Please try again.", { id: toastId });
+                        toast.error(
+                            result.error || "Upload failed. Please try again.",
+                            { id: toastId },
+                        );
                     }
                 } catch (err) {
                     // Handle network or system errors (like body size limit if not caught by client check)
                     console.error("Upload error:", err);
-                    toast.error("An error occurred during upload. Please check your connection or file size.", { id: toastId });
+                    toast.error(
+                        "An error occurred during upload. Please check your connection or file size.",
+                        { id: toastId },
+                    );
                 }
             });
         } catch (error) {
@@ -98,15 +111,19 @@ export function UploadArtworkButton({
                 className="hidden"
                 disabled={isPending}
             />
-            <Button 
-                onClick={handleClick} 
+            <Button
+                onClick={handleClick}
                 disabled={isPending}
                 className={cn("gap-2 shadow-sm", className)}
                 variant={variant}
                 size={size}
                 {...props}
             >
-                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : (showIcon && <UploadCloud className="h-4 w-4" />)}
+                {isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    showIcon && <UploadCloud className="h-4 w-4" />
+                )}
                 {text || (
                     <>
                         <span className="hidden sm:inline">Upload Artwork</span>

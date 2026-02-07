@@ -10,7 +10,7 @@ export interface UploadResult {
 export async function uploadToR2(
     file: File,
     folder: string = "uploads",
-    customFilename?: string
+    customFilename?: string,
 ): Promise<UploadResult> {
     try {
         const { env } = await getCloudflareContext();
@@ -19,9 +19,9 @@ export async function uploadToR2(
         let key: string;
 
         if (customFilename) {
-             key = `${folder}/${customFilename}.${extension}`;
+            key = `${folder}/${customFilename}.${extension}`;
         } else {
-             // Generate unique filename
+            // Generate unique filename
             const timestamp = Date.now();
             const randomId = Math.random().toString(36).substring(2, 15);
             key = `${folder}/${timestamp}_${randomId}.${extension}`;
@@ -53,7 +53,8 @@ export async function uploadToR2(
         }
 
         // Return URL proxied through the application
-        const appUrl = (env as any).NEXT_PUBLIC_APP_URL || "https://shield.drimit.io";
+        const appUrl =
+            (env as any).NEXT_PUBLIC_APP_URL || "https://shield.drimit.io";
         const publicUrl = `${appUrl}/api/assets/${key}`;
 
         return {

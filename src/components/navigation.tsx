@@ -10,18 +10,23 @@ export function Navigation() {
             <div className="w-full px-4 md:px-6 py-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-6">
-                        <Link
-                            href="/"
-                            className="flex items-center gap-2"
-                        >
-                            <img src="/icon.png" alt="Drimit AI Shield" className="h-8 w-8" />
+                        <Link href="/" className="flex items-center gap-2">
+                            <img
+                                src="/icon.png"
+                                alt="Drimit AI Shield"
+                                className="h-8 w-8"
+                            />
                             <span className="flex items-center gap-2 text-xl">
-                                <span className="font-bold text-gray-900">Drimit</span>
-                                <span className="font-normal text-blue-500">AI Shield</span>
+                                <span className="font-bold text-gray-900">
+                                    Drimit
+                                </span>
+                                <span className="font-normal text-blue-500">
+                                    AI Shield
+                                </span>
                             </span>
                         </Link>
                     </div>
-                    
+
                     <div className="flex items-center gap-4">
                         <NavbarUploadButton />
                         <LogoutButton />

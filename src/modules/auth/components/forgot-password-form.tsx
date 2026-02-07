@@ -72,25 +72,29 @@ export function ForgotPasswordForm({
     }
 
     if (isSubmitted) {
-         return (
-             <div className={cn("flex flex-col gap-6", className)} {...props}>
+        return (
+            <div className={cn("flex flex-col gap-6", className)} {...props}>
                 <Card>
                     <CardHeader className="text-center">
-                        <CardTitle className="text-xl">Check your email</CardTitle>
+                        <CardTitle className="text-xl">
+                            Check your email
+                        </CardTitle>
                         <CardDescription>
-                            We have sent a password reset link to <span className="font-medium text-foreground">{form.getValues("email")}</span>.
+                            We have sent a password reset link to{" "}
+                            <span className="font-medium text-foreground">
+                                {form.getValues("email")}
+                            </span>
+                            .
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button asChild className="w-full">
-                            <Link href={authRoutes.login}>
-                                Back to Login
-                            </Link>
+                            <Link href={authRoutes.login}>Back to Login</Link>
                         </Button>
                     </CardContent>
                 </Card>
             </div>
-         )
+        );
     }
 
     return (
@@ -99,7 +103,8 @@ export function ForgotPasswordForm({
                 <CardHeader className="text-center">
                     <CardTitle className="text-xl">Forgot Password</CardTitle>
                     <CardDescription>
-                        Enter your email address and we'll send you a link to reset your password.
+                        Enter your email address and we'll send you a link to
+                        reset your password.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -139,7 +144,10 @@ export function ForgotPasswordForm({
                                 </Button>
                                 <div className="text-center text-sm">
                                     Remember your password?{" "}
-                                    <Link href={authRoutes.login} className="underline underline-offset-4">
+                                    <Link
+                                        href={authRoutes.login}
+                                        className="underline underline-offset-4"
+                                    >
                                         Login
                                     </Link>
                                 </div>

@@ -24,7 +24,12 @@ export default function LogoutButton() {
     };
 
     return (
-        <Button variant="ghost" size="icon" onClick={handleLogout} title="Log Out">
+        <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            title="Log Out"
+        >
             <LogOut className="size-4" />
             <span className="sr-only">Log Out</span>
         </Button>

@@ -10,10 +10,16 @@ export default function SignUpPage() {
                     href="/"
                     className="flex items-center gap-2 self-center font-medium"
                 >
-                    <img src="/icon.png" alt="Drimit Logo" className="h-8 w-8" />
+                    <img
+                        src="/icon.png"
+                        alt="Drimit Logo"
+                        className="h-8 w-8"
+                    />
                     <span className="flex items-center gap-2">
-                         <span className="font-bold text-gray-900">Drimit</span>
-                         <span className="font-normal text-blue-500">AI Shield</span>
+                        <span className="font-bold text-gray-900">Drimit</span>
+                        <span className="font-normal text-blue-500">
+                            AI Shield
+                        </span>
                     </span>
                 </a>
                 <SignupForm />

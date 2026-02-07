@@ -21,22 +21,33 @@ export async function deleteArtworkAction(artworkId: number) {
         });
 
         if (!artwork) return { success: false, error: "Artwork not found" };
-        if (artwork.userId !== user.id) return { success: false, error: "Unauthorized" };
+        if (artwork.userId !== user.id)
+            return { success: false, error: "Unauthorized" };
 
-        console.log(`[Delete] Processing delete for ID ${artworkId}. R2: ${artwork.r2Key}, Protected: ${artwork.protectedR2Key}`);
+        console.log(
+            `[Delete] Processing delete for ID ${artworkId}. R2: ${artwork.r2Key}, Protected: ${artwork.protectedR2Key}`,
+        );
 
         // Safe Deletion: Check if R2 items are used by OTHER artworks before deleting
         let shouldDeleteRaw = true;
         let shouldDeleteProtected = true;
 
         if (artwork.r2Key) {
-            const result = await db.select({ value: count() })
+            const result = await db
+                .select({ value: count() })
                 .from(artworks)
-                .where(and(eq(artworks.r2Key, artwork.r2Key), ne(artworks.id, artworkId)))
+                .where(
+                    and(
+                        eq(artworks.r2Key, artwork.r2Key),
+                        ne(artworks.id, artworkId),
+                    ),
+                )
                 .get();
-            
+
             const usageCount = result?.value ?? 0;
-            console.log(`[Delete] Raw Key ${artwork.r2Key} usage elsewhere: ${usageCount}`);
+            console.log(
+                `[Delete] Raw Key ${artwork.r2Key} usage elsewhere: ${usageCount}`,
+            );
 
             if (usageCount > 0) {
                 shouldDeleteRaw = false;
@@ -44,13 +55,21 @@ export async function deleteArtworkAction(artworkId: number) {
         }
 
         if (artwork.protectedR2Key) {
-            const result = await db.select({ value: count() })
+            const result = await db
+                .select({ value: count() })
                 .from(artworks)
-                .where(and(eq(artworks.protectedR2Key, artwork.protectedR2Key), ne(artworks.id, artworkId)))
+                .where(
+                    and(
+                        eq(artworks.protectedR2Key, artwork.protectedR2Key),
+                        ne(artworks.id, artworkId),
+                    ),
+                )
                 .get();
-            
+
             const usageCount = result?.value ?? 0;
-            console.log(`[Delete] Protected Key ${artwork.protectedR2Key} usage elsewhere: ${usageCount}`);
+            console.log(
+                `[Delete] Protected Key ${artwork.protectedR2Key} usage elsewhere: ${usageCount}`,
+            );
 
             if (usageCount > 0) {
                 shouldDeleteProtected = false;
@@ -63,10 +82,12 @@ export async function deleteArtworkAction(artworkId: number) {
             deletionPromises.push(deleteFromR2(artwork.r2Key));
         }
         if (shouldDeleteProtected && artwork.protectedR2Key) {
-            console.log(`[Delete] Deleting Protected R2: ${artwork.protectedR2Key}`);
+            console.log(
+                `[Delete] Deleting Protected R2: ${artwork.protectedR2Key}`,
+            );
             deletionPromises.push(deleteFromR2(artwork.protectedR2Key));
         }
-        
+
         await Promise.allSettled(deletionPromises);
 
         await db.delete(artworks).where(eq(artworks.id, artworkId));
@@ -89,9 +110,11 @@ export async function cancelProtectionAction(artworkId: number) {
         });
 
         if (!artwork) return { success: false, error: "Artwork not found" };
-        if (artwork.userId !== user.id) return { success: false, error: "Unauthorized" };
+        if (artwork.userId !== user.id)
+            return { success: false, error: "Unauthorized" };
 
-        await db.update(artworks)
+        await db
+            .update(artworks)
             .set({ protectionStatus: ProtectionStatus.CANCELED })
             .where(eq(artworks.id, artworkId));
 
@@ -112,24 +135,29 @@ export async function retryProtectionAction(artworkId: number) {
         });
 
         if (!artwork) return { success: false, error: "Artwork not found" };
-        if (artwork.userId !== user.id) return { success: false, error: "Unauthorized" };
+        if (artwork.userId !== user.id)
+            return { success: false, error: "Unauthorized" };
 
         // Set back to PENDING
-        await db.update(artworks)
+        await db
+            .update(artworks)
             .set({ protectionStatus: ProtectionStatus.PENDING })
             .where(eq(artworks.id, artworkId));
 
-         // Trigger Mock GPU Processing again
-         const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-         console.log(`Re-triggering mock GPU at ${appUrl}/api/mock-gpu/process for ID ${artworkId}`);
-         await fetch(`${appUrl}/api/mock-gpu/process`, {
+        // Trigger Mock GPU Processing again
+        const appUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        console.log(
+            `Re-triggering mock GPU at ${appUrl}/api/mock-gpu/process for ID ${artworkId}`,
+        );
+        await fetch(`${appUrl}/api/mock-gpu/process`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 artworkId: artworkId,
-                fileUrl: artwork.url
-            })
-         }).catch(err => console.error("Failed to re-trigger mock GPU:", err));
+                fileUrl: artwork.url,
+            }),
+        }).catch((err) => console.error("Failed to re-trigger mock GPU:", err));
 
         revalidatePath(DASHBOARD_ROUTE);
         return { success: true };

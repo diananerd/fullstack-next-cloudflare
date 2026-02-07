@@ -31,15 +31,18 @@ export function CreateArtworkDialog() {
         // Client-side validation
         if (file) {
             if (!["image/jpeg", "image/png"].includes(file.type)) {
-                toast.error("Invalid file type. Only PNG and JPEG are allowed.");
+                toast.error(
+                    "Invalid file type. Only PNG and JPEG are allowed.",
+                );
                 return;
             }
-            if (file.size > 10 * 1024 * 1024) { // 10MB
+            if (file.size > 10 * 1024 * 1024) {
+                // 10MB
                 toast.error("File size exceeds 10MB limit.");
                 return;
             }
         }
-        
+
         startTransition(async () => {
             const res = await createArtworkAction(formData);
             if (res.success) {
@@ -79,26 +82,30 @@ export function CreateArtworkDialog() {
                                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                     <Upload className="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" />
                                     <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                                        <span className="font-semibold">Click to upload</span>
+                                        <span className="font-semibold">
+                                            Click to upload
+                                        </span>
                                     </p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
                                         PNG or JPG (Max 10MB)
                                     </p>
                                 </div>
-                                <Input 
-                                    id="image" 
-                                    name="image" 
-                                    type="file" 
-                                    accept="image/png, image/jpeg" 
-                                    className="hidden" 
-                                    required 
+                                <Input
+                                    id="image"
+                                    name="image"
+                                    type="file"
+                                    accept="image/png, image/jpeg"
+                                    className="hidden"
+                                    required
                                 />
                             </label>
                         </div>
                     </div>
                     <DialogFooter>
                         <Button type="submit" disabled={isPending}>
-                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isPending && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
                             {isPending ? "Uploading..." : "Upload & Protect"}
                         </Button>
                     </DialogFooter>

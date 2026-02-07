@@ -19,6 +19,9 @@ export async function getArtworksAction() {
         return { success: true, data };
     } catch (error: any) {
         console.error("Get artworks error:", error);
-        return { success: false, error: `Failed to fetch artworks: ${error.message} - ${JSON.stringify(error)}` };
+        return {
+            success: false,
+            error: `Failed to fetch artworks: ${error.message} - ${JSON.stringify(error)}`,
+        };
     }
 }
