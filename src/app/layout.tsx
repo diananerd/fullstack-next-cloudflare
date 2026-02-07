@@ -17,6 +17,11 @@ export const metadata: Metadata = {
     title: "AI Shield by Drimit",
     description:
         "AI Shield - Protect your images from generative AI editing. Powered by Drimit.",
+    icons: {
+        icon: "/favicon.png",
+        shortcut: "/favicon.png",
+        apple: "/favicon.png",
+    },
 };
 
 export const dynamic = "force-dynamic";
