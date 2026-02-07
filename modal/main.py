@@ -113,7 +113,13 @@ class MistProcessor:
         try:
             # 1. Download Input Image
             print(f"[Modal] Downloading message from: {req.image_url}")
-            r = requests.get(req.image_url, stream=True, timeout=30)
+            
+            # Auth header for accessing protected assets
+            headers = {}
+            if "AUTH_TOKEN" in os.environ:
+                 headers["Authorization"] = f"Bearer {os.environ['AUTH_TOKEN']}"
+
+            r = requests.get(req.image_url, stream=True, timeout=30, headers=headers)
             r.raise_for_status()
             
             input_path = f"{input_dir}/image.png"

@@ -83,9 +83,9 @@ async function processArtwork(
         const callbackUrl = `${appUrl}/api/webhooks/modal`;
 
         const payload = {
-            artwork_id: artworkId,
-            user_id: userId,
-            image_url: fileUrl,
+            artwork_id: String(artworkId),
+            user_id: userId || "unknown",
+            image_url: fileUrl || "",
             config: {
                 steps: 3, 
                 epsilon: 0.0627
@@ -95,6 +95,7 @@ async function processArtwork(
         };
 
         console.log(`[QueueWorker] [Modal] Sending request to ${modalUrl}`);
+        console.log(`[QueueWorker] [Modal] Payload: ${JSON.stringify(payload)}`);
         
         const modalResponse = await fetch(modalUrl, {
             method: "POST",

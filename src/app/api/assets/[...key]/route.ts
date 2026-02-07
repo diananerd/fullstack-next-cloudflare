@@ -10,20 +10,22 @@ export async function GET(
     props: { params: Promise<{ key: string[] }> },
 ) {
     try {
+        const { env } = await getCloudflareContext();
+
         // Enterprise Security: Verify Authentication
+        // 1. Allow System/Service access via Token (for Modal)
+        const authHeader = _request.headers.get("Authorization");
+        const systemToken = (env as any).MODAL_AUTH_TOKEN;
+        const isSystemRequest = systemToken && authHeader === `Bearer ${systemToken}`;
+
+        // 2. Allow User access via Session
         const authed = await isAuthenticated();
-        if (!authed) {
+
+        if (!authed && !isSystemRequest) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
         const params = await props.params;
-        const objectKey = params.key.join("/");
-
-        if (!objectKey) {
-            return new NextResponse("Key required", { status: 400 });
-        }
-
-        const { env } = await getCloudflareContext();
 
         // Security: Ensure we are not allowing directory traversal if that were possible (R2 is flat, but good practice)
         // const sanitizedKey = objectKey.replace(/\.\./g, "");
