@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Image as ImageIcon, Loader2, Plus, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Plus, Upload, Loader2, Image as ImageIcon } from "lucide-react";
+import { useState, useTransition } from "react";
+import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -16,7 +17,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createArtworkAction } from "../actions/create-artwork.action";
-import { toast } from "react-hot-toast";
 
 export function CreateArtworkDialog() {
     const [open, setOpen] = useState(false);

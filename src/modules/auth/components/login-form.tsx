@@ -25,12 +25,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import artworksRoutes from "@/modules/artworks/artworks.route";
 import {
     type SignInSchema,
     signInSchema,
 } from "@/modules/auth/models/auth.model";
 import { authClient } from "@/modules/auth/utils/auth-client";
-import artworksRoutes from "@/modules/artworks/artworks.route";
 import { signIn } from "../actions/auth.action";
 import authRoutes from "../auth.route";
 

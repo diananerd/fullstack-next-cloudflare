@@ -1,5 +1,3 @@
-import { GalleryVerticalEnd } from "lucide-react";
-
 import { SignupForm } from "./components/signup-form";
 
 export default function SignUpPage() {
@@ -10,6 +8,7 @@ export default function SignUpPage() {
                     href="/"
                     className="flex items-center gap-2 self-center font-medium"
                 >
+                    {/* biome-ignore lint/performance/noImgElement: Local icon */}
                     <img
                         src="/icon.png"
                         alt="Drimit Logo"

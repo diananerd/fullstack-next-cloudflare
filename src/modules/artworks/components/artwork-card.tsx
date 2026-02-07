@@ -1,14 +1,14 @@
 "use client";
 
 import { ImageIcon, ImageOff } from "lucide-react";
-import { Artwork } from "@/modules/artworks/schemas/artwork.schema";
-import { cn } from "@/lib/utils";
-import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { cn } from "@/lib/utils";
+import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 import { useArtworkActions } from "../hooks/use-artwork-actions";
 import { ArtworkActionButtons } from "./artwork-action-buttons";
-import { ArtworkStatusBadge } from "./artwork-status-badge";
 import { ArtworkFullView } from "./artwork-full-view";
+import { ArtworkStatusBadge } from "./artwork-status-badge";
 
 interface ArtworkCardProps {
     artwork: Artwork;

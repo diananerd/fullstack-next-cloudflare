@@ -25,11 +25,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import artworksRoutes from "@/modules/artworks/artworks.route";
 import {
     type SignUpSchema,
     signUpSchema,
 } from "@/modules/auth/models/auth.model";
-import artworksRoutes from "@/modules/artworks/artworks.route";
 import { signUp } from "../actions/auth.action";
 import authRoutes from "../auth.route";
 import { authClient } from "../utils/auth-client";

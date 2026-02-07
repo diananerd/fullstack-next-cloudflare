@@ -1,12 +1,12 @@
 "use client";
 
-import { Upload, Loader2, UploadCloud } from "lucide-react";
-import { useState, useTransition, useRef } from "react";
-import { Button, ButtonProps } from "@/components/ui/button";
-import { createArtworkAction } from "@/modules/artworks/actions/create-artwork.action";
+import { Loader2, UploadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useRef, useTransition } from "react";
 import { toast } from "react-hot-toast";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { createArtworkAction } from "@/modules/artworks/actions/create-artwork.action";
 
 interface UploadArtworkButtonProps extends ButtonProps {
     text?: string;

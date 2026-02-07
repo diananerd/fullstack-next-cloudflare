@@ -1,10 +1,9 @@
-import { ProtectionDemo } from "@/components/landing/protection-demo";
+import { ChevronRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ShieldCheck, ChevronRight } from "lucide-react";
-import { getSession } from "@/modules/auth/utils/auth-utils";
-
+import { ProtectionDemo } from "@/components/landing/protection-demo";
 import { TypewriterTitle } from "@/components/landing/typewriter-title";
+import { Button } from "@/components/ui/button";
+import { getSession } from "@/modules/auth/utils/auth-utils";
 
 export default async function HomePage() {
     const session = await getSession();

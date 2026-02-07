@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { uploadToR2, deleteFromR2 } from "@/lib/r2";
-import { getDb } from "@/db";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import { eq } from "drizzle-orm";
+import { type NextRequest, NextResponse } from "next/server";
+import { getDb } from "@/db";
+import { deleteFromR2, uploadToR2 } from "@/lib/r2";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
+import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 
 export const maxDuration = 60; // Allow function to run longer (up to 60s for hobby/pro)
 

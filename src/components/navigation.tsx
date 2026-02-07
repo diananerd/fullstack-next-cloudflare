@@ -1,6 +1,5 @@
-import { Shield, Home } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import LogoutButton from "../modules/auth/components/logout-button";
 import { NavbarUploadButton } from "./navbar-upload";
 
@@ -11,9 +10,11 @@ export function Navigation() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-6">
                         <Link href="/" className="flex items-center gap-2">
-                            <img
+                            <Image
                                 src="/icon.png"
                                 alt="Drimit AI Shield"
+                                width={32}
+                                height={32}
                                 className="h-8 w-8"
                             />
                             <span className="flex items-center gap-2 text-xl">

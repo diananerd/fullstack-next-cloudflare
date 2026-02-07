@@ -1,20 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import {
-    Send,
-    Image as ImageIcon,
-    MoreHorizontal,
-    Bot,
-    User,
-    RefreshCw,
-    ShieldCheck,
-    Lock,
     ArrowDown,
+    Bot,
+    Image as ImageIcon,
+    Lock,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type Message = {
     id: string;
@@ -281,6 +276,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                                 {msg.imageUrl && (
                                     <div className="relative w-full">
                                         {/* Result Logic showing Failure */}
+                                        {/* biome-ignore lint/performance/noImgElement: Demo dynamic image */}
                                         <img
                                             src={msg.imageUrl}
                                             alt="content"
@@ -351,6 +347,8 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                             </div>
                         )}
 
+                        // biome-ignore lint/a11y/useKeyWithClickEvents: Demo interactive element
+                        // biome-ignore lint/a11y/noStaticElementInteractions: Demo interactive element
                         <div
                             className={cn(
                                 "relative group transition-all duration-300",

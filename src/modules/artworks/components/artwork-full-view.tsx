@@ -1,12 +1,12 @@
-import { Artwork } from "../schemas/artwork.schema";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ImageIcon, ImageOff, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useArtworkActions } from "../hooks/use-artwork-actions";
-import { ArtworkStatusBadge } from "./artwork-status-badge";
-import { ArtworkActionButtons } from "./artwork-action-buttons";
-import { ImageIcon, X, ImageOff } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useArtworkActions } from "../hooks/use-artwork-actions";
+import type { Artwork } from "../schemas/artwork.schema";
+import { ArtworkActionButtons } from "./artwork-action-buttons";
+import { ArtworkStatusBadge } from "./artwork-status-badge";
 
 interface ArtworkFullViewProps {
     artwork: Artwork;

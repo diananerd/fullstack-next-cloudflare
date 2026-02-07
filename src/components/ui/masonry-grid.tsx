@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface MasonryGridProps<T> {
@@ -64,6 +64,7 @@ export function MasonryGrid<T>({
         return (
             <div className={cn("flex flex-col gap-4 p-4", className)}>
                 {items.map((item, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: Display-only list, no ID guaranteed
                     <div key={i}>{render(item)}</div>
                 ))}
             </div>
@@ -75,6 +76,7 @@ export function MasonryGrid<T>({
     return (
         <div className={cn("flex gap-4 p-4", className)}>
             {distributedColumns.map((colItems, colIndex) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: Column index is stable
                 <div key={colIndex} className="flex flex-col gap-4 flex-1">
                     {colItems.map((item, i) => (
                         // unique key hack? relying on index is okay for this display-only list usually,

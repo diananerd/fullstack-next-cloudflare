@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { type NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/modules/auth/utils/auth-utils";
 
 // Removing explicit edge runtime to allow for potentially Node.js compatible auth libraries
 // export const runtime = "edge";
 
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     props: { params: Promise<{ key: string[] }> },
 ) {
     try {
@@ -45,7 +45,7 @@ export async function GET(
         }
 
         return new NextResponse(null, { status: 404 });
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Asset Proxy Error:", e);
         return new NextResponse("Internal Error", { status: 500 });
     }

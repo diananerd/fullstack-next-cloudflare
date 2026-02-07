@@ -1,6 +1,6 @@
+import { ArrowLeft, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { HelpCircle, ArrowLeft } from "lucide-react";
 
 export default function FAQPage() {
     return (

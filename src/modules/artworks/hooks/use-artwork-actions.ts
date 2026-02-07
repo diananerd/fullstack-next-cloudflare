@@ -1,18 +1,19 @@
-import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { toast } from "react-hot-toast";
 import {
-    deleteArtworkAction,
     cancelProtectionAction,
+    deleteArtworkAction,
     retryProtectionAction,
 } from "../actions/manage-artwork.actions";
-import { Artwork } from "../schemas/artwork.schema";
 import { ProtectionStatus } from "../models/artwork.enum";
+import type { Artwork } from "../schemas/artwork.schema";
 
 export function useArtworkActions(artwork: Artwork) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [isRetrying, setIsRetrying] = useState(false);
 
     const executeDelete = () => {
         startTransition(async () => {
@@ -41,8 +42,10 @@ export function useArtworkActions(artwork: Artwork) {
 
     const handleRetry = (e?: React.MouseEvent) => {
         e?.stopPropagation();
+        setIsRetrying(true);
         startTransition(async () => {
             const res = await retryProtectionAction(artwork.id);
+            setIsRetrying(false);
             if (res.success) toast.success("Retrying protection");
             else toast.error(res.error || "Failed");
         });
@@ -67,5 +70,6 @@ export function useArtworkActions(artwork: Artwork) {
         isProcessing,
         isFailed,
         isCanceled,
+        isRetrying,
     };
 }

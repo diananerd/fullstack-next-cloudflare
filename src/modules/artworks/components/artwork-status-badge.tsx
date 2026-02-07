@@ -1,33 +1,76 @@
-import { Loader2, Shield, XCircle } from "lucide-react";
-import { ProtectionStatus, ProtectionStatusType } from "../models/artwork.enum";
+import { Loader2, type LucideIcon, Shield, XCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+    ProtectionStatus,
+    type ProtectionStatusType,
+} from "../models/artwork.enum";
 
 interface ArtworkStatusBadgeProps {
     status: ProtectionStatusType;
     className?: string;
 }
 
+interface StatusConfigItem {
+    label: string;
+    color: string;
+    icon: LucideIcon;
+    animate?: boolean;
+}
+
+const statusConfig: Record<ProtectionStatusType, StatusConfigItem> = {
+    [ProtectionStatus.PENDING]: {
+        label: "Pending",
+        color: "text-blue-400",
+        icon: Loader2,
+        animate: true,
+    },
+    [ProtectionStatus.PROCESSING]: {
+        label: "Processing",
+        color: "text-blue-400",
+        icon: Loader2,
+        animate: true,
+    },
+    [ProtectionStatus.PROTECTED]: {
+        label: "Protected",
+        color: "text-green-400",
+        icon: Shield,
+    },
+    [ProtectionStatus.FAILED]: {
+        label: "Failed",
+        color: "text-red-500",
+        icon: XCircle,
+    },
+    [ProtectionStatus.CANCELED]: {
+        label: "Canceled",
+        color: "text-gray-400",
+        icon: XCircle,
+    },
+};
+
 export function ArtworkStatusBadge({
     status,
     className,
 }: ArtworkStatusBadgeProps) {
-    const isProtected = status === ProtectionStatus.PROTECTED;
-    const isProcessing =
-        status === ProtectionStatus.PENDING ||
-        status === ProtectionStatus.PROCESSING;
-    const isFailed = status === ProtectionStatus.FAILED;
-    const isCanceled = status === ProtectionStatus.CANCELED;
+    const config =
+        statusConfig[status] || statusConfig[ProtectionStatus.PENDING];
+    const Icon = config.icon;
 
     return (
         <div
-            className={`pointer-events-auto drop-shadow-md ${className || ""}`}
+            className={cn(
+                "flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs font-medium text-white shadow-sm pointer-events-auto select-none",
+                className,
+            )}
             title={status}
         >
-            {isProcessing && (
-                <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
-            )}
-            {isProtected && <Shield className="h-5 w-5 text-green-400" />}
-            {isFailed && <XCircle className="h-5 w-5 text-red-500" />}
-            {isCanceled && <XCircle className="h-5 w-5 text-gray-400" />}
+            <Icon
+                className={cn(
+                    "h-3.5 w-3.5",
+                    config.color,
+                    config.animate && "animate-spin",
+                )}
+            />
+            <span>{config.label}</span>
         </div>
     );
 }

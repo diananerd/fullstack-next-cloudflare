@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { MoveHorizontal, Eye, Bot } from "lucide-react";
+import { Bot, Eye, MoveHorizontal } from "lucide-react";
+import { useRef, useState } from "react";
 
 export function ComparisonSlider() {
     const [sliderPosition, setSliderPosition] = useState(50);
@@ -43,6 +43,8 @@ export function ComparisonSlider() {
                 </p>
             </div>
 
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: Slider custom interaction */}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: Slider custom interaction */}
             <div
                 className="relative w-full aspect-[16/10] md:aspect-[21/9] rounded-2xl overflow-hidden shadow-2xl cursor-ew-resize select-none border-4 border-white ring-1 ring-gray-200"
                 ref={containerRef}
@@ -58,6 +60,7 @@ export function ComparisonSlider() {
                 {/* 1. LAYER: HUMAN VISION (Underneath) */}
                 <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
                     {/* Placeholder Art - Replace with real artwork */}
+                    {/* biome-ignore lint/performance/noImgElement: External demo image */}
                     <img
                         src="https://images.unsplash.com/photo-1579783902614-a3fb39279c0f?q=80&w=2000&auto=format&fit=crop"
                         alt="Human Vision"
@@ -83,6 +86,7 @@ export function ComparisonSlider() {
                            what the "Protection" does to the AI model (Noise/Chaos).
                            In a real demo, you'd upload a second image that is actually the 'protected' noise layer.
                         */}
+                        {/* biome-ignore lint/performance/noImgElement: External demo image */}
                         <img
                             src="https://images.unsplash.com/photo-1579783902614-a3fb39279c0f?q=80&w=2000&auto=format&fit=crop"
                             alt="AI Vision"

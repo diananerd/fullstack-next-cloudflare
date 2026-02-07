@@ -1,11 +1,11 @@
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { user } from "@/modules/auth/schemas/auth.schema";
 import {
     ProtectionStatus,
     type ProtectionStatusType,
 } from "@/modules/artworks/models/artwork.enum";
+import { user } from "@/modules/auth/schemas/auth.schema";
 
 export const artworks = sqliteTable(
     "artworks",

@@ -2,8 +2,8 @@
 
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { requireAuth } from "@/modules/auth/utils/auth-utils";
 
 export async function getArtworksAction() {
     try {

@@ -1,5 +1,4 @@
 import { Download, RefreshCcw, Trash2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -10,7 +9,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useArtworkActions } from "../hooks/use-artwork-actions";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { useArtworkActions } from "../hooks/use-artwork-actions";
 
 interface ArtworkActionButtonsProps {
     actions: ReturnType<typeof useArtworkActions>;
@@ -23,6 +24,7 @@ export function ArtworkActionButtons({ actions }: ArtworkActionButtonsProps) {
         isProcessing,
         isFailed,
         isCanceled,
+        isRetrying,
         handleCancel,
         handleDownload,
         handleRetry,
@@ -40,6 +42,8 @@ export function ArtworkActionButtons({ actions }: ArtworkActionButtonsProps) {
 
     return (
         <>
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: Stop propagation helper */}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: Stop propagation helper */}
             <div
                 className="flex gap-1.5 pointer-events-auto"
                 onClick={stopProp}
@@ -90,7 +94,17 @@ export function ArtworkActionButtons({ actions }: ArtworkActionButtonsProps) {
                             disabled={isPending}
                             title="Retry"
                         >
-                            <RefreshCcw className="h-3.5 w-3.5" />
+                            <RefreshCcw
+                                className={cn(
+                                    "h-3.5 w-3.5",
+                                    isRetrying && "animate-spin",
+                                )}
+                                style={
+                                    isRetrying
+                                        ? { animationDirection: "reverse" }
+                                        : undefined
+                                }
+                            />
                         </Button>
                         <Button
                             variant="secondary"

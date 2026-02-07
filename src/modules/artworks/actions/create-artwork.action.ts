@@ -2,16 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { type UploadResult, uploadToR2, deleteFromR2 } from "@/lib/r2";
-import { requireAuth } from "@/modules/auth/utils/auth-utils";
-import {
-    insertArtworkSchema,
-    artworks,
-} from "@/modules/artworks/schemas/artwork.schema";
+import { deleteFromR2, type UploadResult, uploadToR2 } from "@/lib/r2";
 import {
     ProtectionStatus,
-    ProtectionStatusType,
+    type ProtectionStatusType,
 } from "@/modules/artworks/models/artwork.enum";
+import {
+    artworks,
+    insertArtworkSchema,
+} from "@/modules/artworks/schemas/artwork.schema";
+import { requireAuth } from "@/modules/auth/utils/auth-utils";
 
 // Temporary route definition until we have a proper route file
 const DASHBOARD_ROUTE = "/artworks";
@@ -133,7 +133,8 @@ export async function createArtworkAction(formData: FormData) {
         };
 
         const db = await getDb();
-        let result;
+        // biome-ignore lint/suspicious/noExplicitAny: DB result type
+        let result: any;
         try {
             result = await db
                 .insert(artworks)

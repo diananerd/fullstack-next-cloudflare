@@ -1,7 +1,7 @@
 "use client";
 
-import { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 import { MasonryGrid } from "@/components/ui/masonry-grid";
+import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 import { ArtworkCard } from "./artwork-card";
 
 interface ArtworkMasonryProps {

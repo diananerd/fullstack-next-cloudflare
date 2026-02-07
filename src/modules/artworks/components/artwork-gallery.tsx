@@ -1,8 +1,8 @@
-import { getArtworksAction } from "../actions/get-artworks.action";
 import { AlertCircle } from "lucide-react";
-import { Artwork } from "@/modules/artworks/schemas/artwork.schema";
-import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 import { UploadArtworkButton } from "@/components/navbar-upload";
+import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
+import { Artwork } from "@/modules/artworks/schemas/artwork.schema";
+import { getArtworksAction } from "../actions/get-artworks.action";
 import { ArtworkMasonry } from "./artwork-masonry";
 
 export async function ArtworkGallery() {
