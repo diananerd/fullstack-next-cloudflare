@@ -10,15 +10,22 @@ export interface UploadResult {
 export async function uploadToR2(
     file: File,
     folder: string = "uploads",
+    customFilename?: string
 ): Promise<UploadResult> {
     try {
         const { env } = await getCloudflareContext();
 
-        // Generate unique filename
-        const timestamp = Date.now();
-        const randomId = Math.random().toString(36).substring(2, 15);
         const extension = file.name.split(".").pop() || "bin";
-        const key = `${folder}/${timestamp}_${randomId}.${extension}`;
+        let key: string;
+
+        if (customFilename) {
+             key = `${folder}/${customFilename}.${extension}`;
+        } else {
+             // Generate unique filename
+            const timestamp = Date.now();
+            const randomId = Math.random().toString(36).substring(2, 15);
+            key = `${folder}/${timestamp}_${randomId}.${extension}`;
+        }
 
         // Convert File to ArrayBuffer
         const arrayBuffer = await file.arrayBuffer();
@@ -45,8 +52,9 @@ export async function uploadToR2(
             };
         }
 
-        // Return public URL of R2 (should be using custom domain)
-        const publicUrl = `https://${(env as any).CLOUDFLARE_R2_URL}/${key}`;
+        // Return URL proxied through the application
+        const appUrl = (env as any).NEXT_PUBLIC_APP_URL || "https://shield.drimit.io";
+        const publicUrl = `${appUrl}/api/assets/${key}`;
 
         return {
             success: true,
@@ -69,6 +77,17 @@ export async function getFromR2(key: string): Promise<R2Object | null> {
     } catch (error) {
         console.error("Error getting data from R2", error);
         return null;
+    }
+}
+
+export async function deleteFromR2(key: string): Promise<boolean> {
+    try {
+        const { env } = await getCloudflareContext();
+        await env.drimit_shield_bucket.delete(key);
+        return true;
+    } catch (error) {
+        console.error("Delete from R2 error:", error);
+        return false;
     }
 }
 

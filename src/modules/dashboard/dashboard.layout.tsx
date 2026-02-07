@@ -18,7 +18,7 @@ export default async function DashboardLayout({
         <div className="flex flex-col min-h-screen">
             <Navigation />
 
-            <div className="w-full md:w-xl mx-auto py-8 px-4">{children}</div>
+            <div className="w-full h-full flex-1">{children}</div>
         </div>
     );
 }

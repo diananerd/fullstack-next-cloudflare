@@ -44,7 +44,7 @@
 	},
 	"vars": {
 		"BETTER_AUTH_URL": "https://shield.drimit.io",
-		"CLOUDFLARE_R2_URL": "pub-831afc3642444150a325c2a0a56b4864.r2.dev"
+		"NEXT_PUBLIC_APP_URL": "https://shield.drimit.io"
 	},
 	"routes": [
 		{

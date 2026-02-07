@@ -144,12 +144,12 @@ export function LoginForm({
                                                 </FormItem>
                                             )}
                                         />
-                                        <a
-                                            href="#"
+                                        <Link
+                                            href="/forgot-password"
                                             className="ml-auto text-sm underline-offset-4 hover:underline"
                                         >
                                             Forgot your password?
-                                        </a>
+                                        </Link>
                                     </div>
                                     <Button
                                         type="submit"

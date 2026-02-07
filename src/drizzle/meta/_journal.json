@@ -15,6 +15,20 @@
       "when": 1770425769995,
       "tag": "0001_striped_odin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1770429481837,
+      "tag": "0002_cultured_purifiers",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1770430179380,
+      "tag": "0003_tiny_boom_boom",
+      "breakpoints": true
     }
   ]
 }

@@ -10,10 +10,11 @@ export default function SignUpPage() {
                     href="#"
                     className="flex items-center gap-2 self-center font-medium"
                 >
-                    <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-                        <GalleryVerticalEnd className="size-4" />
-                    </div>
-                    Acme Inc.
+                    <img src="/icon.png" alt="Drimit Logo" className="h-8 w-8" />
+                    <span className="flex items-center gap-2">
+                         <span className="font-bold">Drimit</span>
+                         <span className="font-normal text-blue-600">AI Shield</span>
+                    </span>
                 </a>
                 <SignupForm />
             </div>
