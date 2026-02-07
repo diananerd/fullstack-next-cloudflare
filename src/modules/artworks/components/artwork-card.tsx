@@ -71,7 +71,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                             onError={() => setImageError(true)}
                         />
                     ) : (
-                        <div className="w-full aspect-square min-h-[12rem] bg-gray-50 rounded-lg flex flex-col items-center justify-center border border-gray-200 text-gray-400 gap-2 p-4 text-center">
+                        <div className="w-full aspect-square min-h-[12rem] bg-zinc-900 rounded-lg flex flex-col items-center justify-center border border-zinc-800 text-zinc-500 gap-2 p-4 text-center">
                             {imageError ? (
                                 <>
                                     <ImageOff className="h-8 w-8" />
@@ -80,27 +80,27 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                                     </span>
                                 </>
                             ) : (
-                                <ImageIcon className="h-10 w-10 text-gray-300" />
+                                <ImageIcon className="h-10 w-10 text-zinc-600" />
                             )}
                         </div>
                     )}
 
                     {/* Overlays */}
-                    <div className="absolute inset-0 p-3 flex flex-col justify-between pointer-events-none bg-gradient-to-b from-black/40 via-transparent to-black/60">
+                    <div className="absolute inset-0 p-3 flex flex-col justify-between pointer-events-none">
                         {/* Top Row */}
-                        <div className="flex justify-between items-start">
-                            {/* Top-Left: Filename */}
+                        <div className="flex items-center gap-2 w-full">
+                            {/* Status */}
+                            <ArtworkStatusBadge
+                                status={artwork.protectionStatus}
+                            />
+
+                            {/* Filename */}
                             <div
-                                className="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs text-white max-w-[65%] truncate pointer-events-auto select-none"
+                                className="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs text-white max-w-[calc(100%-2rem)] truncate pointer-events-auto select-none"
                                 title={artwork.title}
                             >
                                 {artwork.title}
                             </div>
-
-                            {/* Top-Right: Status */}
-                            <ArtworkStatusBadge
-                                status={artwork.protectionStatus}
-                            />
                         </div>
 
                         {/* Bottom Row */}
