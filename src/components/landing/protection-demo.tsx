@@ -152,11 +152,11 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
     };
 
     return (
-        <div className="w-full max-w-4xl mx-auto flex flex-col md:flex-row gap-8 items-start justify-center">
+        <div className="w-full max-w-4xl mx-auto flex flex-col md:flex-row gap-8 items-center md:items-start justify-center">
             
             {/* 1. Explainer Panel (Left Side - Desktop) */}
-            <div className="hidden md:flex flex-1 flex-col justify-center h-[600px] space-y-6 text-left p-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium w-fit">
+            <div className="flex flex-1 flex-col justify-center h-auto md:h-[600px] space-y-6 text-center md:text-left p-4 order-2 md:order-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium w-fit mx-auto md:mx-0">
                     <Bot className="w-4 h-4" />
                     <span>AI Simulation</span>
                 </div>
@@ -172,7 +172,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                         <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                             <Lock className="w-5 h-5 text-green-600" />
                         </div>
-                        <div>
+                        <div className="text-left">
                             <p className="font-bold text-gray-900">For Humans</p>
                             <p className="text-sm text-gray-500">Your art remains beautiful and unchanged.</p>
                         </div>
@@ -181,7 +181,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                         <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                             <ShieldCheck className="w-5 h-5 text-red-600" />
                         </div>
-                        <div>
+                        <div className="text-left">
                             <p className="font-bold text-gray-900">For AI Models</p>
                             <p className="text-sm text-gray-500">They see chaos and can't create variations.</p>
                         </div>
@@ -191,7 +191,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
 
 
             {/* 2. CHAT INTERFACE (The Demo) */}
-            <div className="w-full md:w-[420px] shrink-0 bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden flex flex-col h-[650px] relative">
+            <div className="w-full md:w-[420px] shrink-0 bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden flex flex-col h-[500px] md:h-[650px] relative order-1 md:order-2">
                 
                 {/* Header - Minimalist */}
                 <div className="bg-white/80 backdrop-blur-sm border-b border-gray-50 p-4 flex items-center justify-between shrink-0 z-10 sticky top-0">

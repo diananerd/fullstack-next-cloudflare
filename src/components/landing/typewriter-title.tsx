@@ -10,7 +10,7 @@ export function TypewriterTitle() {
     const [showCursor, setShowCursor] = useState(true);
     const [started, setStarted] = useState(false);
     
-    const text1 = "Protect your Art";
+    const text1 = "Protect your Art ";
     const text2 = "against AI.";
 
     useEffect(() => {
