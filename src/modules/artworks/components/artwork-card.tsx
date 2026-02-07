@@ -93,14 +93,6 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                             <ArtworkStatusBadge
                                 status={artwork.protectionStatus}
                             />
-
-                            {/* Filename */}
-                            <div
-                                className="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs text-white max-w-[calc(100%-2rem)] truncate pointer-events-auto select-none"
-                                title={artwork.title}
-                            >
-                                {artwork.title}
-                            </div>
                         </div>
 
                         {/* Bottom Row */}

@@ -89,7 +89,7 @@ export function ArtworkFullView({
                                     status={artwork.protectionStatus}
                                 />
                                 <div
-                                    className="text-sm font-medium text-white drop-shadow-md max-w-[50vw] truncate select-none"
+                                    className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded text-sm text-white max-w-[50vw] truncate select-none"
                                     title={artwork.title}
                                 >
                                     {artwork.title}
@@ -100,7 +100,7 @@ export function ArtworkFullView({
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-white hover:text-white hover:bg-white/10 rounded-full h-10 w-10 pointer-events-auto"
+                                className="bg-black/60 backdrop-blur-md text-white hover:text-white hover:bg-black/80 rounded-full h-10 w-10 pointer-events-auto"
                                 onClick={onClose}
                             >
                                 <X className="h-6 w-6" />
@@ -110,7 +110,7 @@ export function ArtworkFullView({
                         {/* Bottom Row */}
                         <div className="flex justify-between items-end w-full">
                             {/* Bottom-Left: File Size */}
-                            <div className="text-xs font-medium text-white/90 drop-shadow-md pointer-events-auto select-none">
+                            <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded text-xs font-medium text-white/90 pointer-events-auto select-none">
                                 {fileSize}
                             </div>
 
