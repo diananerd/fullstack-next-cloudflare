@@ -84,7 +84,7 @@ export default function FAQPage() {
                              What AI models does this work against?
                         </h3>
                         <p className="text-gray-600 leading-relaxed">
-                            Our proprietary technology is specifically optimized to disrupt the most common generative AI models used for style mimicry, such as Stable Diffusion, LoRA training, and SDEdit.
+                            Our technology is specially designed to disrupt the most common generative AI models used for style mimicry, such as Stable Diffusion, LoRA training, and SDEdit.
                         </p>
                     </div>
 

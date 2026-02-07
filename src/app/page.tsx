@@ -43,7 +43,7 @@ export default async function HomePage() {
                 {/* Badge */}
                 <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 mb-4 shadow-sm">
                     <ShieldCheck className="mr-2 h-4 w-4" />
-                    Proprietary Adversarial Tech
+                    Artist-First Protection
                 </div>
 
                 {/* Main Heading */}
@@ -57,7 +57,7 @@ export default async function HomePage() {
 
                 {/* Subtitle / Description */}
                 <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
-                    We use proprietary algorithms to inject <strong>invisible mathematical patterns</strong> into your artworks. This &quot;cloaks&quot; the image, confusing AI models and preventing them from learning your style, ensuring any imitation attempt results in chaotic, unusable outputs.
+                    We add an <strong>invisible protection layer</strong> to your artworks. This &quot;cloaks&quot; the image, confusing AI models without changing how it looks to humans, ensuring any imitation attempt results in chaotic, unusable outputs.
                 </p>
 
                 {/* CTA Buttons */}
