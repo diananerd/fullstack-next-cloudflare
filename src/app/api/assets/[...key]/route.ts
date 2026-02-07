@@ -15,7 +15,7 @@ export async function GET(
         // Enterprise Security: Verify Authentication
         // 1. Allow System/Service access via Token (for Modal)
         const authHeader = _request.headers.get("Authorization");
-        const systemToken = (env as any).MODAL_AUTH_TOKEN;
+        const systemToken = (env as any).MODAL_AUTH_TOKEN || process.env.MODAL_AUTH_TOKEN;
         
         // Debug Logging
         console.log(`[AssetProxy] Auth Header present: ${!!authHeader}`);
