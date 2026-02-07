@@ -15,16 +15,28 @@ export async function GET(
         // Enterprise Security: Verify Authentication
         // 1. Allow System/Service access via Token (for Modal)
         const authHeader = _request.headers.get("Authorization");
-        const systemToken = (env as any).MODAL_AUTH_TOKEN || process.env.MODAL_AUTH_TOKEN;
         
+        // Try all possible sources for the token
+        const systemToken = 
+            (env as any).MODAL_AUTH_TOKEN || 
+            process.env.MODAL_AUTH_TOKEN;
+
         // Debug Logging
-        console.log(`[AssetProxy] Auth Header present: ${!!authHeader}`);
-        console.log(`[AssetProxy] System Token configured: ${!!systemToken}`);
+        console.log(`[AssetProxy] Request URL: ${_request.url}`);
+        console.log(`[AssetProxy] Auth Header: ${authHeader ? (authHeader.substring(0, 10) + "...") : "MISSING"}`);
+        console.log(`[AssetProxy] System Token Found: ${!!systemToken}`);
+        
+        if (!systemToken) {
+             console.error("[AssetProxy] CRITICIAL: MODAL_AUTH_TOKEN is missing in environment!");
+             console.error(`[AssetProxy] Env Keys: ${Object.keys(env).join(", ")}`);
+        }
         
         const isSystemRequest = systemToken && authHeader === `Bearer ${systemToken}`;
 
         if (isSystemRequest) {
              console.log("[AssetProxy] Authorized via System Token");
+        } else if (authHeader && systemToken) {
+             console.log(`[AssetProxy] Token mismatch. Header: ${authHeader.length} chars, Env: ${systemToken.length} chars`);
         }
 
         // 2. Allow User access via Session
