@@ -32,6 +32,21 @@ export async function POST(req: NextRequest) {
         
         const db = await getDb();
 
+        // 2. Cancellation Check
+        const currentArtwork = await db.query.artworks.findFirst({
+            where: eq(artworks.id, artwork_id),
+            columns: { protectionStatus: true }
+        });
+
+        if (!currentArtwork) {
+             return NextResponse.json({ error: "Artwork not found" }, { status: 404 });
+        }
+
+        if (currentArtwork.protectionStatus === ProtectionStatus.CANCELED) {
+             console.log(`[Webhook] Ignoring result for canceled artwork ${artwork_id}`);
+             return NextResponse.json({ success: true, ignored: true });
+        }
+
         if (status === "completed") {
              // Extract R2 Key from URL if possible, or just store URL
              // URL format: .../protected/user/id/hash.png

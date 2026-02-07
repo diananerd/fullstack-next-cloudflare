@@ -55,7 +55,7 @@
     "vars": {
         "BETTER_AUTH_URL": "https://shield.drimit.io",
         "NEXT_PUBLIC_APP_URL": "https://shield.drimit.io",
-        "MODAL_API_URL": "https://diananerdoficial--drimit-shield-demo-process-image.modal.run"
+        "MODAL_API_URL": "https://diananerdoficial--drimit-shield-demo-submit-protection-job.modal.run"
     },
     "routes": [
         {
