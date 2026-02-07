@@ -8,7 +8,7 @@ import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 import { deleteFromR2 } from "@/lib/r2";
 
-const DASHBOARD_ROUTE = "/dashboard";
+const DASHBOARD_ROUTE = "/artworks";
 
 export async function deleteArtworkAction(artworkId: number) {
     try {

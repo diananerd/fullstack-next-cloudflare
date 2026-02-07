@@ -30,7 +30,7 @@ import {
     signInSchema,
 } from "@/modules/auth/models/auth.model";
 import { authClient } from "@/modules/auth/utils/auth-client";
-import dashboardRoutes from "@/modules/dashboard/dashboard.route";
+import artworksRoutes from "@/modules/artworks/artworks.route";
 import { signIn } from "../actions/auth.action";
 import authRoutes from "../auth.route";
 
@@ -52,7 +52,7 @@ export function LoginForm({
     const signInWithGoogle = async () => {
         await authClient.signIn.social({
             provider: "google",
-            callbackURL: dashboardRoutes.dashboard,
+            callbackURL: artworksRoutes.artworks,
         });
     };
 
@@ -62,7 +62,7 @@ export function LoginForm({
 
         if (success) {
             toast.success(message.toString());
-            router.push(dashboardRoutes.dashboard);
+            router.push(artworksRoutes.artworks);
         } else {
             toast.error(message.toString());
         }

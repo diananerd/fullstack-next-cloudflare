@@ -1,6 +1,6 @@
 import { ArtworkGallery } from "@/modules/artworks/components/artwork-gallery";
 
-export default async function Dashboard() {
+export default async function ArtworksPage() {
     return (
         <div className="w-full">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 p-6">

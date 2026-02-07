@@ -3,7 +3,7 @@ import { Navigation } from "@/components/navigation";
 import { getSession } from "@/modules/auth/utils/auth-utils";
 import authRoutes from "../auth/auth.route";
 
-export default async function DashboardLayout({
+export default async function ArtworksLayout({
     children,
 }: {
     children: React.ReactNode;

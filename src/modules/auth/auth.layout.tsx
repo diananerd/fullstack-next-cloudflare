@@ -8,9 +8,9 @@ export default async function AuthLayout({
 }) {
     const session = await getSession();
 
-    // If already logged in, redirect to dashboard
+    // If already logged in, redirect to artworks
     if (session) {
-        redirect("/dashboard");
+        redirect("/artworks");
     }
 
     return <div>{children}</div>;

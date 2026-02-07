@@ -11,7 +11,7 @@ export function Navigation() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-6">
                         <Link
-                            href="/dashboard"
+                            href="/"
                             className="flex items-center gap-2"
                         >
                             <img src="/icon.png" alt="Drimit AI Shield" className="h-8 w-8" />

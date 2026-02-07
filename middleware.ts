@@ -22,6 +22,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        "/dashboard/:path*", // Protects /dashboard and all sub-routes
+        "/artworks/:path*", // Protects /artworks and all sub-routes
     ],
 };

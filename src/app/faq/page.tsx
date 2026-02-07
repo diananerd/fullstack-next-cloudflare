@@ -15,7 +15,7 @@ export default function FAQPage() {
             {/* Header */}
             <header className="sticky top-0 z-50 p-6 flex justify-between items-center max-w-5xl mx-auto w-full bg-white/50 backdrop-blur-sm rounded-b-xl border-b border-white/20">
                 <div className="flex items-center gap-2">
-                     <Link href="/about" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                     <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                         <img src="/icon.png" alt="Drimit AI Shield" className="h-8 w-8" />
                         <span className="flex items-center gap-2 text-xl">
                             <span className="font-bold text-gray-900">Drimit</span>
@@ -24,7 +24,7 @@ export default function FAQPage() {
                      </Link>
                 </div>
                 <div className="flex gap-4">
-                    <Link href="/about">
+                    <Link href="/">
                          <Button variant="ghost" size="sm" className="gap-2">
                             <ArrowLeft className="h-4 w-4" /> Back
                         </Button>

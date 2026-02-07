@@ -8,7 +8,7 @@ import { insertArtworkSchema, artworks } from "@/modules/artworks/schemas/artwor
 import { ProtectionStatus, ProtectionStatusType } from "@/modules/artworks/models/artwork.enum";
 
 // Temporary route definition until we have a proper route file
-const DASHBOARD_ROUTE = "/dashboard";
+const DASHBOARD_ROUTE = "/artworks";
 
 // Constants for validation
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
