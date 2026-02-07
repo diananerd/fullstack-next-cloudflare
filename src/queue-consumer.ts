@@ -4,13 +4,21 @@ import { uploadToR2, deleteFromR2 } from "./lib/r2";
 import { ProtectionStatus } from "./modules/artworks/models/artwork.enum";
 import { artworks } from "./modules/artworks/schemas/artwork.schema";
 
-export interface QueueMessage {
-    type: "PROCESS_ARTWORK";
-    payload: {
-        artworkId: number;
-        fileUrl: string;
-    };
-}
+export type QueueMessage = 
+    | {
+        type: "PROCESS_ARTWORK";
+        payload: {
+            artworkId: number;
+            fileUrl: string;
+        };
+      }
+    | {
+        type: "DELETE_ARTWORK_FILES";
+        payload: {
+            r2Key?: string | null;
+            protectedR2Key?: string | null;
+        };
+      };
 
 export async function queueHandler(batch: MessageBatch<QueueMessage>, env: CloudflareEnv): Promise<void> {
     console.log(`Processing batch of ${batch.messages.length} messages`);
@@ -20,8 +28,13 @@ export async function queueHandler(batch: MessageBatch<QueueMessage>, env: Cloud
 
     for (const message of batch.messages) {
         try {
-            if (message.body.type === "PROCESS_ARTWORK") {
-                await processArtwork(message.body.payload, env, db);
+            switch (message.body.type) {
+                case "PROCESS_ARTWORK":
+                    await processArtwork(message.body.payload, env, db);
+                    break;
+                case "DELETE_ARTWORK_FILES":
+                    await deleteArtworkFiles(message.body.payload, env);
+                    break;
             }
             message.ack();
         } catch (error) {
@@ -45,12 +58,33 @@ async function processArtwork(
         // Simulate processing delay
         await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        // FETCH the raw image bytes
-        const response = await fetch(fileUrl);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch raw image: ${response.statusText}`);
+        let blob: Blob;
+        
+        // Optimization: if URL contains /api/assets/, try to get directly from R2 binding
+        // to avoid authentication issues (worker doesn't have session cookies) and network overhead.
+        const assetMatch = fileUrl.match(/\/api\/assets\/(.+)$/);
+        
+        if (assetMatch && assetMatch[1]) {
+             const key = assetMatch[1];
+             console.log(`[QueueWorker] Fetching from R2 binding: ${key}`);
+             const object = await (env as unknown as Cloudflare.Env).drimit_shield_bucket.get(key);
+             if (object) {
+                 blob = await object.blob();
+             } else {
+                 // Try fetch fallback if R2 lookup fails but maybe URL works (unlikely for internal)
+                 console.warn(`[QueueWorker] R2 get failed for ${key}, falling back to fetch`);
+                 const response = await fetch(fileUrl);
+                 if (!response.ok) throw new Error(`Failed to fetch raw image: ${response.statusText}`);
+                 blob = await response.blob();
+             }
+        } else {
+            // FETCH the raw image bytes via URL
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch raw image: ${response.statusText}`);
+            }
+            blob = await response.blob();
         }
-        const blob = await response.blob();
 
         // Extract filename logic
         const urlPath = new URL(fileUrl).pathname;
@@ -108,5 +142,20 @@ async function processArtwork(
         // Don't rethrow if we've determined it's a hard failure handled by DB update.
         // However, if we want random networkjitters to retry... 
         // For this mock demo, let's treat it as handled so we don't spam retries.
+    }
+}
+
+async function deleteArtworkFiles(
+    payload: { r2Key?: string | null; protectedR2Key?: string | null },
+    env: CloudflareEnv
+) {
+    const { r2Key, protectedR2Key } = payload;
+    console.log(`[QueueWorker] Deleting files: Raw=${r2Key}, Protected=${protectedR2Key}`);
+
+    if (r2Key) {
+        await deleteFromR2(r2Key, env as unknown as Cloudflare.Env);
+    }
+    if (protectedR2Key) {
+        await deleteFromR2(protectedR2Key, env as unknown as Cloudflare.Env);
     }
 }
