@@ -65,7 +65,7 @@ export default async function HomePage() {
 
                 {/* THE DEMO IS THE HERO VISUAL */}
                 <div className="w-full relative z-20 mb-10">
-                    <ProtectionDemo />
+                    <ProtectionDemo hasSession={!!session} />
                 </div>
 
                 {/* CTA Buttons - The logical next step */}

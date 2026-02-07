@@ -15,7 +15,7 @@ type Message = {
     isProtected?: boolean; // Label for the user's uploaded image
 };
 
-export function ProtectionDemo() {
+export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
     const [messages, setMessages] = useState<Message[]>([
         { id: "1", role: "bot", type: "text", text: "I am a Generative AI Model. Upload an image to generate new variations." }
     ]);
@@ -161,10 +161,10 @@ export function ProtectionDemo() {
                     <span>AI Simulation</span>
                 </div>
                 <h3 className="text-3xl font-bold text-gray-900 leading-tight">
-                    This is what AI sees when it tries to copy you.
+                    Watch AI fail to steal your style.
                 </h3>
                 <p className="text-gray-600 text-lg">
-                    When our shield is active, AI models fail to interpret the style features of your artwork, resulting in unusable output.
+                    Our <span className="font-bold text-gray-900">AI Shield</span> blocks algorithms from learning your unique style, while keeping your art intact for human viewers.
                 </p>
                 
                 <div className="pt-4 space-y-4">
@@ -173,8 +173,8 @@ export function ProtectionDemo() {
                             <Lock className="w-5 h-5 text-green-600" />
                         </div>
                         <div>
-                            <p className="font-bold text-gray-900">Protected Upload</p>
-                            <p className="text-sm text-gray-500">Your original remains visible to humans.</p>
+                            <p className="font-bold text-gray-900">For Humans</p>
+                            <p className="text-sm text-gray-500">Your art remains beautiful and unchanged.</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
@@ -182,8 +182,8 @@ export function ProtectionDemo() {
                             <ShieldCheck className="w-5 h-5 text-red-600" />
                         </div>
                         <div>
-                            <p className="font-bold text-gray-900">AI Blindness</p>
-                            <p className="text-sm text-gray-500">Generators produce noise instead of copies.</p>
+                            <p className="font-bold text-gray-900">For AI Models</p>
+                            <p className="text-sm text-gray-500">They see chaos and can't create variations.</p>
                         </div>
                     </div>
                 </div>
@@ -346,12 +346,23 @@ export function ProtectionDemo() {
                             <p className="text-sm text-gray-500 mb-6 font-medium leading-relaxed">
                                 Our <span className="font-bold text-gray-900">AI Shield</span> protection technology blocks AI copying while keeping your art intact.
                             </p>
-                            <Button 
-                                onClick={startDemo} 
-                                className="w-full bg-blue-600 text-white hover:bg-blue-700 rounded-full h-10 font-semibold shadow-lg hover:shadow-xl transition-all"
-                            >
-                               <RefreshCw className="w-4 h-4 mr-2" /> Replay
-                            </Button>
+                            <div className="flex flex-col gap-3 w-full">
+                                <Button 
+                                    asChild
+                                    className="w-full bg-blue-600 text-white hover:bg-blue-700 rounded-full h-10 font-semibold shadow-lg hover:shadow-xl transition-all"
+                                >
+                                    <Link href={hasSession ? "/artworks" : "/signup"}>
+                                        Try now!
+                                    </Link>
+                                </Button>
+                                <Button 
+                                    onClick={startDemo} 
+                                    variant="ghost"
+                                    className="w-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full h-10 font-medium transition-all"
+                                >
+                                   Replay
+                                </Button>
+                            </div>
                          </div>
                     </div>
                 )}
