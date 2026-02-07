@@ -118,6 +118,9 @@ class MistProcessor:
             headers = {}
             if "AUTH_TOKEN" in os.environ:
                  headers["Authorization"] = f"Bearer {os.environ['AUTH_TOKEN']}"
+                 print(f"[Modal] Added Authorization header for download")
+            else:
+                 print(f"[Modal] WARNING: AUTH_TOKEN not found in env")
 
             r = requests.get(req.image_url, stream=True, timeout=30, headers=headers)
             r.raise_for_status()

@@ -16,12 +16,25 @@ export async function GET(
         // 1. Allow System/Service access via Token (for Modal)
         const authHeader = _request.headers.get("Authorization");
         const systemToken = (env as any).MODAL_AUTH_TOKEN;
+        
+        // Debug Logging
+        console.log(`[AssetProxy] Auth Header present: ${!!authHeader}`);
+        console.log(`[AssetProxy] System Token configured: ${!!systemToken}`);
+        
         const isSystemRequest = systemToken && authHeader === `Bearer ${systemToken}`;
 
+        if (isSystemRequest) {
+             console.log("[AssetProxy] Authorized via System Token");
+        }
+
         // 2. Allow User access via Session
-        const authed = await isAuthenticated();
+        let authed = false;
+        if (!isSystemRequest) {
+            authed = await isAuthenticated();
+        }
 
         if (!authed && !isSystemRequest) {
+            console.warn("[AssetProxy] Unauthorized access attempt");
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
