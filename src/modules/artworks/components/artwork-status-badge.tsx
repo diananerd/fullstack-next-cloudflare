@@ -18,9 +18,27 @@ interface StatusConfigItem {
 }
 
 const statusConfig: Record<ProtectionStatusType, StatusConfigItem> = {
+    [ProtectionStatus.UPLOADING]: {
+        label: "Uploading",
+        color: "text-blue-400",
+        icon: Loader2,
+        animate: true,
+    },
+    [ProtectionStatus.QUEUED]: {
+        label: "Queued",
+        color: "text-amber-400",
+        icon: Loader2, // You might want a different icon for Queued, maybe Hourglass? But Loader is fine.
+        animate: true,
+    },
+    [ProtectionStatus.RUNNING]: {
+        label: "Running",
+        color: "text-indigo-400",
+        icon: Loader2,
+        animate: true,
+    },
     [ProtectionStatus.PENDING]: {
         label: "Pending",
-        color: "text-blue-400",
+        color: "text-gray-400",
         icon: Loader2,
         animate: true,
     },

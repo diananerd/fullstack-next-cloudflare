@@ -1,4 +1,7 @@
 export const ProtectionStatus = {
+    UPLOADING: "uploading",
+    QUEUED: "queued",
+    RUNNING: "running",
     PENDING: "pending",
     PROCESSING: "processing",
     PROTECTED: "protected",

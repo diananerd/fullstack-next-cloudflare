@@ -123,7 +123,7 @@ export async function createArtworkAction(formData: FormData) {
             userId: user.id,
             r2Key: uploadResult.key,
             url: uploadResult.url,
-            protectionStatus: ProtectionStatus.PENDING,
+            protectionStatus: ProtectionStatus.QUEUED,
             size: imageFile.size,
         };
 
@@ -172,6 +172,7 @@ export async function createArtworkAction(formData: FormData) {
                 type: "PROCESS_ARTWORK",
                 payload: {
                     artworkId: newArtworkId,
+                    userId: user.id,
                     fileUrl: uploadResult.url,
                 }
             });

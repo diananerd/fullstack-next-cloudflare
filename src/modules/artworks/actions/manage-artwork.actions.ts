@@ -137,10 +137,10 @@ export async function retryProtectionAction(artworkId: number) {
         if (artwork.userId !== user.id)
             return { success: false, error: "Unauthorized" };
 
-        // Set back to PENDING and trigger queue
+        // Set back to QUEUED and trigger queue
         await db
             .update(artworks)
-            .set({ protectionStatus: ProtectionStatus.PENDING })
+            .set({ protectionStatus: ProtectionStatus.QUEUED })
             .where(eq(artworks.id, artworkId));
 
         console.log(

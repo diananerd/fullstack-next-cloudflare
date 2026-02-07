@@ -54,7 +54,10 @@ export function useArtworkActions(artwork: Artwork) {
     const isProtected = artwork.protectionStatus === ProtectionStatus.PROTECTED;
     const isActuallyProcessing =
         artwork.protectionStatus === ProtectionStatus.PENDING ||
-        artwork.protectionStatus === ProtectionStatus.PROCESSING;
+        artwork.protectionStatus === ProtectionStatus.PROCESSING ||
+        artwork.protectionStatus === ProtectionStatus.UPLOADING || 
+        artwork.protectionStatus === ProtectionStatus.QUEUED ||
+        artwork.protectionStatus === ProtectionStatus.RUNNING;
 
     // Optimistic processing state: true if actual DB says so OR if we are currently retrying
     const isProcessing = isActuallyProcessing || isRetrying;
@@ -66,7 +69,7 @@ export function useArtworkActions(artwork: Artwork) {
 
     // Derived optimistic status for badge display
     const optimisticStatus = isRetrying
-        ? ProtectionStatus.PROCESSING
+        ? ProtectionStatus.QUEUED
         : artwork.protectionStatus;
 
     return {
