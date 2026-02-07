@@ -1,9 +1,9 @@
-import { ArtworkCard } from "./artwork-card";
 import { getArtworksAction } from "../actions/get-artworks.action";
 import { AlertCircle } from "lucide-react";
 import { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 import { UploadArtworkButton } from "@/components/navbar-upload";
+import { ArtworkMasonry } from "./artwork-masonry";
 
 export async function ArtworkGallery() {
     const { data: artworks, error } = await getArtworksAction();
@@ -30,10 +30,6 @@ export async function ArtworkGallery() {
     }
 
     return (
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6 gap-4 p-4">
-            {artworks.map((artwork) => (
-                <ArtworkCard key={artwork.id} artwork={artwork} />
-            ))}
-        </div>
+        <ArtworkMasonry artworks={artworks} />
     );
 }
