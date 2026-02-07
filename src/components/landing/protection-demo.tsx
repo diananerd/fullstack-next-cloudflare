@@ -91,9 +91,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
              return () => clearInterval(interval);
         }
         
-        if (status !== "awaiting_user_trigger") {
-            setShowClickHint(false);
-        }
+        setShowClickHint(false);
     }, [status]);
 
     const handleComplaintSubmit = (text: string) => {
