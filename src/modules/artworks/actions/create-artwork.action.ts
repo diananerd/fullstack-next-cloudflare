@@ -180,11 +180,16 @@ export async function createArtworkAction(formData: FormData) {
         revalidatePath(DASHBOARD_ROUTE);
 
         return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Create artwork error:", error);
         // Return Zod errors if available
-        if (error.flatten) {
-            return { success: false, errors: error.flatten().fieldErrors };
+        // biome-ignore lint/suspicious/noExplicitAny: Zod error check
+        if ((error as any).flatten) {
+            // biome-ignore lint/suspicious/noExplicitAny: Zod error check
+            return {
+                success: false,
+                errors: (error as any).flatten().fieldErrors,
+            };
         }
         return {
             success: false,

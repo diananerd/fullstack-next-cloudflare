@@ -26,14 +26,14 @@ export function ArtworkFullView({
 
     useEffect(() => {
         if (isOpen) setImageError(false);
-    }, [isOpen, artwork.url, artwork.protectedUrl]);
+    }, [isOpen]);
 
     const displayUrl =
         isProtected && artwork.protectedUrl
             ? artwork.protectedUrl
             : artwork.url;
     const fileSize = artwork.size
-        ? (artwork.size / 1024 / 1024).toFixed(2) + " MB"
+        ? `${(artwork.size / 1024 / 1024).toFixed(2)} MB`
         : "";
 
     return (
@@ -46,6 +46,7 @@ export function ArtworkFullView({
 
                 <div className="relative w-full h-full flex items-center justify-center">
                     {displayUrl && !imageError ? (
+                        // biome-ignore lint/performance/noImgElement: External/Dynamic URL
                         <img
                             src={displayUrl}
                             alt={artwork.title}
@@ -85,9 +86,7 @@ export function ArtworkFullView({
                         <div className="flex justify-between items-center w-full">
                             {/* Top-Left: Status & Filename */}
                             <div className="flex items-center gap-2 pointer-events-auto">
-                                <ArtworkStatusBadge
-                                    status={optimisticStatus}
-                                />
+                                <ArtworkStatusBadge status={optimisticStatus} />
                                 <div
                                     className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded text-sm text-white max-w-[50vw] truncate select-none"
                                     title={artwork.title}

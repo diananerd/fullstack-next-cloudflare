@@ -45,14 +45,13 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
         isProtected && artwork.protectedUrl
             ? artwork.protectedUrl
             : artwork.url;
-    const fileSize = artwork.size
-        ? (artwork.size / 1024 / 1024).toFixed(2) + " MB"
-        : "";
 
     return (
         <>
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: Card click interaction */}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: Card click interaction */}
             <div
-                className="group relative break-inside-avoid mb-4 overflow-hidden rounded-lg inline-block w-full align-top bg-gray-100/50 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="group relative overflow-hidden rounded-lg w-full bg-gray-100/50 hover:bg-gray-100 transition-colors cursor-pointer"
                 onClick={() => setShowFullView(true)}
             >
                 {/* Image (Main Content) */}
@@ -95,9 +94,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                         {/* Bottom Row */}
                         <div className="flex justify-between items-end">
                             {/* Bottom-Left: Status (Optimistic) */}
-                            <ArtworkStatusBadge
-                                status={optimisticStatus}
-                            />
+                            <ArtworkStatusBadge status={optimisticStatus} />
 
                             {/* Bottom-Right: Actions */}
                             <ArtworkActionButtons actions={actions} />

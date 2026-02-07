@@ -17,11 +17,12 @@ export async function getArtworksAction() {
             .orderBy(desc(artworks.createdAt));
 
         return { success: true, data };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Get artworks error:", error);
         return {
             success: false,
-            error: `Failed to fetch artworks: ${error.message} - ${JSON.stringify(error)}`,
+            // biome-ignore lint/suspicious/noExplicitAny: Error message extraction
+            error: `Failed to fetch artworks: ${(error as any).message} - ${JSON.stringify(error)}`,
         };
     }
 }

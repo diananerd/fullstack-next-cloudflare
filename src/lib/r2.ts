@@ -53,6 +53,7 @@ export async function uploadToR2(
         }
 
         // Return URL proxied through the application
+        // biome-ignore lint/suspicious/noExplicitAny: Env variables not typed in Cloudflare types yet
         const appUrl =
             (env as any).NEXT_PUBLIC_APP_URL || "https://shield.drimit.io";
         const publicUrl = `${appUrl}/api/assets/${key}`;

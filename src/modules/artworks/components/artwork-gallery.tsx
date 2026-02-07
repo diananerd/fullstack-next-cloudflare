@@ -1,7 +1,4 @@
-import { AlertCircle } from "lucide-react";
 import { UploadArtworkButton } from "@/components/navbar-upload";
-import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
-import { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 import { getArtworksAction } from "../actions/get-artworks.action";
 import { ArtworkMasonry } from "./artwork-masonry";
 

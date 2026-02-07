@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
             success: true,
             message: "Protection applied (mock)",
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("[MockGPU] Error:", error);
 
         // Attempt to set status to FAILED in DB if we have an ID

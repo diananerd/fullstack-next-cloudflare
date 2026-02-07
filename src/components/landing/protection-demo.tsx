@@ -1,11 +1,6 @@
 "use client";
 
-import {
-    ArrowDown,
-    Bot,
-    Image as ImageIcon,
-    Lock,
-} from "lucide-react";
+import { ArrowDown, Bot, Image as ImageIcon, Lock } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -346,9 +341,10 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                                 </span>
                             </div>
                         )}
-
-                        // biome-ignore lint/a11y/useKeyWithClickEvents: Demo interactive element
-                        // biome-ignore lint/a11y/noStaticElementInteractions: Demo interactive element
+                        // biome-ignore lint/a11y/useKeyWithClickEvents: Demo
+                        interactive element // biome-ignore
+                        lint/a11y/noStaticElementInteractions: Demo interactive
+                        element
                         <div
                             className={cn(
                                 "relative group transition-all duration-300",
