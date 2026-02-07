@@ -6,7 +6,7 @@ import { getSession } from "@/modules/auth/utils/auth-utils";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 
 // Use edge runtime for better streaming support on Cloudflare
-export const runtime = 'edge';
+// export const runtime = 'edge';
 
 export async function GET(
     request: NextRequest,

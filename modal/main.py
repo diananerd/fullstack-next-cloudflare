@@ -227,7 +227,8 @@ class MistProcessor:
                 
             # 5. Upload to R2
             s3 = get_r2_client()
-            output_key = f"protected/{req.user_id}/{req.artwork_id}/{output_sha256.hexdigest()}.png"
+            # Simplified path structure: protected/{sha256}.png
+            output_key = f"protected/{output_sha256.hexdigest()}.png"
             
             print(f"[Modal] Uploading result to R2: {output_key}")
             s3.put_object(
