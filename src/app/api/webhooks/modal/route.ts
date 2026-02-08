@@ -18,6 +18,17 @@ interface ProtectionResult {
 
 export const dynamic = 'force-dynamic';
 
+export async function OPTIONS(req: NextRequest) {
+    return new NextResponse(null, {
+        status: 200,
+        headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+    });
+}
+
 export async function POST(req: NextRequest) {
     console.log("[Webhook] Received callback request");
     
