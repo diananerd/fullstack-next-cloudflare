@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-// import { sendToQueue } from "@/lib/queue"; // DEPRECATED
 import { deleteFromR2, type UploadResult, uploadToR2 } from "@/lib/r2";
 import {
     type ProtectionMethodType,
@@ -99,8 +98,8 @@ export async function createArtworkAction(formData: FormData) {
         // Upload to R2: {hash}/original.{ext}
         const uploadResult: UploadResult = await uploadToR2(
             imageFile,
-            hash,
-            "original",
+            hash, // Folder is the hash
+            "original", // Filename is fixed to 'original'
         );
 
         if (!uploadResult.success || !uploadResult.key || !uploadResult.url) {

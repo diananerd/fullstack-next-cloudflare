@@ -44,14 +44,6 @@ export const artworks = sqliteTable(
                 currentStep: number;
                 pending?: boolean; 
             };
-            variants?: {
-                id: string,
-                method: ProtectionMethodType,
-                url?: string,
-                key: string,
-                createdAt: string,
-                metadata?: any
-            }[];
         }>(),
         width: integer("width"),
         height: integer("height"),

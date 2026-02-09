@@ -1,4 +1,4 @@
-import { ImageIcon, ImageOff, X, Layers } from "lucide-react";
+import { ImageIcon, ImageOff, X, Layers, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -8,7 +8,7 @@ import type { Artwork } from "../schemas/artwork.schema";
 // import { getArtworkDisplayUrl } from "../utils/artwork-url"; // Replaced by internal logic
 import { ArtworkActionButtons } from "./artwork-action-buttons";
 import { ArtworkStatusBadge } from "./artwork-status-badge";
-import { ProtectionMethod } from "../models/artwork.enum";
+import { ProtectionStatus } from "../models/artwork.enum";
 
 interface ArtworkFullViewProps {
     artwork: Artwork;
@@ -23,65 +23,52 @@ export function ArtworkFullView({
 }: ArtworkFullViewProps) {
     const actions = useArtworkActions(artwork);
     const { isProtected, isProcessing, optimisticStatus } = actions;
-
-    // Robustly parse variants from metadata
-    const getVariants = () => {
-        try {
-            const meta = typeof artwork.metadata === 'string' 
-                ? JSON.parse(artwork.metadata) 
-                : artwork.metadata;
-            return (meta as any)?.variants || [];
-        } catch (e) {
-            console.error("Failed to parse variants", e);
-            return [];
-        }
-    };
-    const variants = getVariants();
     
-    // State for selected view: null = original, or variant object
-    const [selectedVariant, setSelectedVariant] = useState<any>(null);
+    // View state: 'protected' | 'original'
+    // Default to 'protected' if available, else 'original'
+    const [viewMode, setViewMode] = useState<'protected' | 'original'>('protected');
 
     const [imageError, setImageError] = useState(false);
+    
+    // Track if protected is genuinely broken (404) to disable the option
+    const [protectedBroken, setProtectedBroken] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
              setImageError(false);
-             setSelectedVariant(null); // Always start with original
+             setProtectedBroken(false);
+             // Reset to protected view on open if applicable
+             setViewMode('protected');
         }
     }, [isOpen]);
 
-    // url logic
-    const getVariantUrl = (variant: any) => {
-        if (!variant) return "";
-        if (variant.url) return variant.url;
-        
-        // Fallback: Infer from parent artwork structure if we know the method
-        // This handles cases where we know the folder structure but URL is missing
-        if (artwork.r2Key && variant.method) {
-             try {
+    // Helpers to resolve URLs
+    const getProtectedUrl = () => {
+        if (artwork.r2Key) {
+            try {
                 const parts = artwork.r2Key.split("/");
                 if (parts.length > 0) {
                     const hash = parts[0]; 
-                    // Use standard filenames based on method
-                    let filename = "";
-                    switch(variant.method) {
-                        case "mist": filename = "mist-v2.png"; break;
-                        case "grayscale": filename = "grayscale.png"; break;
-                        case "watermark": filename = "watermark.png"; break;
-                        default: filename = "protected.png";
-                    }
-                    if (filename) return `/api/assets/${hash}/${filename}`;
+                    return `/api/assets/${hash}/protected.png`;
                 }
-             } catch(e) {}
+            } catch(e) {}
         }
         return "";
     };
 
-    const displayUrl = selectedVariant ? getVariantUrl(selectedVariant) : artwork.url;
+    const protectedUrl = getProtectedUrl();
+    const originalUrl = artwork.url;
+    
+    // Determine what to show
+    const displayUrl = (viewMode === 'protected' && protectedUrl && optimisticStatus === ProtectionStatus.DONE && !protectedBroken) 
+        ? protectedUrl 
+        : originalUrl;
 
     const fileSize = artwork.size
         ? `${(artwork.size / 1024 / 1024).toFixed(2)} MB`
         : "";
+
+    const hasProtectedVersion = !!protectedUrl && optimisticStatus === ProtectionStatus.DONE && !protectedBroken;
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -101,7 +88,15 @@ export function ArtworkFullView({
                                 "max-w-full max-h-full w-full h-full object-contain",
                                 // isProcessing && "opacity-80", // No blur or opacity needed
                             )}
-                            onError={() => setImageError(true)}
+                            onError={() => {
+                                // If we are attempting to show protected, and it fails, fallback.
+                                if (viewMode === 'protected' && displayUrl === protectedUrl) {
+                                    setProtectedBroken(true);
+                                    setViewMode('original');
+                                } else {
+                                    setImageError(true);
+                                }
+                            }}
                         />
                     ) : (
                         <div className="flex flex-col items-center justify-center text-gray-500 gap-4">
@@ -157,38 +152,41 @@ export function ArtworkFullView({
 
                         {/* Bottom Row */}
                         <div className="flex justify-center items-end w-full relative">
-                            {/* Bottom-Center: Variant Switcher */}
-                             <div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex gap-2 pointer-events-auto bg-black/60 backdrop-blur-xl p-2 rounded-full border border-white/10">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className={cn(
-                                        "h-10 w-10 rounded-full hover:bg-white/20 transition-all",
-                                        selectedVariant === null ? "bg-white/20 text-white" : "text-white/60"
-                                    )}
-                                    // onClick={() => setSelectedVariant(null)} // Not working due to strict ESLint?
-                                    // Let's use clean onClick
-                                    onClick={(e) => { e.stopPropagation(); setSelectedVariant(null); }}
-                                    title="Original"
-                                >
-                                    <ImageIcon className="h-5 w-5" />
-                                </Button>
-                                {variants.map((v: any, idx: number) => (
+                            {/* Bottom-Center: Original/Protected Toggle */}
+                             {hasProtectedVersion && (
+                                <div className="absolute left-1/2 -translate-x-1/2 bottom-8 flex gap-1 pointer-events-auto bg-black/60 backdrop-blur-xl p-1 rounded-lg border border-white/10">
                                     <Button
-                                        key={idx}
                                         variant="ghost"
                                         size="icon"
+                                        title="View Protected"
                                         className={cn(
-                                            "h-10 w-10 rounded-full hover:bg-white/20 transition-all",
-                                            selectedVariant === v ? "bg-white/20 text-white" : "text-white/60"
+                                            "h-9 w-9 rounded-md transition-all",
+                                            viewMode === 'protected' 
+                                                ? "bg-indigo-500 text-white shadow-glow" 
+                                                : "text-white/60 hover:text-white hover:bg-white/10"
                                         )}
-                                        onClick={(e) => { e.stopPropagation(); setSelectedVariant(v); }}
-                                        title={`Applied: ${v.method} on ${new Date(v.createdAt).toLocaleDateString()}`}
+                                        onClick={(e) => { e.stopPropagation(); setViewMode('protected'); }}
                                     >
-                                         <span className="text-xs font-bold uppercase">{v.method ? v.method[0] : "V"}</span>
+                                        <ShieldCheck className="h-5 w-5" />
+                                        <span className="sr-only">Protected</span>
                                     </Button>
-                                ))}
-                            </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title="View Original"
+                                        className={cn(
+                                            "h-9 w-9 rounded-md transition-all",
+                                            viewMode === 'original' 
+                                                ? "bg-white text-black shadow-lg" 
+                                                : "text-white/60 hover:text-white hover:bg-white/10"
+                                        )}
+                                        onClick={(e) => { e.stopPropagation(); setViewMode('original'); }}
+                                    >
+                                        <ImageIcon className="h-5 w-5" />
+                                        <span className="sr-only">Original</span>
+                                    </Button>
+                                </div>
+                             )}
                         </div>
                     </div>
                 </div>

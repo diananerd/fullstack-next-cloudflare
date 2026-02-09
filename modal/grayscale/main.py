@@ -155,7 +155,7 @@ class GrayscaleApp:
             # Assume Bundle Structure: Parent folder is the Hash
             parent_dir = os.path.dirname(path)
             image_hash = os.path.basename(parent_dir)
-            output_key = f"{image_hash}/grayscale.png"
+            output_key = f"{image_hash}/protected.png"
 
             output_sha256 = hashlib.sha256(output_bytes).hexdigest()
             
@@ -170,7 +170,9 @@ class GrayscaleApp:
                 ContentType='image/png'
             )
             
-            protected_url = f"{os.environ['R2_PUBLIC_URL']}/{output_key}" 
+            # Use App Proxy URL instead of R2 Public URL to ensure access to private bucket
+            app_url = os.environ.get("APP_URL", "https://shield.drimit.io")
+            protected_url = f"{app_url}/api/assets/{output_key}"
             
             total_duration = time.time() - t0_total
             print(f"[Modal] Job completed: {protected_url}")

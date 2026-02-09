@@ -26,7 +26,13 @@ export async function uploadToR2(
         let key: string;
 
         if (customFilename) {
-            key = `${folder}/${customFilename}.${extension}`;
+            // Force strict naming: {hash}/original.{ext} or {hash}/protected.{ext}
+            // If customFilename includes extension, use it, else append detected
+            if (customFilename.includes(".")) {
+                 key = `${folder}/${customFilename}`;
+            } else {
+                 key = `${folder}/${customFilename}.${extension}`;
+            }
         } else {
             // Generate unique filename
             const timestamp = Date.now();

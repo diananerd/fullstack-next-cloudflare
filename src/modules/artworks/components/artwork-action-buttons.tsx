@@ -1,8 +1,6 @@
 import { Download, Loader2, Shield, Trash2 } from "lucide-react";
 import {
     AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
     AlertDialogFooter,
@@ -13,16 +11,17 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { useArtworkActions } from "../hooks/use-artwork-actions";
 import { ProtectArtworkDialog } from "./protect-artwork-dialog";
-import { DownloadArtworkDialog } from "./download-artwork-dialog";
 
 interface ArtworkActionButtonsProps {
     actions: ReturnType<typeof useArtworkActions>;
     hideCancel?: boolean;
     hideRetry?: boolean;
+    children?: React.ReactNode;
 }
 
 export function ArtworkActionButtons({
     actions,
+    children,
 }: ArtworkActionButtonsProps) {
     const {
         isPending,
@@ -42,10 +41,27 @@ export function ArtworkActionButtons({
 
     const stopProp = (e: React.MouseEvent) => e.stopPropagation();
 
-    // Check for variants safely
-    const hasVariants = (artwork.metadata as any)?.variants?.length > 0;
-    // Allow download if officially protected OR if we have variants (even if currently processing a new one)
-    const canDownload = isProtected || hasVariants;
+    // Check for protected status
+    const canDownload = isProtected;
+
+    const handleDownload = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!artwork.r2Key) return;
+        const hash = artwork.r2Key.split('/')[0];
+        const url = `/api/assets/${hash}/protected.png`;
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `drimit-ai-shield-${hash}-protected.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleDeleteConfirm = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        executeDelete();
+    };
 
     return (
         <>
@@ -79,18 +95,16 @@ export function ArtworkActionButtons({
 
                 {/* Download Button */}
                 {canDownload && (
-                    <DownloadArtworkDialog artwork={artwork}>
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-7 w-7 bg-black/60 hover:bg-indigo-500/80 text-white rounded-full border-0 shadow-sm"
-                            onClick={stopProp}
-                            disabled={isPending}
-                            title="Download Variants"
-                        >
-                            <Download className="h-3.5 w-3.5" />
-                        </Button>
-                    </DownloadArtworkDialog>
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        className="h-7 w-7 bg-black/60 hover:bg-indigo-500/80 text-white rounded-full border-0 shadow-sm"
+                        onClick={handleDownload}
+                        disabled={isPending}
+                        title="Download Protected"
+                    >
+                        <Download className="h-3.5 w-3.5" />
+                    </Button>
                 )}
 
                 {/* Delete Button */}
@@ -104,6 +118,9 @@ export function ArtworkActionButtons({
                 >
                     <Trash2 className="h-3.5 w-3.5" />
                 </Button>
+
+                {/* Custom Actions (e.g. Close in Full View) */}
+                {children}
             </div>
 
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -113,24 +130,22 @@ export function ArtworkActionButtons({
                             Are you absolutely sure?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently
-                            delete the artwork and remove the data from our
-                            servers.
+                            This action cannot be undone. This will permanently delete the
+                            artwork and its protected variants from our servers.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={stopProp}>
+                        <Button variant="outline" onClick={() => setDeleteOpen(false)}>
                             Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={(e) => {
-                                stopProp(e);
-                                executeDelete();
-                            }}
-                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600 text-white"
+                        </Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={handleDeleteConfirm}
+                            disabled={isPending}
                         >
+                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Delete
-                        </AlertDialogAction>
+                        </Button>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

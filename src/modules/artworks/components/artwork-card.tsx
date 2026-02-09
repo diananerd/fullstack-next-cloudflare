@@ -61,10 +61,16 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
 
     // Note: Polling logic removed in favor of SSE in useArtworkStatus
 
-    const variants = (liveArtwork.metadata as any)?.variants || [];
-    // Display original mostly, but maybe show icons for variants.
-    // User requirement: "in the card shows the original as value".
-    const displayUrl = liveArtwork.url; // Always Original
+    // Display protected if available, otherwise original
+    // IMPORTANT: Assuming DONE + r2Key means protected exists is naive.
+    // We should fallback on 404 onError.
+    const defaultUrl = getArtworkDisplayUrl(liveArtwork);
+    const [displayUrl, setDisplayUrl] = useState(defaultUrl);
+
+    useEffect(() => {
+        setDisplayUrl(defaultUrl);
+        setImageError(false);
+    }, [defaultUrl]);
 
     return (
         <>
@@ -88,7 +94,16 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                             )}
                             loading="lazy"
                             decoding="async"
-                            onError={() => setImageError(true)}
+                            onError={() => {
+                                // Fallback Strategy:
+                                // If we are showing protected image (derived from logic) and it fails,
+                                // fallback to the original URL.
+                                if (displayUrl !== liveArtwork.url) {
+                                    setDisplayUrl(liveArtwork.url);
+                                } else {
+                                    setImageError(true);
+                                }
+                            }}
                         />
                     ) : (
                         <div className="w-full aspect-square min-h-[12rem] bg-zinc-900 rounded-lg flex flex-col items-center justify-center border border-zinc-800 text-zinc-500 gap-2 p-4 text-center">
@@ -113,22 +128,6 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                                 <ArtworkStatusBadge status={optimisticStatus} />
                             </div>
                             <ArtworkActionButtons actions={actions} />
-                        </div>
-                        
-                        {/* Bottom Row: Variant Icons */}
-                        <div className="mt-auto flex gap-1 items-end">
-                            {variants.map((v: any) => (
-                                <div 
-                                    key={v.id || v.createdAt}
-                                    className="bg-black/60 backdrop-blur-md p-1 rounded-sm border border-white/20 text-white/80"
-                                    title={`Processed with ${v.method || 'Unknown'}`}
-                                >
-                                   {/* Simple Icon based on method logic could go here. For now just a dot or letter */}
-                                   <span className="text-[10px] font-bold uppercase leading-none block px-1">
-                                    {v.method ? v.method[0] : "V"}
-                                   </span>
-                                </div>
-                            ))}
                         </div>
                     </div>
                 </div>
