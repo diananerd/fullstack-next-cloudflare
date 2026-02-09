@@ -1,10 +1,8 @@
 export const ProtectionStatus = {
     UPLOADING: "uploading",
     QUEUED: "queued",
-    RUNNING: "running",
-    PENDING: "pending",
     PROCESSING: "processing",
-    PROTECTED: "protected",
+    DONE: "done",
     FAILED: "failed",
     CANCELED: "canceled",
 } as const;
@@ -14,6 +12,7 @@ export type ProtectionStatusType =
 
 export const ProtectionMethod = {
     MIST: "mist",
+    GRAYSCALE: "grayscale",
     WATERMARK: "watermark", // Placeholder for future expansion
 } as const;
 

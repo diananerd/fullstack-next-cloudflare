@@ -2,7 +2,10 @@ import { ProtectionStatus } from "../models/artwork.enum";
 import type { Artwork } from "../schemas/artwork.schema";
 
 export function getArtworkDisplayUrl(artwork: Artwork): string {
-    if (artwork.protectionStatus === ProtectionStatus.PROTECTED) {
+    if (
+        artwork.protectionStatus === ProtectionStatus.DONE &&
+        !!artwork.jobId
+    ) {
         try {
             // New Structure: {hash}/original.{ext} -> {hash}/mist-v2.png
             const parts = artwork.r2Key.split("/");

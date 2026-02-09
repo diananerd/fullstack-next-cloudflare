@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
         })
         .where(
             and(
-                inArray(artworks.protectionStatus, [ProtectionStatus.QUEUED, ProtectionStatus.PROCESSING, ProtectionStatus.RUNNING]),
+                inArray(artworks.protectionStatus, [ProtectionStatus.QUEUED, ProtectionStatus.PROCESSING]),
                 lt(artworks.createdAt, timeoutThreshold)
             )
         );
@@ -75,7 +75,6 @@ export async function GET(req: NextRequest) {
             inArray(artworks.protectionStatus, [
                 ProtectionStatus.QUEUED,
                 ProtectionStatus.PROCESSING,
-                ProtectionStatus.RUNNING,
             ]),
         );
 
@@ -131,21 +130,41 @@ export async function GET(req: NextRequest) {
             // console.log(`[Cron] Job ${job.id} status: ${state.status}`);
 
             if (state.status === "completed" && state.result) {
+                // Construct new variant object
+                const newVariant = {
+                    id: crypto.randomUUID(),
+                    method: job.method, // Method used for this job
+                    url: state.result.url, // If Modal returns a direct URL
+                    key: state.result.file_key || state.result.key, // Construct key
+                    createdAt: new Date().toISOString(),
+                    metadata: state.result.file_metadata,
+                };
+
+                // Get existing variants (safely parse or default to empty array)
+                const existingVariants =
+                    (job.metadata as any)?.variants || [];
+
+                // Append new variant (LIFO or FIFO? User said "ordered... from last to first". 
+                // We'll store chronological order here and sort in UI).
+                const updatedVariants = [...existingVariants, newVariant];
+
                 await db
                     .update(artworks)
                     .set({
-                        protectionStatus: ProtectionStatus.PROTECTED,
+                        protectionStatus: ProtectionStatus.DONE,
+                        jobId: state.job_id, // Keep the last job ID reference
                         metadata: {
                             ...(job.metadata || {}),
                             ...state.result.file_metadata,
                             processingTime: state.result.processing_time,
                             syncedAt: new Date().toISOString(),
+                            variants: updatedVariants, // New list
                         },
                         updatedAt: new Date().toISOString(),
                     })
                     .where(eq(artworks.id, job.id));
 
-                updates.push({ id: job.id, status: "protected" });
+                updates.push({ id: job.id, status: "done" });
                 finishedIds.push(idStr);
             } else if (state.status === "failed") {
                 await db

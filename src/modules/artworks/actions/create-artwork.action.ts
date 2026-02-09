@@ -1,7 +1,5 @@
 "use server";
 
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { eq } from "drizzle-orm"; // Added for direct updates
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
 // import { sendToQueue } from "@/lib/queue"; // DEPRECATED
@@ -137,7 +135,7 @@ export async function createArtworkAction(formData: FormData) {
             userId: user.id,
             r2Key: uploadResult.key,
             url: uploadResult.url,
-            protectionStatus: ProtectionStatus.QUEUED,
+            protectionStatus: ProtectionStatus.DONE,
             size: imageFile.size,
             method: method,
         };
@@ -150,8 +148,7 @@ export async function createArtworkAction(formData: FormData) {
             userId: validatedData.userId,
             r2Key: validatedData.r2Key,
             url: validatedData.url,
-            protectionStatus:
-                validatedData.protectionStatus as ProtectionStatusType,
+            protectionStatus: ProtectionStatus.DONE,
             size: validatedData.size,
             method: validatedData.method as ProtectionMethodType,
             // Explicitly exclude ID
@@ -186,106 +183,7 @@ export async function createArtworkAction(formData: FormData) {
         const newArtworkId = result[0]?.insertedId;
 
         if (newArtworkId) {
-            // Task to run in background
-            const dispatchTask = async () => {
-                try {
-                    console.log(
-                        `[CreateArtworkAction] Background: Dispatching logic for ID ${newArtworkId}, URL: ${uploadResult.url}`,
-                    );
-
-                    // --- Modal Direct Dispatch (Monolith) ---
-                    const payload = {
-                        artwork_id: String(newArtworkId),
-                        user_id: user.id,
-                        image_url: uploadResult.url,
-                        method: "mist",
-                        config: { steps: 3, epsilon: 0.0627 },
-                        is_preview: process.env.NODE_ENV !== "production",
-                    };
-
-                    const modalUrl = process.env.MODAL_API_URL;
-                    const modalToken = process.env.MODAL_AUTH_TOKEN;
-
-                    if (!modalUrl || !modalToken) {
-                        throw new Error(
-                            "CRITICAL: MODAL_API_URL or MODAL_AUTH_TOKEN missing.",
-                        );
-                    }
-
-                    const modalResponse = await fetch(modalUrl, {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Bearer ${modalToken}`,
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify(payload),
-                    });
-
-                    if (!modalResponse.ok) {
-                        const errText = await modalResponse.text();
-                        throw new Error(
-                            `Protection Service Failed (${modalResponse.status}): ${errText}`,
-                        );
-                    }
-
-                    const responseData = (await modalResponse.json()) as any;
-                    console.log(
-                        `[CreateArtworkAction] Job Dispatched. Job ID: ${responseData.job_id}`,
-                    );
-
-                    // Update status to PROCESSING
-                    const db = await getDb(); // Re-fetch DB context inside async task
-                    await db
-                        .update(artworks)
-                        .set({
-                            protectionStatus: ProtectionStatus.PROCESSING,
-                            jobId: responseData.job_id,
-                            updatedAt: new Date().toISOString(),
-                        })
-                        .where(eq(artworks.id, newArtworkId));
-                } catch (e) {
-                    console.error(
-                        `[CreateArtworkAction] Background Dispatch ERROR:`,
-                        e,
-                    );
-                    try {
-                        const db = await getDb();
-                        await db
-                            .update(artworks)
-                            .set({
-                                protectionStatus: ProtectionStatus.FAILED,
-                                metadata: { error: String(e) },
-                                updatedAt: new Date().toISOString(),
-                            })
-                            .where(eq(artworks.id, newArtworkId));
-                    } catch (dbErr) {
-                        console.error("Failed to mark job as FAILED", dbErr);
-                    }
-                }
-            };
-
-            // Attempt to use waitUntil for non-blocking execution
-            try {
-                // In Cloudflare Workers (OpenNext), we can attach to the context
-                // Note: getCloudflareContext might throw in local Node dev mode
-                const { ctx } = await getCloudflareContext();
-                if (ctx && typeof ctx.waitUntil === "function") {
-                    console.log(
-                        `[CreateArtworkAction] Offloading dispatch to waitUntil`,
-                    );
-                    ctx.waitUntil(dispatchTask());
-                } else {
-                    console.warn(
-                        `[CreateArtworkAction] ctx.waitUntil not available. Awaiting task sequentially.`,
-                    );
-                    await dispatchTask();
-                }
-            } catch (ctxErr) {
-                console.warn(
-                    `[CreateArtworkAction] Could not get Cloudflare context (${ctxErr}). Awaiting task sequentially.`,
-                );
-                await dispatchTask();
-            }
+             console.log(`[CreateArtworkAction] Artwork created with ID: ${newArtworkId}. Status: DONE`);
         } else {
             console.error(
                 `[CreateArtworkAction] No ID returned from DB insert!`,

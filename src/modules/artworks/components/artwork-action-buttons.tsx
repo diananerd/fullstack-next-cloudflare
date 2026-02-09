@@ -1,4 +1,4 @@
-import { Download, RefreshCcw, Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { useArtworkActions } from "../hooks/use-artwork-actions";
+import { ProtectArtworkDialog } from "./protect-artwork-dialog";
+import { DownloadArtworkDialog } from "./download-artwork-dialog";
 
 interface ArtworkActionButtonsProps {
     actions: ReturnType<typeof useArtworkActions>;
@@ -21,22 +23,16 @@ interface ArtworkActionButtonsProps {
 
 export function ArtworkActionButtons({
     actions,
-    hideCancel = false,
-    hideRetry = false,
 }: ArtworkActionButtonsProps) {
     const {
         isPending,
         isProtected,
         isProcessing,
-        isFailed,
-        isCanceled,
-        isRetrying,
-        handleCancel,
-        handleDownload,
-        handleRetry,
         deleteOpen,
         setDeleteOpen,
         executeDelete,
+        artworkId,
+        artwork,
     } = actions;
 
     const onDeleteClick = (e: React.MouseEvent) => {
@@ -46,74 +42,63 @@ export function ArtworkActionButtons({
 
     const stopProp = (e: React.MouseEvent) => e.stopPropagation();
 
+    // Check for variants safely
+    const hasVariants = (artwork.metadata as any)?.variants?.length > 0;
+    // Allow download if officially protected OR if we have variants (even if currently processing a new one)
+    const canDownload = isProtected || hasVariants;
+
     return (
         <>
             {/* biome-ignore lint/a11y/useKeyWithClickEvents: Stop propagation helper */}
             {/* biome-ignore lint/a11y/noStaticElementInteractions: Stop propagation helper */}
             <div
-                className="flex gap-1.5 pointer-events-auto"
+                className="flex gap-1.5 pointer-events-auto items-center"
                 onClick={stopProp}
             >
-                {isProtected && (
-                    <>
+                {/* Protect Button - Always visible unless busy */}
+                <ProtectArtworkDialog artworkId={artworkId}>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        className={cn(
+                            "h-7 text-xs text-white border-0 shadow-sm px-3",
+                            "bg-indigo-600 hover:bg-indigo-700",
+                            isProcessing && "opacity-50 cursor-not-allowed"
+                        )}
+                        onClick={stopProp}
+                        disabled={isPending || isProcessing}
+                    >
+                        {isProcessing ? "Processing..." : "Protect"}
+                    </Button>
+                </ProtectArtworkDialog>
+
+                {/* Download Button */}
+                {canDownload && (
+                    <DownloadArtworkDialog artwork={artwork}>
                         <Button
                             variant="secondary"
                             size="icon"
                             className="h-7 w-7 bg-black/60 hover:bg-indigo-500/80 text-white rounded-full border-0 shadow-sm"
-                            onClick={handleDownload}
+                            onClick={stopProp}
                             disabled={isPending}
-                            title="Download"
+                            title="Download Variants"
                         >
                             <Download className="h-3.5 w-3.5" />
                         </Button>
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-7 w-7 bg-black/60 hover:bg-red-500/80 text-white rounded-full border-0 shadow-sm"
-                            onClick={onDeleteClick}
-                            disabled={isPending}
-                            title="Delete"
-                        >
-                            <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                    </>
+                    </DownloadArtworkDialog>
                 )}
-                {(isFailed || isCanceled) && (
-                    <>
-                        {!hideRetry && (
-                            <Button
-                                variant="secondary"
-                                size="icon"
-                                className="h-7 w-7 bg-black/60 hover:bg-blue-500/80 text-white rounded-full border-0 shadow-sm"
-                                onClick={handleRetry}
-                                disabled={isPending}
-                                title="Retry"
-                            >
-                                <RefreshCcw
-                                    className={cn(
-                                        "h-3.5 w-3.5",
-                                        isRetrying && "animate-spin",
-                                    )}
-                                    style={
-                                        isRetrying
-                                            ? { animationDirection: "reverse" }
-                                            : undefined
-                                    }
-                                />
-                            </Button>
-                        )}
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-7 w-7 bg-black/60 hover:bg-red-500/80 text-white rounded-full border-0 shadow-sm"
-                            onClick={onDeleteClick}
-                            disabled={isPending}
-                            title="Delete"
-                        >
-                            <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                    </>
-                )}
+
+                {/* Delete Button */}
+                <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-7 w-7 bg-black/60 hover:bg-red-500/80 text-white rounded-full border-0 shadow-sm"
+                    onClick={onDeleteClick}
+                    disabled={isPending}
+                    title="Delete"
+                >
+                    <Trash2 className="h-3.5 w-3.5" />
+                </Button>
             </div>
 
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

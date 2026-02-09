@@ -30,28 +30,17 @@ const statusConfig: Record<ProtectionStatusType, StatusConfigItem> = {
         icon: Loader2, // You might want a different icon for Queued, maybe Hourglass? But Loader is fine.
         animate: true,
     },
-    [ProtectionStatus.RUNNING]: {
-        label: "Running",
-        color: "text-indigo-400",
-        icon: Loader2,
-        animate: true,
-    },
-    [ProtectionStatus.PENDING]: {
-        label: "Pending",
-        color: "text-gray-400",
-        icon: Loader2,
-        animate: true,
+    [ProtectionStatus.DONE]: {
+        label: "Done",
+        color: "text-gray-300",
+        icon: Shield,
+        animate: false,
     },
     [ProtectionStatus.PROCESSING]: {
         label: "Processing",
         color: "text-blue-400",
         icon: Loader2,
         animate: true,
-    },
-    [ProtectionStatus.PROTECTED]: {
-        label: "Protected",
-        color: "text-green-400",
-        icon: Shield,
     },
     [ProtectionStatus.FAILED]: {
         label: "Failed",
@@ -69,8 +58,10 @@ export function ArtworkStatusBadge({
     status,
     className,
 }: ArtworkStatusBadgeProps) {
+    if (status === ProtectionStatus.DONE) return null;
+
     const config =
-        statusConfig[status] || statusConfig[ProtectionStatus.PENDING];
+        statusConfig[status] || statusConfig[ProtectionStatus.QUEUED];
     const Icon = config.icon;
 
     return (

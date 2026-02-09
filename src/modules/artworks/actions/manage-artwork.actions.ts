@@ -128,7 +128,9 @@ export async function cancelProtectionAction(artworkId: number) {
 
         await db
             .update(artworks)
-            .set({ protectionStatus: ProtectionStatus.CANCELED })
+            // User requested final states only FAILED or DONE.
+            // Reset to DONE (Initial) so it's ready to handle again.
+            .set({ protectionStatus: ProtectionStatus.DONE, jobId: null }) 
             .where(eq(artworks.id, artworkId));
 
         revalidatePath(DASHBOARD_ROUTE);
@@ -137,6 +139,8 @@ export async function cancelProtectionAction(artworkId: number) {
         return { success: false, error: error.message };
     }
 }
+
+import { getProtectionConfig } from "@/lib/protection-config";
 
 export async function retryProtectionAction(artworkId: number) {
     try {
@@ -164,12 +168,15 @@ export async function retryProtectionAction(artworkId: number) {
 
         // Resubmit to Modal
         try {
-            const modalUrl = process.env.MODAL_API_URL;
-            const modalToken = process.env.MODAL_AUTH_TOKEN;
+            const targetMethod = artwork.method || "mist";
+            const protectionConfig = getProtectionConfig(targetMethod);
+            
+            const modalUrl = protectionConfig.url;
+            const modalToken = protectionConfig.token;
 
             if (!modalUrl || !modalToken) {
                 throw new Error(
-                    "System Configuration Error: Protection Service Unavailable (Missing Config)",
+                    `System Configuration Error: Protection Service Unavailable for method ${targetMethod}`,
                 );
             }
 
@@ -177,8 +184,8 @@ export async function retryProtectionAction(artworkId: number) {
                 artwork_id: String(artworkId),
                 user_id: user.id,
                 image_url: artwork.url,
-                method: "mist",
-                config: { steps: 3, epsilon: 0.0627 },
+                method: targetMethod,
+                config: protectionConfig.defaultConfig || {},
                 is_preview: process.env.NODE_ENV !== "production",
             };
 

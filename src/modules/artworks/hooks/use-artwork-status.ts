@@ -21,9 +21,7 @@ export function useArtworkStatus(
     useEffect(() => {
         const isProcessing =
             status === ProtectionStatus.QUEUED ||
-            status === ProtectionStatus.PENDING ||
             status === ProtectionStatus.PROCESSING ||
-            status === ProtectionStatus.RUNNING ||
             status === ProtectionStatus.UPLOADING;
 
         if (!isProcessing) return;
@@ -59,7 +57,7 @@ export function useArtworkStatus(
 
                     // Check for completion
                     const isFinal =
-                        data.status === ProtectionStatus.PROTECTED ||
+                        data.status === ProtectionStatus.DONE ||
                         data.status === ProtectionStatus.FAILED ||
                         data.status === ProtectionStatus.CANCELED;
 

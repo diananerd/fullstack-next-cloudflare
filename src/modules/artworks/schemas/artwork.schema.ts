@@ -27,7 +27,7 @@ export const artworks = sqliteTable(
         protectionStatus: text("protection_status")
             .$type<ProtectionStatusType>()
             .notNull()
-            .default(ProtectionStatus.QUEUED),
+            .default(ProtectionStatus.DONE),
         jobId: text("job_id"),
         metadata: text("metadata", { mode: "json" }).$type<{
             inputSha256?: string;
@@ -35,6 +35,15 @@ export const artworks = sqliteTable(
             mistTimeSeconds?: number;
             processingTime?: number;
             error?: string;
+            syncedAt?: string;
+            variants?: {
+                id: string,
+                method: ProtectionMethodType,
+                url?: string,
+                key: string,
+                createdAt: string,
+                metadata?: any
+            }[];
         }>(),
         width: integer("width"),
         height: integer("height"),

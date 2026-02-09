@@ -87,13 +87,16 @@ export function useArtworkActions(artwork: Artwork) {
         });
     };
 
-    const isProtected = artwork.protectionStatus === ProtectionStatus.PROTECTED;
+    const isAnyDone = artwork.protectionStatus === ProtectionStatus.DONE;
+    // Protected = DONE and has a jobId (means it went through the process)
+    const isProtected = isAnyDone && !!artwork.jobId;
+    // Ready = DONE and NO jobId (means freshly uploaded)
+    const isReady = isAnyDone && !artwork.jobId;
+
     const isActuallyProcessing =
-        artwork.protectionStatus === ProtectionStatus.PENDING ||
         artwork.protectionStatus === ProtectionStatus.PROCESSING ||
         artwork.protectionStatus === ProtectionStatus.UPLOADING ||
-        artwork.protectionStatus === ProtectionStatus.QUEUED ||
-        artwork.protectionStatus === ProtectionStatus.RUNNING;
+        artwork.protectionStatus === ProtectionStatus.QUEUED;
 
     // Optimistic processing state: true if actual DB says so OR if we are currently retrying
     const isProcessing = isActuallyProcessing || isRetrying;
@@ -108,6 +111,7 @@ export function useArtworkActions(artwork: Artwork) {
         ? ProtectionStatus.QUEUED
         : artwork.protectionStatus;
 
+
     return {
         isPending,
         deleteOpen,
@@ -118,9 +122,13 @@ export function useArtworkActions(artwork: Artwork) {
         handleRetry,
         isProtected,
         isProcessing,
+        isReady, // Export
         isFailed,
         isCanceled,
         isRetrying,
         optimisticStatus, // Expose this for UI components
+        artworkId: artwork.id, // Expose ID
+        artwork,
     };
 }
+

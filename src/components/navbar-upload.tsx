@@ -11,6 +11,7 @@ import { createArtworkAction } from "@/modules/artworks/actions/create-artwork.a
 interface UploadArtworkButtonProps extends ButtonProps {
     text?: string;
     showIcon?: boolean;
+    method?: string;
 }
 
 export function UploadArtworkButton({
@@ -19,6 +20,7 @@ export function UploadArtworkButton({
     size = "sm",
     text,
     showIcon = true,
+    method,
     ...props
 }: UploadArtworkButtonProps) {
     const [isPending, startTransition] = useTransition();
@@ -120,6 +122,9 @@ export function UploadArtworkButton({
             formData.append("title", file.name.split(".")[0]);
             formData.append("image", file);
             formData.append("hash", fileHash);
+            if (method) {
+                formData.append("method", method);
+            }
 
             startTransition(async () => {
                 try {

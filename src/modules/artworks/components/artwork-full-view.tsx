@@ -1,13 +1,14 @@
-import { ImageIcon, ImageOff, X } from "lucide-react";
+import { ImageIcon, ImageOff, X, Layers } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useArtworkActions } from "../hooks/use-artwork-actions";
 import type { Artwork } from "../schemas/artwork.schema";
-import { getArtworkDisplayUrl } from "../utils/artwork-url";
+// import { getArtworkDisplayUrl } from "../utils/artwork-url"; // Replaced by internal logic
 import { ArtworkActionButtons } from "./artwork-action-buttons";
 import { ArtworkStatusBadge } from "./artwork-status-badge";
+import { ProtectionMethod } from "../models/artwork.enum";
 
 interface ArtworkFullViewProps {
     artwork: Artwork;
@@ -23,13 +24,41 @@ export function ArtworkFullView({
     const actions = useArtworkActions(artwork);
     const { isProtected, isProcessing, optimisticStatus } = actions;
 
+    const variants = (artwork.metadata as any)?.variants || [];
+    
+    // State for selected view: null = original, or variant object
+    const [selectedVariant, setSelectedVariant] = useState<any>(null);
+
     const [imageError, setImageError] = useState(false);
 
     useEffect(() => {
-        if (isOpen) setImageError(false);
+        if (isOpen) {
+             setImageError(false);
+             setSelectedVariant(null); // Always start with original
+        }
     }, [isOpen]);
 
-    const displayUrl = getArtworkDisplayUrl(artwork);
+    // url logic
+    const getVariantUrl = (variant: any) => {
+        if (variant.url) return variant.url;
+        // Construct from key if needed (assuming same R2 domain proxy logic)
+        try {
+            // New Structure: {hash}/filename.ext
+            // We need to know the endpoint structure. 
+            // ArtworkUrl util does `/api/assets/${hash}/mist-v2.png`
+            // If we stored the full relative key like `hash/mist.png`:
+             const parts = variant.key.split("/");
+             if (parts.length > 0) {
+                 const hash = parts[0];
+                 const filename = variant.key.replace(`${hash}/`, '');
+                 return `/api/assets/${hash}/${filename}`;
+             }
+        } catch(e) { return "" }
+        return "";
+    };
+
+    const displayUrl = selectedVariant ? getVariantUrl(selectedVariant) : artwork.url;
+
     const fileSize = artwork.size
         ? `${(artwork.size / 1024 / 1024).toFixed(2)} MB`
         : "";
@@ -103,6 +132,39 @@ export function ArtworkFullView({
                             {/* Bottom-Left: File Size */}
                             <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded text-xs font-medium text-white/90 pointer-events-auto select-none">
                                 {fileSize}
+                            </div>
+                            
+                            {/* Bottom-Center: Variant Switcher */}
+                             <div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex gap-2 pointer-events-auto bg-black/60 backdrop-blur-xl p-2 rounded-full border border-white/10">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                        "h-10 w-10 rounded-full hover:bg-white/20 transition-all",
+                                        selectedVariant === null ? "bg-white/20 text-white" : "text-white/60"
+                                    )}
+                                    // onClick={() => setSelectedVariant(null)} // Not working due to strict ESLint?
+                                    // Let's use clean onClick
+                                    onClick={(e) => { e.stopPropagation(); setSelectedVariant(null); }}
+                                    title="Original"
+                                >
+                                    <ImageIcon className="h-5 w-5" />
+                                </Button>
+                                {variants.map((v: any, idx: number) => (
+                                    <Button
+                                        key={idx}
+                                        variant="ghost"
+                                        size="icon"
+                                        className={cn(
+                                            "h-10 w-10 rounded-full hover:bg-white/20 transition-all",
+                                            selectedVariant === v ? "bg-white/20 text-white" : "text-white/60"
+                                        )}
+                                        onClick={(e) => { e.stopPropagation(); setSelectedVariant(v); }}
+                                        title={`Applied: ${v.method} on ${new Date(v.createdAt).toLocaleDateString()}`}
+                                    >
+                                         <span className="text-xs font-bold uppercase">{v.method ? v.method[0] : "V"}</span>
+                                    </Button>
+                                ))}
                             </div>
 
                             {/* Bottom-Right: Actions */}

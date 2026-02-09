@@ -41,7 +41,10 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
 
     // Note: Polling logic removed in favor of SSE in useArtworkStatus
 
-    const displayUrl = getArtworkDisplayUrl(liveArtwork);
+    const variants = (liveArtwork.metadata as any)?.variants || [];
+    // Display original mostly, but maybe show icons for variants.
+    // User requirement: "in the card shows the original as value".
+    const displayUrl = liveArtwork.url; // Always Original
 
     return (
         <>
@@ -88,6 +91,22 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                         <div className="flex justify-between items-start w-full">
                             <ArtworkStatusBadge status={optimisticStatus} />
                             <ArtworkActionButtons actions={actions} />
+                        </div>
+                        
+                        {/* Bottom Row: Variant Icons */}
+                        <div className="mt-auto flex gap-1 items-end">
+                            {variants.map((v: any) => (
+                                <div 
+                                    key={v.id || v.createdAt}
+                                    className="bg-black/60 backdrop-blur-md p-1 rounded-sm border border-white/20 text-white/80"
+                                    title={`Processed with ${v.method || 'Unknown'}`}
+                                >
+                                   {/* Simple Icon based on method logic could go here. For now just a dot or letter */}
+                                   <span className="text-[10px] font-bold uppercase leading-none block px-1">
+                                    {v.method ? v.method[0] : "V"}
+                                   </span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
