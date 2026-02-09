@@ -139,22 +139,24 @@ export function ArtworkFullView({
                                 <ArtworkStatusBadge status={optimisticStatus} />
                             </div>
 
-                            {/* Top-Right: Close Button */}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="bg-black/60 backdrop-blur-md text-white hover:text-white hover:bg-black/80 rounded-full h-10 w-10 pointer-events-auto"
-                                onClick={onClose}
-                            >
-                                <X className="h-6 w-6" />
-                            </Button>
+                            {/* Top-Right: Action Group (Protect, Download, Delete, Close) */}
+                            <ArtworkActionButtons actions={actions} hideCancel>
+                                {/* Separator / Close Button appended to group */}
+                                <div className="w-px h-4 bg-white/20 mx-1" />
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="h-7 w-7 bg-black/60 hover:bg-white/20 text-white rounded-full border-0 shadow-sm"
+                                    onClick={onClose}
+                                    title="Close"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </Button>
+                            </ArtworkActionButtons>
                         </div>
 
                         {/* Bottom Row */}
-                        <div className="flex justify-between items-end w-full">
-                            {/* Spacer to balance flex layout since FileSize moved up */}
-                            <div className="w-10" />
-                            
+                        <div className="flex justify-center items-end w-full relative">
                             {/* Bottom-Center: Variant Switcher */}
                              <div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex gap-2 pointer-events-auto bg-black/60 backdrop-blur-xl p-2 rounded-full border border-white/10">
                                 <Button
@@ -187,12 +189,6 @@ export function ArtworkFullView({
                                     </Button>
                                 ))}
                             </div>
-
-                            {/* Bottom-Right: Actions */}
-                            <ArtworkActionButtons
-                                actions={actions}
-                                hideCancel
-                            />
                         </div>
                     </div>
                 </div>
