@@ -25,7 +25,7 @@ export async function deleteArtworkAction(artworkId: number) {
             return { success: false, error: "Unauthorized" };
 
         console.log(
-            `[Delete] Processing delete for ID ${artworkId}. R2: ${artwork.r2Key}`,
+            `[Delete] v2 Processing delete for ID ${artworkId}. R2: ${artwork.r2Key}`,
         );
 
         // Safe Deletion: Check if R2 items are used by OTHER artworks before deleting

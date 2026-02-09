@@ -1,4 +1,3 @@
-
 import { ProtectionStatus } from "../models/artwork.enum";
 import type { Artwork } from "../schemas/artwork.schema";
 
@@ -11,7 +10,7 @@ export function getArtworkDisplayUrl(artwork: Artwork): string {
             const parts = artwork.r2Key.split("/");
             const filename = parts[parts.length - 1]; // hash.ext
             const hash = filename.split(".")[0]; // hash
-            
+
             // Return relative path to asset proxy
             return `/api/assets/protected/${hash}.png`;
         } catch (e) {
