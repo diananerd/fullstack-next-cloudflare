@@ -10,7 +10,7 @@ import {
     ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -88,6 +88,22 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
         setStatus("typing_prompt");
     };
 
+    const handleComplaintSubmit = useCallback((text: string) => {
+        const userMsg: Message = {
+            id: Date.now().toString(),
+            role: "user",
+            type: "text",
+            text: text,
+        };
+        setMessages((prev) => [...prev, userMsg]);
+        setInputValue("");
+
+        // Delay for dramatic effect before showing the sales pitch
+        setTimeout(() => {
+            setStatus("completed");
+        }, 3500);
+    }, []);
+
     // Simulation Sequence
     useEffect(() => {
         if (status === "typing_prompt") {
@@ -127,22 +143,6 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
 
         setShowClickHint(false);
     }, [status, handleComplaintSubmit]);
-
-    const handleComplaintSubmit = (text: string) => {
-        const userMsg: Message = {
-            id: Date.now().toString(),
-            role: "user",
-            type: "text",
-            text: text,
-        };
-        setMessages((prev) => [...prev, userMsg]);
-        setInputValue("");
-
-        // Delay for dramatic effect before showing the sales pitch
-        setTimeout(() => {
-            setStatus("completed");
-        }, 3500);
-    };
 
     const handleUserSubmit = (overrideText?: string) => {
         // Add User Message
