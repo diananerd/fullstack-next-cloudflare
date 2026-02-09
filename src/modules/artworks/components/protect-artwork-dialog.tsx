@@ -93,9 +93,12 @@ export function ProtectArtworkDialog({
 
     useEffect(() => {
         if (open) {
-             // Reset state on open
+             // Reset state on open to avoid pollution from previous runs
              setStep(1);
              setSelectedMethods([]); 
+             setMistModel("mist-v2");
+             // Resetting to default string triggers the session auto-fill effect below
+             setWatermarkText("DRIMIT SHIELD");
         }
     }, [open]);
 
@@ -237,12 +240,16 @@ export function ProtectArtworkDialog({
                 {children}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[450px]">
-                <DialogHeader>
-                    <DialogTitle>Protect Artwork</DialogTitle>
-                    <DialogDescription>
-                        Configure your protection pipeline.
-                    </DialogDescription>
-                </DialogHeader>
+                {step !== 5 ? (
+                    <DialogHeader>
+                        <DialogTitle>Protect Artwork</DialogTitle>
+                        <DialogDescription>
+                            Configure your protection pipeline.
+                        </DialogDescription>
+                    </DialogHeader>
+                ) : (
+                    <DialogTitle className="sr-only">Protection Started</DialogTitle>
+                )}
 
                 <div className="py-2">
                     {/* STEP 1: SELECTION */}

@@ -22,19 +22,27 @@ export class PipelineService {
         
         if (!artwork) throw new Error("Artwork not found");
 
-        // Idempotency Check: Don't start if already processing or queued
-        if (artwork.protectionStatus === ProtectionStatus.PROCESSING || artwork.protectionStatus === ProtectionStatus.QUEUED) {
-             const runningJobs = await db.select().from(artworkJobs).where(
-                 and(
-                     eq(artworkJobs.artworkId, artworkId),
-                     inArray(artworkJobs.status, [JobStatus.QUEUED, JobStatus.PROCESSING])
-                 )
+        // 1. Reset / Cleanup Logic
+        // We force a clean slate for the NEW pipeline request. 
+        // Any existing jobs that are still "alive" (PENDING, QUEUED, PROCESSING) must be marked as superseded (FAILED)
+        // so that async callbacks or CRON syncs don't try to update the state of this new pipeline based on old data.
+        const activeJobs = await db.select().from(artworkJobs).where(
+             and(
+                 eq(artworkJobs.artworkId, artworkId),
+                 inArray(artworkJobs.status, [JobStatus.PENDING, JobStatus.QUEUED, JobStatus.PROCESSING])
+             )
+        );
+        
+        if (activeJobs.length > 0) {
+             console.warn(`[Pipeline] Resetting ${activeJobs.length} active jobs for artwork ${artworkId} before starting new pipeline.`);
+             
+             await db.update(artworkJobs).set({
+                 status: JobStatus.FAILED,
+                 errorMessage: "Pipeline Reset: Superseded by new protection request.",
+                 updatedAt: new Date().toISOString()
+             }).where(
+                 inArray(artworkJobs.id, activeJobs.map(j => j.id))
              );
-             if (runningJobs.length > 0) {
-                 console.warn(`[Pipeline] Pipeline already active for artwork ${artworkId}. Ignoring start request.`);
-                 return;
-             }
-             // If status is active but no jobs are running, we might have a data inconsistency, proceed to restart/reset.
         }
 
         console.log(`[Pipeline] Starting pipeline for Artwork ${artworkId}. Steps: ${pipeline.length}`);
@@ -273,16 +281,17 @@ export class PipelineService {
         
         const jobsByMethod: Record<string, typeof activeJobs> = {};
         for (const j of activeJobs) {
-            // ZOMBIE CHECK: If job is processing for > 2 hours, mark as FAILED (Timeout)
+            // ZOMBIE CHECK: If job is processing/queued for > 6 hours, mark as FAILED (Timeout).
+            // Increased to 6h to handle long queues + long runtimes (e.g. 15m+ per step).
             const lastUpdate = new Date(j.updatedAt).getTime();
             const now = Date.now();
             const hoursDiff = (now - lastUpdate) / (1000 * 60 * 60);
 
-            if (hoursDiff > 2) {
-                console.warn(`[Pipeline] Job ${j.id} timed out (Zombie). Marking as failed.`);
+            if (hoursDiff > 6) {
+                console.warn(`[Pipeline] Job ${j.id} timed out (Zombie > 6h). Marking as failed.`);
                 await db.update(artworkJobs).set({
                     status: JobStatus.FAILED,
-                    errorMessage: "System Timeout: Job unresponsive for > 2h",
+                    errorMessage: "System Timeout: Job unresponsive for > 6h",
                     updatedAt: new Date().toISOString()
                 }).where(eq(artworkJobs.id, j.id));
                 continue; // Skip sync for this job
@@ -353,6 +362,17 @@ export class PipelineService {
                                 updatedAt: new Date().toISOString()
                             }).where(eq(artworkJobs.id, job.id))
                         );
+                    } else if (state.status === "running" || state.status === "processing") {
+                        // Heartbeat / Status Promotion
+                        // If job moves from QUEUED -> PROCESSING, or just to keep alive
+                        if (job.status !== JobStatus.PROCESSING) {
+                             updates.push(
+                                db.update(artworkJobs).set({
+                                    status: JobStatus.PROCESSING,
+                                    updatedAt: new Date().toISOString()
+                                }).where(eq(artworkJobs.id, job.id))
+                            );
+                        }
                     }
                 }
 
