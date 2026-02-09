@@ -138,8 +138,21 @@ export async function GET(req: NextRequest) {
                     process.env.NEXT_PUBLIC_APP_URL ||
                     "https://shield.drimit.io";
 
-                const finalUrl = state.result.protected_image_key
-                    ? `${appUrl}/api/assets/${state.result.protected_image_key}`
+                let r2Key = state.result.protected_image_key;
+
+                // Fallback: Extract key from URL if missing (handles old jobs or missing keys)
+                if (!r2Key && state.result.protected_image_url) {
+                    const urlStr = state.result.protected_image_url;
+                    if (urlStr.includes("/protected/")) {
+                        r2Key = `protected/${urlStr.split("/protected/")[1]}`;
+                    } else {
+                        const parts = urlStr.split("/");
+                        r2Key = `protected/${parts[parts.length - 1]}`;
+                    }
+                }
+
+                const finalUrl = r2Key
+                    ? `${appUrl}/api/assets/${r2Key}`
                     : state.result.protected_image_url;
 
                 await db
@@ -147,7 +160,7 @@ export async function GET(req: NextRequest) {
                     .set({
                         protectionStatus: ProtectionStatus.PROTECTED,
                         protectedUrl: finalUrl,
-                        protectedR2Key: state.result.protected_image_key,
+                        protectedR2Key: r2Key,
                         metadata: {
                             ...(job.metadata || {}),
                             ...state.result.file_metadata,

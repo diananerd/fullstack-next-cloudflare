@@ -16,7 +16,7 @@ export function MasonryGrid<T>({
     className,
     keyExtractor,
 }: MasonryGridProps<T>) {
-    const [columns, setColumns] = useState(1);
+    const [columns, setColumns] = useState(2);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -30,9 +30,7 @@ export function MasonryGrid<T>({
                 setColumns(4); // lg
             else if (width >= 768)
                 setColumns(3); // md
-            else if (width >= 640)
-                setColumns(2); // sm
-            else setColumns(1);
+            else setColumns(2); // sm & mobile
         };
 
         updateColumns();
@@ -62,7 +60,7 @@ export function MasonryGrid<T>({
         // but the ordering would change from Vertical to Horizontal-Masonry upon hydration.
         // Let's stick to 1-col default to ensure data is visible.
         return (
-            <div className={cn("flex flex-col gap-4 p-4", className)}>
+            <div className={cn("grid grid-cols-2 gap-4 p-4", className)}>
                 {items.map((item, i) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: Display-only list, no ID guaranteed
                     <div key={i}>{render(item)}</div>
