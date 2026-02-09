@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
+import path from "node:path";
 import { defineConfig } from "drizzle-kit";
-import path from "path";
 
 function getLocalD1DB() {
     try {

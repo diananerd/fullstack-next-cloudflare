@@ -51,7 +51,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages, status]);
+    }, []);
 
     // Auto-scroll input text
     useEffect(() => {
@@ -65,7 +65,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                 inputRef.current.scrollLeft = inputRef.current.scrollWidth;
             }
         }
-    }, [inputValue, status]);
+    }, [status]);
 
     // Initial Start
     useEffect(() => {
@@ -126,7 +126,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
         }
 
         setShowClickHint(false);
-    }, [status]);
+    }, [status, handleComplaintSubmit]);
 
     const handleComplaintSubmit = (text: string) => {
         const userMsg: Message = {

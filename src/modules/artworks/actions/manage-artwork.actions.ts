@@ -1,9 +1,9 @@
 "use server";
 
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { and, count, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { deleteFromR2 } from "@/lib/r2";
+import { deleteFolderFromR2, deleteFromR2 } from "@/lib/r2";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
@@ -58,22 +58,13 @@ export async function deleteArtworkAction(artworkId: number) {
 
         // File cleanup (Direct R2 Delete)
         if (shouldDelete && artwork.r2Key) {
-            await deleteFromR2(artwork.r2Key);
-            console.log(`[Delete] Deleted raw file: ${artwork.r2Key}`);
-
-            // Also delete the protected derivative
-            try {
-                const parts = artwork.r2Key.split("/");
-                const filename = parts[parts.length - 1];
-                const hash = filename.split(".")[0];
-                const protectedR2Key = `protected/${hash}.png`;
-
-                await deleteFromR2(protectedR2Key);
-                console.log(
-                    `[Delete] Deleted protected file: ${protectedR2Key}`,
-                );
-            } catch (e) {
-                console.error("Error deriving protected key for deletion", e);
+            const parts = artwork.r2Key.split("/");
+            // Expectation: {hash}/original.{extension}
+            // 1. General Deletion: Borra el directorio completo (hash) y todas sus variantes
+            if (parts.length > 1) {
+                const rootHash = parts[0];
+                await deleteFolderFromR2(`${rootHash}/`);
+                console.log(`[Delete] Deleted art folder: ${rootHash}/`);
             }
         }
 
@@ -81,6 +72,43 @@ export async function deleteArtworkAction(artworkId: number) {
         return { success: true };
     } catch (error: any) {
         console.error("Delete Error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Borra una variante específica del artwork (ej: "mist-v2.png"), manteniendo el resto.
+ */
+export async function deleteArtworkVariantAction(
+    artworkId: number,
+    variantName: string,
+) {
+    try {
+        const user = await requireAuth();
+        const db = await getDb();
+
+        const artwork = await db.query.artworks.findFirst({
+            where: eq(artworks.id, artworkId),
+        });
+
+        if (!artwork) return { success: false, error: "Artwork not found" };
+        if (artwork.userId !== user.id)
+            return { success: false, error: "Unauthorized" };
+
+        if (artwork.r2Key) {
+            const parts = artwork.r2Key.split("/");
+            if (parts.length > 1) {
+                const rootHash = parts[0];
+                // 2. Specific variant deletion: Borra solo el archivo indicado
+                const variantKey = `${rootHash}/${variantName}`;
+                await deleteFromR2(variantKey);
+                console.log(`[Delete] Deleted variant: ${variantKey}`);
+            }
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Delete Variant Error:", error);
         return { success: false, error: error.message };
     }
 }
@@ -151,6 +179,7 @@ export async function retryProtectionAction(artworkId: number) {
                 image_url: artwork.url,
                 method: "mist",
                 config: { steps: 3, epsilon: 0.0627 },
+                is_preview: process.env.NODE_ENV !== "production",
             };
 
             const modalResponse = await fetch(modalUrl, {

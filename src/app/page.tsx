@@ -20,6 +20,7 @@ export default async function HomePage() {
             <header className="absolute top-0 left-0 right-0 z-50 p-4 md:p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
                 <div className="flex items-center gap-2">
                     <Link href="/" className="flex items-center gap-2">
+                        {/* biome-ignore lint/performance/noImgElement: Icon optimization not critical */}
                         <img
                             src="/icon.png"
                             alt="Drimit AI Shield"

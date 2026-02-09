@@ -20,6 +20,7 @@ class ProtectionRequest(BaseModel):
     user_id: str
     method: str = "mist" # Default to mist
     config: Dict[str, Any] = {}
+    is_preview: bool = False # Detect if request comes from dev environment
 
 class ProtectionResult(BaseModel):
     artwork_id: str
@@ -38,7 +39,8 @@ class BulkStatusRequest(BaseModel):
 # ---------------------
 
 # Config
-R2_BUCKET = "drimit-shield-bucket"
+R2_BUCKET_PROD = "drimit-shield-bucket"
+R2_BUCKET_DEV = "drimit-shield-dev-bucket"
 
 # App Declaration
 app = modal.App("drimit-shield-demo")
@@ -263,22 +265,24 @@ class MistApp:
             # 4. Post-processing & Upload
             from urllib.parse import urlparse
             
-            # Use original filename (without extension) for the protected file
-            # This allows overwriting previous results and maintains readability
             parsed_url = urlparse(req.image_url)
-            original_filename = os.path.basename(parsed_url.path)
-            base_name = os.path.splitext(original_filename)[0]
+            path = parsed_url.path 
             
-            # Mist output is always PNG
-            output_key = f"protected/{base_name}.png"
+            # Assume Bundle Structure: Parent folder is the Hash
+            # path e.g. /api/assets/<hash>/original.png
+            parent_dir = os.path.dirname(path)
+            image_hash = os.path.basename(parent_dir)
+            output_key = f"{image_hash}/mist-v2.png"
 
             # Compute hash for metadata only, not filename
             output_sha256 = hashlib.sha256(output_bytes).hexdigest()
             
-            print(f"[Modal] Uploading result to R2: {output_key}")
+            target_bucket = R2_BUCKET_DEV if req.is_preview else R2_BUCKET_PROD
+            print(f"[Modal] Uploading result to R2 ({target_bucket}): {output_key}")
+            
             s3 = get_r2_client()
             s3.put_object(
-                Bucket=R2_BUCKET,
+                Bucket=target_bucket,
                 Key=output_key,
                 Body=output_bytes,
                 ContentType='image/png'

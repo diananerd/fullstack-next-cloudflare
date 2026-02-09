@@ -17,13 +17,13 @@ export async function GET(
         const authHeader = _request.headers.get("Authorization");
 
         // Try all possible sources for the token
-        const systemToken =
-            (env as any).MODAL_AUTH_TOKEN || process.env.MODAL_AUTH_TOKEN;
+        // biome-ignore lint/suspicious/noExplicitAny: Env types are dynamic in Cloudflare
+        const systemToken = (env as any).MODAL_AUTH_TOKEN || process.env.MODAL_AUTH_TOKEN;
 
         // Debug Logging
         console.log(`[AssetProxy] Request URL: ${_request.url}`);
         console.log(
-            `[AssetProxy] Auth Header: ${authHeader ? authHeader.substring(0, 10) + "..." : "MISSING"}`,
+            `[AssetProxy] Auth Header: ${authHeader ? `${authHeader.substring(0, 10)}...` : "MISSING"}`,
         );
         console.log(`[AssetProxy] System Token Found: ${!!systemToken}`);
 
@@ -99,15 +99,34 @@ export async function GET(
 
             // DIAGNOSTIC LOOP: List similar keys to find typos or path issues
             try {
-                const prefix = objectKey.split("/")[0]; // e.g. "protected" or "raw"
-                const list = await env.drimit_shield_bucket.list({
-                    prefix: prefix,
-                    limit: 5,
-                });
-                console.log(
-                    `[AssetProxy] Existing keys in '${prefix}/':`,
-                    list.objects.map((o) => o.key),
-                );
+                const parts = objectKey.split("/");
+                const prefix = parts.length > 1 ? `${parts[0]}/` : ""; // Ensure trailing slash for folder listing
+
+                let foundKeysCount = 0;
+
+                if (prefix) {
+                    const list = await env.drimit_shield_bucket.list({
+                        prefix: prefix,
+                        limit: 10,
+                    });
+                    const foundKeys = list.objects.map((o) => o.key);
+                    foundKeysCount = foundKeys.length;
+                    console.log(
+                        `[AssetProxy] Debug - Keys found in '${prefix}':`,
+                        foundKeys,
+                    );
+                }
+
+                if (foundKeysCount === 0) {
+                    // Fallback: List root to see if we are in the wrong directory structure
+                    const rootList = await env.drimit_shield_bucket.list({
+                        limit: 10,
+                    });
+                    console.log(
+                        `[AssetProxy] No keys found in prefix using Root List sample:`,
+                        rootList.objects.map((o) => o.key),
+                    );
+                }
             } catch (listErr) {
                 console.error(
                     "[AssetProxy] Failed to list keys for debug",

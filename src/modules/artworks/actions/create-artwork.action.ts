@@ -98,11 +98,11 @@ export async function createArtworkAction(formData: FormData) {
 
         console.log(`[CreateArtworkAction] Uploading raw image to R2: ${hash}`);
 
-        // Upload to R2 (raw folder) with HASH as filename
+        // Upload to R2: {hash}/original.{ext}
         const uploadResult: UploadResult = await uploadToR2(
             imageFile,
-            "raw",
             hash,
+            "original",
         );
 
         if (!uploadResult.success || !uploadResult.key || !uploadResult.url) {
@@ -200,6 +200,7 @@ export async function createArtworkAction(formData: FormData) {
                         image_url: uploadResult.url,
                         method: "mist",
                         config: { steps: 3, epsilon: 0.0627 },
+                        is_preview: process.env.NODE_ENV !== "production",
                     };
 
                     const modalUrl = process.env.MODAL_API_URL;

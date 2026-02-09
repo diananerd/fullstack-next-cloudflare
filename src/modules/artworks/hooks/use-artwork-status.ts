@@ -89,7 +89,7 @@ export function useArtworkStatus(
         return () => {
             clearInterval(intervalId);
         };
-    }, [artworkId, initialStatus, status]);
+    }, [artworkId, status, router.refresh]);
 
     return status;
 }

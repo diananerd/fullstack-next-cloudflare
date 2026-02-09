@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -47,7 +47,7 @@ export function NavigationUserMenu({ user }: NavigationUserMenuProps) {
             <DropdownMenuTrigger asChild>
                 <Avatar className="h-9 w-9 cursor-pointer transition-opacity hover:opacity-80">
                     <AvatarImage src={user.image || ""} alt={displayName} />
-                    <AvatarFallback className="bg-gray-200 text-gray-700 font-medium">
+                    <AvatarFallback className="bg-black text-gray-200 font-medium">
                         {initial}
                     </AvatarFallback>
                 </Avatar>

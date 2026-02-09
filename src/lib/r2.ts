@@ -125,4 +125,40 @@ export async function deleteFromR2(
     }
 }
 
-export async function listR2Files() {}
+export async function deleteFolderFromR2(
+    prefix: string,
+    envOverride?: Cloudflare.Env,
+): Promise<boolean> {
+    try {
+        let env: Cloudflare.Env;
+        if (envOverride) {
+            env = envOverride;
+        } else {
+            const context = await getCloudflareContext();
+            env = context.env as unknown as Cloudflare.Env;
+        }
+
+        let truncated = true;
+        let cursor: string | undefined;
+
+        while (truncated) {
+            const list = await env.drimit_shield_bucket.list({
+                prefix,
+                cursor,
+            });
+
+            if (list.objects.length > 0) {
+                const keys = list.objects.map((o) => o.key);
+                await env.drimit_shield_bucket.delete(keys);
+            }
+
+            truncated = list.truncated;
+            cursor = list.truncated ? list.cursor : undefined;
+        }
+
+        return true;
+    } catch (error) {
+        console.error("Delete folder from R2 error:", error);
+        return false;
+    }
+}

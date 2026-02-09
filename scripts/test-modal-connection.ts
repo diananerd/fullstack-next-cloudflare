@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 
 async function main() {
     // 1. Load config from .dev.vars
@@ -18,7 +18,7 @@ async function main() {
                 modalToken = line.split("=")[1].trim();
             }
         }
-    } catch (error) {
+    } catch (_error) {
         console.error("Failed to read .dev.vars");
     }
 

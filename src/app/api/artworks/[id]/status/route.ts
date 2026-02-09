@@ -6,7 +6,7 @@ import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 // export const runtime = "edge"; // Removed to fix import issues
 
 export async function GET(
-    req: NextRequest,
+    _req: NextRequest,
     props: { params: Promise<{ id: string }> },
 ) {
     try {
@@ -14,9 +14,9 @@ export async function GET(
         const { id } = params;
 
         // console.log(`[StatusAPI] Request for ${id}`);
-        const artworkId = parseInt(id);
+        const artworkId = parseInt(id, 10);
 
-        if (isNaN(artworkId)) {
+        if (Number.isNaN(artworkId)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 

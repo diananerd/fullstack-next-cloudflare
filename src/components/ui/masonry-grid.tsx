@@ -60,7 +60,12 @@ export function MasonryGrid<T>({
         // but the ordering would change from Vertical to Horizontal-Masonry upon hydration.
         // Let's stick to 1-col default to ensure data is visible.
         return (
-            <div className={cn("grid grid-cols-2 gap-4 p-4", className)}>
+            <div
+                className={cn(
+                    "grid grid-cols-2 gap-2 p-2 md:gap-4 md:p-4",
+                    className,
+                )}
+            >
                 {items.map((item, i) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: Display-only list, no ID guaranteed
                     <div key={i}>{render(item)}</div>
@@ -72,10 +77,13 @@ export function MasonryGrid<T>({
     const distributedColumns = getColumns();
 
     return (
-        <div className={cn("flex gap-4 p-4", className)}>
+        <div className={cn("flex gap-2 p-2 md:gap-4 md:p-4", className)}>
             {distributedColumns.map((colItems, colIndex) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: Column index is stable
-                <div key={colIndex} className="flex flex-col gap-4 flex-1">
+                <div
+                    key={colIndex}
+                    className="flex flex-col gap-2 md:gap-4 flex-1"
+                >
                     {colItems.map((item, i) => (
                         // unique key hack? relying on index is okay for this display-only list usually,
                         // but standard would be better. We don't have id access here though.

@@ -82,15 +82,9 @@ export function ArtworkFullView({
                     <div className="absolute inset-0 p-4 flex flex-col justify-between pointer-events-none">
                         {/* Top Row */}
                         <div className="flex justify-between items-center w-full">
-                            {/* Top-Left: Status & Filename */}
+                            {/* Top-Left: Status */}
                             <div className="flex items-center gap-2 pointer-events-auto">
                                 <ArtworkStatusBadge status={optimisticStatus} />
-                                <div
-                                    className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded text-sm text-white max-w-[50vw] truncate select-none"
-                                    title={artwork.title}
-                                >
-                                    {artwork.title}
-                                </div>
                             </div>
 
                             {/* Top-Right: Close Button */}
@@ -112,7 +106,10 @@ export function ArtworkFullView({
                             </div>
 
                             {/* Bottom-Right: Actions */}
-                            <ArtworkActionButtons actions={actions} />
+                            <ArtworkActionButtons
+                                actions={actions}
+                                hideCancel
+                            />
                         </div>
                     </div>
                 </div>

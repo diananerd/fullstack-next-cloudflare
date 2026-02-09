@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
-import { getArtworkDisplayUrl } from "../utils/artwork-url";
 import { useArtworkActions } from "../hooks/use-artwork-actions";
 import { useArtworkStatus } from "../hooks/use-artwork-status";
+import { getArtworkDisplayUrl } from "../utils/artwork-url";
 import { ArtworkActionButtons } from "./artwork-action-buttons";
 import { ArtworkFullView } from "./artwork-full-view";
 import { ArtworkStatusBadge } from "./artwork-status-badge";
@@ -29,15 +29,15 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     const actions = useArtworkActions(liveArtwork);
     const { isProcessing, isProtected, optimisticStatus } = actions;
 
-    const router = useRouter();
-    const [_, startTransition] = useTransition();
+    const _router = useRouter();
+    const [_, _startTransition] = useTransition();
     const [showFullView, setShowFullView] = useState(false);
     const [imageError, setImageError] = useState(false);
 
     // Reset error when URL changes
     useEffect(() => {
         setImageError(false);
-    }, [artwork.url, artwork.protectionStatus]);
+    }, []);
 
     // Note: Polling logic removed in favor of SSE in useArtworkStatus
 
@@ -84,17 +84,14 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
 
                     {/* Overlays */}
                     <div className="absolute inset-0 p-3 flex flex-col justify-between pointer-events-none">
-                        {/* Top Row: Empty now, but structure kept for potential future use */}
-                        <div className="flex justify-end w-full">
-                            {/* Empty or top-right items */}
+                        {/* Top Row: Status */}
+                        <div className="flex justify-start w-full">
+                            <ArtworkStatusBadge status={optimisticStatus} />
                         </div>
 
                         {/* Bottom Row */}
                         <div className="flex justify-between items-end">
-                            {/* Bottom-Left: Status (Optimistic) */}
-                            <ArtworkStatusBadge status={optimisticStatus} />
-
-                            {/* Bottom-Right: Actions */}
+                            <div /> {/* Spacer */}
                             <ArtworkActionButtons actions={actions} />
                         </div>
                     </div>

@@ -20,7 +20,7 @@ export default {
         const resp = await openNextWorker.fetch(req, env, ctx);
         console.log(`[Worker] Sync completed. Status: ${resp.status}`);
     },
-    async queue(batch, env, ctx) {
+    async queue(batch, _env, _ctx) {
         // Dummy handler to allow deployment if Cloudflare thinks a queue is attached
         console.log(
             "[Worker] Queue event received (should not happen)",

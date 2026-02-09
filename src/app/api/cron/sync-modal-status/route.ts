@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt, or, like } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { MAX_POLLING_TIME_MS } from "@/constants/job.constant";
 import { getDb } from "@/db";
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
     // Calculate timeout threshold
     const now = Date.now();
-    const timeoutThreshold = new Date(now - MAX_POLLING_TIME_MS).toISOString();
+    const _timeoutThreshold = new Date(now - MAX_POLLING_TIME_MS).toISOString();
 
     // 3. Mark stale jobs as FAILED (Timeout)
     // DISABLED logic for now to prevent false failures while debugging.
@@ -120,6 +120,7 @@ export async function GET(req: NextRequest) {
             throw new Error(`Bulk API Failed (${response.status}): ${text}`);
         }
 
+        // biome-ignore lint/suspicious/noExplicitAny: External API response
         const results = (await response.json()) as Record<string, any>; // Dict[artwork_id, state]
 
         // Process Results

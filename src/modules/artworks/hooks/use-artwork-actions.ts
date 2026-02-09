@@ -11,7 +11,7 @@ import type { Artwork } from "../schemas/artwork.schema";
 import { getArtworkDisplayUrl } from "../utils/artwork-url";
 
 export function useArtworkActions(artwork: Artwork) {
-    const router = useRouter();
+    const _router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [isRetrying, setIsRetrying] = useState(false);
@@ -26,10 +26,45 @@ export function useArtworkActions(artwork: Artwork) {
         });
     };
 
-    const handleDownload = () => {
-        // Assuming protectedUrl exists if we are calling this, but safe check
+    const handleDownload = async (e?: React.MouseEvent) => {
+        e?.stopPropagation();
         const urlToOpen = getArtworkDisplayUrl(artwork);
-        if (urlToOpen) window.open(urlToOpen, "_blank");
+        if (!urlToOpen) return;
+
+        try {
+            toast.loading("Downloading...", { id: "download" });
+
+            // Fetch blob to force download
+            const response = await fetch(urlToOpen);
+            if (!response.ok) throw new Error("Download failed");
+
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.href = blobUrl;
+
+            // Clean title for filename
+            const safeTitle = (artwork.title || "artwork")
+                .replace(/[^a-z0-9]/gi, "_")
+                .toLowerCase();
+            link.download = `${safeTitle}_protected.png`; // Assuming Mist output is PNG
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+
+            toast.success("Download started", { id: "download" });
+        } catch (error) {
+            console.error("Download error:", error);
+            toast.error(
+                "Download failed details. Opening in new tab instead.",
+                { id: "download" },
+            );
+            // Fallback
+            window.open(urlToOpen, "_blank");
+        }
     };
 
     const handleCancel = (e?: React.MouseEvent) => {

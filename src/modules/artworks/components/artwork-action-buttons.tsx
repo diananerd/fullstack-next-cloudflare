@@ -1,4 +1,4 @@
-import { Download, RefreshCcw, Trash2, XCircle } from "lucide-react";
+import { Download, RefreshCcw, Trash2 } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -15,9 +15,15 @@ import type { useArtworkActions } from "../hooks/use-artwork-actions";
 
 interface ArtworkActionButtonsProps {
     actions: ReturnType<typeof useArtworkActions>;
+    hideCancel?: boolean;
+    hideRetry?: boolean;
 }
 
-export function ArtworkActionButtons({ actions }: ArtworkActionButtonsProps) {
+export function ArtworkActionButtons({
+    actions,
+    hideCancel = false,
+    hideRetry = false,
+}: ArtworkActionButtonsProps) {
     const {
         isPending,
         isProtected,
@@ -48,18 +54,6 @@ export function ArtworkActionButtons({ actions }: ArtworkActionButtonsProps) {
                 className="flex gap-1.5 pointer-events-auto"
                 onClick={stopProp}
             >
-                {isProcessing && (
-                    <Button
-                        variant="secondary"
-                        size="icon"
-                        className="h-7 w-7 bg-black/60 hover:bg-red-500/80 text-white rounded-full border-0 shadow-sm"
-                        onClick={handleCancel}
-                        disabled={isPending}
-                        title="Cancel"
-                    >
-                        <XCircle className="h-4 w-4" />
-                    </Button>
-                )}
                 {isProtected && (
                     <>
                         <Button
@@ -86,26 +80,28 @@ export function ArtworkActionButtons({ actions }: ArtworkActionButtonsProps) {
                 )}
                 {(isFailed || isCanceled) && (
                     <>
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-7 w-7 bg-black/60 hover:bg-blue-500/80 text-white rounded-full border-0 shadow-sm"
-                            onClick={handleRetry}
-                            disabled={isPending}
-                            title="Retry"
-                        >
-                            <RefreshCcw
-                                className={cn(
-                                    "h-3.5 w-3.5",
-                                    isRetrying && "animate-spin",
-                                )}
-                                style={
-                                    isRetrying
-                                        ? { animationDirection: "reverse" }
-                                        : undefined
-                                }
-                            />
-                        </Button>
+                        {!hideRetry && (
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-7 w-7 bg-black/60 hover:bg-blue-500/80 text-white rounded-full border-0 shadow-sm"
+                                onClick={handleRetry}
+                                disabled={isPending}
+                                title="Retry"
+                            >
+                                <RefreshCcw
+                                    className={cn(
+                                        "h-3.5 w-3.5",
+                                        isRetrying && "animate-spin",
+                                    )}
+                                    style={
+                                        isRetrying
+                                            ? { animationDirection: "reverse" }
+                                            : undefined
+                                    }
+                                />
+                            </Button>
+                        )}
                         <Button
                             variant="secondary"
                             size="icon"
