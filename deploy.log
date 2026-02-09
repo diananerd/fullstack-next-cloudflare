@@ -1,0 +1,106 @@
+
+> drimit-shield@0.1.0 deploy /Users/diananerd/Documents/work/drimit/code/experiments/shield
+> npx @opennextjs/cloudflare deploy
+
+
+┌──────────────────────────────┐
+│ OpenNext — Cloudflare deploy │
+└──────────────────────────────┘
+
+Using vars defined in .dev.vars
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mAI bindings always access remote resources, and so may incur usage charges even in local dev. To suppress this warning, set `remote: true` for the binding definition in your configuration file.[0m
+
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mVectorize Index bindings do not support local development, and so parts of your Worker may not work correctly. You may be able to set `remote: true` for the binding definition in your configuration file to access a remote version of the resource.[0m
+
+
+Incremental cache does not need populating
+Tag cache does not need populating
+
+ ⛅️ wrangler 4.63.0
+───────────────────
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mDuplicate key "options" in object literal[0m [duplicate-object-key]
+
+    .open-next/server-functions/default/handler.mjs:1395:29109:
+[37m      1395 │ ...ata:{...i3,placement:g2}}},[32moptions[37m:[d2,void 0]},z2&&{name:"sh...
+           ╵                               [32m~~~~~~~[0m
+
+  The original key "options" is here:
+
+    .open-next/server-functions/default/handler.mjs:1395:28816:
+[37m      1395 │ ...middleware:[{name:"offset",[32moptions[37m:e2=d2={mainAxis:v2+T2,alig...
+           ╵                               [32m~~~~~~~[0m
+
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mDuplicate key "options" in object literal[0m [duplicate-object-key]
+
+    .open-next/server-functions/default/handler.mjs:1395:30639:
+[37m      1395 │ ...abled:{[m3]:e3,[l3]:f2}}}},[32moptions[37m:[j2,void 0]},z2&&{name:"fl...
+           ╵                               [32m~~~~~~~[0m
+
+  The original key "options" is here:
+
+    .open-next/server-functions/default/handler.mjs:1395:29148:
+[37m      1395 │ ...void 0]},z2&&{name:"shift",[32moptions[37m:k2=j2={mainAxis:!0,crossAx...
+           ╵                               [32m~~~~~~~[0m
+
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mDuplicate key "options" in object literal[0m [duplicate-object-key]
+
+    .open-next/server-functions/default/handler.mjs:1395:32675:
+[37m      1395 │ ...{placement:c10}}}return{}},[32moptions[37m:[l2,void 0]},{name:"size",...
+           ╵                               [32m~~~~~~~[0m
+
+  The original key "options" is here:
+
+    .open-next/server-functions/default/handler.mjs:1395:30677:
+[37m      1395 │ ...,void 0]},z2&&{name:"flip",[32moptions[37m:m2=l2={...ab2},async fn(a1...
+           ╵                               [32m~~~~~~~[0m
+
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mDuplicate key "options" in object literal[0m [duplicate-object-key]
+
+    .open-next/server-functions/default/handler.mjs:1395:34070:
+[37m      1395 │ ...ght?{reset:{rects:!0}}:{}},[32moptions[37m:[n2,void 0]},N2&&{name:"ar...
+           ╵                               [32m~~~~~~~[0m
+
+  The original key "options" is here:
+
+    .open-next/server-functions/default/handler.mjs:1395:32709:
+[37m      1395 │ ...:[l2,void 0]},{name:"size",[32moptions[37m:o2=n2={...ab2,apply:({elem...
+           ╵                               [32m~~~~~~~[0m
+
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mDuplicate key "options" in object literal[0m [duplicate-object-key]
+
+    .open-next/server-functions/default/handler.mjs:1395:34377:
+[37m      1395 │ ...0,padding:c9}).fn(a11):{}},[32moptions[37m:[p2,void 0]},bn({arrowWidt...
+           ╵                               [32m~~~~~~~[0m
+
+  The original key "options" is here:
+
+    .open-next/server-functions/default/handler.mjs:1395:34109:
+[37m      1395 │ ...void 0]},N2&&{name:"arrow",[32moptions[37m:q2=p2={element:N2,padding:...
+           ╵                               [32m~~~~~~~[0m
+
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mDuplicate key "options" in object literal[0m [duplicate-object-key]
+
+    .open-next/server-functions/default/handler.mjs:1395:34902:
+[37m      1395 │ ...(c10)}}}default:return{}}},[32moptions[37m:[r2,void 0]}]}),[av2,aw2]=...
+           ╵                               [32m~~~~~~~[0m
+
+  The original key "options" is here:
+
+    .open-next/server-functions/default/handler.mjs:1395:34450:
+[37m      1395 │ ...ight:T2}),F2&&{name:"hide",[32moptions[37m:s2=r2={strategy:"reference...
+           ╵                               [32m~~~~~~~[0m
+
+
+🌀 Building list of assets...
+✨ Read 43 files from the assets directory /Users/diananerd/Documents/work/drimit/code/experiments/shield/.open-next/assets
+🌀 Starting asset upload...
+No updated asset files to upload. Proceeding with deployment...
+Total Upload: 15608.05 KiB / gzip: 3293.67 KiB
+ERROR Wrangler command failed
+ ELIFECYCLE  Command failed with exit code 1.

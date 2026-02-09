@@ -1,0 +1,59 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* Host diananerdoficial--drimit-shield-demo-check-status.modal.run:443 was resolved.
+* IPv6: (none)
+* IPv4: 54.80.116.204, 44.221.21.163, 35.170.223.113, 34.225.66.215, 54.90.242.25, 34.202.173.80
+*   Trying 54.80.116.204:443...
+* Connected to diananerdoficial--drimit-shield-demo-check-status.modal.run (54.80.116.204) port 443
+* ALPN: curl offers h2,http/1.1
+* (304) (OUT), TLS handshake, Client hello (1):
+} [364 bytes data]
+*  CAfile: /etc/ssl/cert.pem
+*  CApath: none
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* (304) (IN), TLS handshake, Server hello (2):
+{ [122 bytes data]
+* (304) (IN), TLS handshake, Unknown (8):
+{ [15 bytes data]
+* (304) (IN), TLS handshake, Certificate (11):
+{ [2035 bytes data]
+* (304) (IN), TLS handshake, CERT verify (15):
+{ [79 bytes data]
+* (304) (IN), TLS handshake, Finished (20):
+{ [36 bytes data]
+* (304) (OUT), TLS handshake, Finished (20):
+} [36 bytes data]
+* SSL connection using TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256 / [blank] / UNDEF
+* ALPN: server accepted h2
+* Server certificate:
+*  subject: CN=*.modal.run
+*  start date: Jan 12 23:19:06 2026 GMT
+*  expire date: Apr 12 23:19:05 2026 GMT
+*  subjectAltName: host "diananerdoficial--drimit-shield-demo-check-status.modal.run" matched cert's "*.modal.run"
+*  issuer: C=US; O=Let's Encrypt; CN=E8
+*  SSL certificate verify ok.
+* using HTTP/2
+* [HTTP/2] [1] OPENED stream for https://diananerdoficial--drimit-shield-demo-check-status.modal.run/?artwork_id=test_123
+* [HTTP/2] [1] [:method: GET]
+* [HTTP/2] [1] [:scheme: https]
+* [HTTP/2] [1] [:authority: diananerdoficial--drimit-shield-demo-check-status.modal.run]
+* [HTTP/2] [1] [:path: /?artwork_id=test_123]
+* [HTTP/2] [1] [user-agent: curl/8.7.1]
+* [HTTP/2] [1] [accept: */*]
+> GET /?artwork_id=test_123 HTTP/2
+> Host: diananerdoficial--drimit-shield-demo-check-status.modal.run
+> User-Agent: curl/8.7.1
+> Accept: */*
+> 
+* Request completely sent off
+< HTTP/2 200 
+< alt-svc: h3=":443"; ma=2592000
+< content-type: application/json
+< date: Mon, 09 Feb 2026 03:05:09 GMT
+< modal-function-call-id: fc-01KH05RBR7Z3NXNT8ZDP0634WF
+< vary: accept-encoding
+< content-length: 44
+< 
+{ [44 bytes data]
+100    44  100    44    0     0     95      0 --:--:-- --:--:-- --:--:--    95
+* Connection #0 to host diananerdoficial--drimit-shield-demo-check-status.modal.run left intact
+{"status":"unknown","artwork_id":"test_123"}

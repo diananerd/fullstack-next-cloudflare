@@ -22,13 +22,20 @@ export function useArtworkStatus(artworkId: number, initialStatus: ProtectionSta
 
         if (!isProcessing) return;
 
-        console.log(`[Polling] Starting polling for artwork ${artworkId}`);
+        console.log(`[Polling V2] Starting polling for artwork ${artworkId} (Status: ${status})`);
 
         const checkStatus = async () => {
             try {
-                const res = await fetch(`/api/sse/artwork-status/${artworkId}`);
-                if (!res.ok) return;
+                // Polling the local API which syncs with Modal on-demand
+                const res = await fetch(`/api/artworks/${artworkId}/status`);
+                if (!res.ok) {
+                    console.error(`[Polling] Failed to fetch status: HTTP ${res.status}`);
+                    return;
+                }
                 const data = (await res.json()) as { status?: ProtectionStatusType | "ERROR" };
+                
+                // Only log if interesting or debug
+                // console.log(`[Polling] Received status: ${data.status}`);
 
                 if (data.status && data.status !== "ERROR") {
                     // Only update if changed
@@ -55,11 +62,14 @@ export function useArtworkStatus(artworkId: number, initialStatus: ProtectionSta
             }
         };
 
-        // Initial check
+        // Initial check on mount/status change
         checkStatus();
 
-        // Poll every minute
-        const intervalId = setInterval(checkStatus, 60000); 
+        // Relaxed Polling Strategy:
+        // The processing happens asynchronously in the cloud (Modal).
+        // We don't need real-time updates. The user can leave and come back.
+        // We verify status once per minute to keep the UI eventually consistent if the user stays.
+        const intervalId = setInterval(checkStatus, 60000); // 60 seconds
 
         return () => {
             clearInterval(intervalId);

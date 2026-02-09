@@ -1,0 +1,11 @@
+Testing Modal Bulk Status:
+    URL: https://diananerdoficial--drimit-shield-demo-check-status.modal.run
+    
+Sending payload: {
+  "artwork_ids": [
+    "test-id-1",
+    "test-id-2"
+  ]
+}
+Response Status: 200 OK
+Response Body: {"test-id-1":{"status":"unknown","artwork_id":"test-id-1"},"test-id-2":{"status":"unknown","artwork_id":"test-id-2"}}

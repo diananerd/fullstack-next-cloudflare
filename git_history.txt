@@ -1,0 +1,59 @@
+commit b19fc204e2b358ad30ab66969d130d7f6fbf7943
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 18:17:55 2026 -0600
+
+    fix: add OPTIONS handler and CORS headers to webhook
+
+commit f63d0af181a2f1785474c21bfa8c1ba1da7e4e0f
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 06:39:43 2026 -0600
+
+    fix: improve webhook logging and env variable access
+
+commit e3a9b33f6b41b9f26be32381b154eb1e15a32be4
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 06:36:42 2026 -0600
+
+    fix: remove explicit edge runtime directive
+
+commit fd315f89ed1003de8c8c522e0993f51b4347657b
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 06:33:54 2026 -0600
+
+    refactor: switch from SSE to polling for artwork status updates
+
+commit 7d8843c0d77909fa59acaae2d52f62071c15f93b
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 06:12:58 2026 -0600
+
+    fix: add error field to artwork metadata schema
+
+commit 08982bb7006211a960863a3346b5fa8ac345cdc3
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 06:09:27 2026 -0600
+
+    fix: Ensure artwork_id is parsed as number in webhook handler
+
+commit cac6aead67c127ce83527780bc2487f16010eb84
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 06:07:10 2026 -0600
+
+    fix: Robust SSE with TransformStream, auto-rotation, and standard Response for Cloudflare stability
+
+commit 62a9c477ce1a7432a8d49bd96cfd36db50702870
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 06:05:38 2026 -0600
+
+    fix: restore edge runtime with proper loop stream
+
+commit 953bc76b191ae0d62e84bc8a0bcf97bb06b4e76a
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 06:03:38 2026 -0600
+
+    fix: restore edge runtime for SSE by bypassing better-auth
+
+commit c997092e64ab6ec386c7113ea9e4e1485cf00d58
+Author: Diana Martínez <diananerdoficial@gmail.com>
+Date:   Sat Feb 7 06:00:40 2026 -0600
+
+    fix: SSE buffering issues (dynamic mode, headers, logs)

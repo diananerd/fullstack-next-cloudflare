@@ -36,6 +36,20 @@
       "when": 1770461461154,
       "tag": "0004_add_job_id_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1770534935051,
+      "tag": "0005_whole_cloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1770535824360,
+      "tag": "0006_fair_psylocke",
+      "breakpoints": true
     }
   ]
 }

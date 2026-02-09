@@ -11,3 +11,11 @@ export const ProtectionStatus = {
 
 export type ProtectionStatusType =
     (typeof ProtectionStatus)[keyof typeof ProtectionStatus];
+
+export const ProtectionMethod = {
+    MIST: "mist",
+    WATERMARK: "watermark", // Placeholder for future expansion
+} as const;
+
+export type ProtectionMethodType =
+    (typeof ProtectionMethod)[keyof typeof ProtectionMethod];

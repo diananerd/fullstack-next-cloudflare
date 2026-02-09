@@ -1,0 +1,1 @@
+ALTER TABLE `artworks` ADD `method` text DEFAULT 'mist' NOT NULL;

@@ -3,7 +3,7 @@
 import { and, count, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { sendToQueue } from "@/lib/queue";
+import { deleteFromR2 } from "@/lib/r2";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
@@ -79,16 +79,14 @@ export async function deleteArtworkAction(artworkId: number) {
         // Delete from DB first
         await db.delete(artworks).where(eq(artworks.id, artworkId));
 
-        // Enqueue file cleanup
-        if ((shouldDeleteRaw && artwork.r2Key) || (shouldDeleteProtected && artwork.protectedR2Key)) {
-            console.log(`[Delete] Enqueuing file cleanup for ID ${artworkId}`);
-            await sendToQueue({
-                type: "DELETE_ARTWORK_FILES",
-                payload: {
-                    r2Key: shouldDeleteRaw ? artwork.r2Key : null,
-                    protectedR2Key: shouldDeleteProtected ? artwork.protectedR2Key : null,
-                }
-            });
+        // File cleanup (Direct R2 Delete)
+        if (shouldDeleteRaw && artwork.r2Key) {
+             await deleteFromR2(artwork.r2Key);
+             console.log(`[Delete] Deleted raw file: ${artwork.r2Key}`);
+        }
+        if (shouldDeleteProtected && artwork.protectedR2Key) {
+             await deleteFromR2(artwork.protectedR2Key);
+             console.log(`[Delete] Deleted protected file: ${artwork.protectedR2Key}`);
         }
 
         revalidatePath(DASHBOARD_ROUTE);
@@ -137,23 +135,70 @@ export async function retryProtectionAction(artworkId: number) {
         if (artwork.userId !== user.id)
             return { success: false, error: "Unauthorized" };
 
-        // Set back to QUEUED and trigger queue
+        // Set back to QUEUED
         await db
             .update(artworks)
-            .set({ protectionStatus: ProtectionStatus.QUEUED })
+            .set({ 
+                protectionStatus: ProtectionStatus.QUEUED,
+                updatedAt: new Date().toISOString()
+            })
             .where(eq(artworks.id, artworkId));
 
-        console.log(
-            `Re-queuing protection for ID ${artworkId}`,
-        );
-        
-        await sendToQueue({
-            type: "PROCESS_ARTWORK",
-            payload: {
-                artworkId: artworkId,
-                fileUrl: artwork.url,
+        console.log(`[Retry] Resubmitting artwork ${artworkId} to Modal...`);
+
+        // Resubmit to Modal
+        try {
+            const modalUrl = process.env.MODAL_API_URL;
+            const modalToken = process.env.MODAL_AUTH_TOKEN;
+
+            if (!modalUrl || !modalToken) {
+                 throw new Error("System Configuration Error: Protection Service Unavailable (Missing Config)");
             }
-        });
+
+            const payload = {
+                artwork_id: String(artworkId),
+                user_id: user.id,
+                image_url: artwork.url,
+                method: "mist", 
+                config: { steps: 3, epsilon: 0.0627 }
+            };
+
+            const modalResponse = await fetch(modalUrl, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${modalToken}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!modalResponse.ok) {
+                const errText = await modalResponse.text();
+                throw new Error(`Protection Service Failed (${modalResponse.status}): ${errText}`);
+            }
+
+            const responseData = await modalResponse.json() as any;
+            console.log(`[Retry] Job Dispatched. Job ID: ${responseData.job_id}`);
+            
+             // Update Job ID
+             await db.update(artworks)
+                .set({ 
+                    protectionStatus: ProtectionStatus.PROCESSING,
+                    jobId: responseData.job_id,
+                    updatedAt: new Date().toISOString()
+                 })
+                .where(eq(artworks.id, artworkId));
+
+        } catch (submitErr) {
+             console.error("[Retry] Submission Failed:", submitErr);
+             await db.update(artworks)
+                 .set({ 
+                     protectionStatus: ProtectionStatus.FAILED,
+                     metadata: { error: String(submitErr) } 
+                 })
+                 .where(eq(artworks.id, artworkId));
+             return { success: false, error: "Submission to backend failed." };
+        }
 
         revalidatePath(DASHBOARD_ROUTE);
         return { success: true };

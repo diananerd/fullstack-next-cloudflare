@@ -4,6 +4,8 @@ import { z } from "zod";
 import {
     ProtectionStatus,
     type ProtectionStatusType,
+    ProtectionMethod,
+    type ProtectionMethodType,
 } from "@/modules/artworks/models/artwork.enum";
 import { user } from "@/modules/auth/schemas/auth.schema";
 
@@ -20,6 +22,10 @@ export const artworks = sqliteTable(
         url: text("url").notNull(),
         protectedUrl: text("protected_url"),
         protectedR2Key: text("protected_r2_key"),
+        method: text("method")
+            .$type<ProtectionMethodType>()
+            .notNull()
+            .default(ProtectionMethod.MIST),
         protectionStatus: text("protection_status")
             .$type<ProtectionStatusType>()
             .notNull()
@@ -58,6 +64,7 @@ export const insertArtworkSchema = createInsertSchema(artworks, {
     url: z.string().url("Invalid URL"),
     protectedUrl: z.string().url().optional(),
     protectedR2Key: z.string().optional(),
+    method: z.enum([ProtectionMethod.MIST, ProtectionMethod.WATERMARK]).optional(),
     protectionStatus: z
         .enum(Object.values(ProtectionStatus) as [string, ...string[]])
         .optional(),

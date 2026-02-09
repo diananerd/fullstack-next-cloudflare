@@ -1,18 +1,21 @@
 "use server";
 
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { sendToQueue } from "@/lib/queue";
+// import { sendToQueue } from "@/lib/queue"; // DEPRECATED
 import { deleteFromR2, type UploadResult, uploadToR2 } from "@/lib/r2";
 import {
     ProtectionStatus,
     type ProtectionStatusType,
+    type ProtectionMethodType,
 } from "@/modules/artworks/models/artwork.enum";
 import {
     artworks,
     insertArtworkSchema,
 } from "@/modules/artworks/schemas/artwork.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
+import { eq } from "drizzle-orm"; // Added for direct updates
 
 // Temporary route definition until we have a proper route file
 const DASHBOARD_ROUTE = "/artworks";
@@ -113,6 +116,9 @@ export async function createArtworkAction(formData: FormData) {
         const description = descriptionRaw
             ? (descriptionRaw as string)
             : undefined;
+        // Default to mist if not provided.
+        // We will expose this in the UI later, but the backend must support it now.
+        const method = (formData.get("method") as string) || "mist";
 
         // Validate and Prepare data
         // We let Zod parse it, but we need to supply the R2 data
@@ -125,6 +131,7 @@ export async function createArtworkAction(formData: FormData) {
             url: uploadResult.url,
             protectionStatus: ProtectionStatus.QUEUED,
             size: imageFile.size,
+            method: method,
         };
 
         const validatedData = insertArtworkSchema.parse(artworkData);
@@ -138,6 +145,7 @@ export async function createArtworkAction(formData: FormData) {
             protectionStatus:
                 validatedData.protectionStatus as ProtectionStatusType,
             size: validatedData.size,
+            method: validatedData.method as ProtectionMethodType,
             // Explicitly exclude ID
         };
 
@@ -164,19 +172,90 @@ export async function createArtworkAction(formData: FormData) {
         const newArtworkId = result[0]?.insertedId;
 
         if (newArtworkId) {
-            console.log(
-                `[CreateArtworkAction] Enqueueing protection for ID ${newArtworkId}, URL: ${uploadResult.url}`,
-            );
-            
-            await sendToQueue({
-                type: "PROCESS_ARTWORK",
-                payload: {
-                    artworkId: newArtworkId,
-                    userId: user.id,
-                    fileUrl: uploadResult.url,
+            // Task to run in background
+            const dispatchTask = async () => {
+                try {
+                     console.log(
+                        `[CreateArtworkAction] Background: Dispatching logic for ID ${newArtworkId}, URL: ${uploadResult.url}`,
+                    );
+                    
+                    // --- Modal Direct Dispatch (Monolith) ---
+                    const payload = {
+                        artwork_id: String(newArtworkId),
+                        user_id: user.id,
+                        image_url: uploadResult.url,
+                        method: "mist", 
+                        config: { steps: 3, epsilon: 0.0627 }
+                    };
+
+                    const modalUrl = process.env.MODAL_API_URL;
+                    const modalToken = process.env.MODAL_AUTH_TOKEN;
+
+                    if (!modalUrl || !modalToken) {
+                         throw new Error("CRITICAL: MODAL_API_URL or MODAL_AUTH_TOKEN missing.");
+                    }
+
+                    const modalResponse = await fetch(modalUrl, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${modalToken}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!modalResponse.ok) {
+                        const errText = await modalResponse.text();
+                        throw new Error(`Protection Service Failed (${modalResponse.status}): ${errText}`);
+                    }
+
+                    const responseData = await modalResponse.json() as any;
+                    console.log(`[CreateArtworkAction] Job Dispatched. Job ID: ${responseData.job_id}`);
+
+                    // Update status to PROCESSING
+                    const db = await getDb(); // Re-fetch DB context inside async task
+                    await db.update(artworks)
+                        .set({ 
+                            protectionStatus: ProtectionStatus.PROCESSING,
+                            jobId: responseData.job_id,
+                            updatedAt: new Date().toISOString()
+                        })
+                        .where(eq(artworks.id, newArtworkId));
+
+                } catch (e) {
+                     console.error(`[CreateArtworkAction] Background Dispatch ERROR:`, e);
+                     try {
+                         const db = await getDb();
+                         await db.update(artworks)
+                            .set({ 
+                                protectionStatus: ProtectionStatus.FAILED,
+                                metadata: { error: String(e) },
+                                updatedAt: new Date().toISOString()
+                            })
+                            .where(eq(artworks.id, newArtworkId));
+                     } catch (dbErr) {
+                         console.error("Failed to mark job as FAILED", dbErr);
+                     }
                 }
-            });
-            console.log(`[CreateArtworkAction] Enqueue Success for ID ${newArtworkId}`);
+            };
+
+            // Attempt to use waitUntil for non-blocking execution
+            try {
+                // In Cloudflare Workers (OpenNext), we can attach to the context
+                // Note: getCloudflareContext might throw in local Node dev mode
+                const { ctx } = await getCloudflareContext();
+                if (ctx && typeof ctx.waitUntil === 'function') {
+                    console.log(`[CreateArtworkAction] Offloading dispatch to waitUntil`);
+                    ctx.waitUntil(dispatchTask());
+                } else {
+                    console.warn(`[CreateArtworkAction] ctx.waitUntil not available. Awaiting task sequentially.`);
+                    await dispatchTask();
+                }
+            } catch (ctxErr) {
+                console.warn(`[CreateArtworkAction] Could not get Cloudflare context (${ctxErr}). Awaiting task sequentially.`);
+                await dispatchTask();
+            }
+
         } else {
              console.error(`[CreateArtworkAction] No ID returned from DB insert!`);
         }

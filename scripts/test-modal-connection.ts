@@ -25,8 +25,8 @@ async function main() {
 
     // Fallback if not in .dev.vars (URL might be in wrangler.jsonc)
     if (!modalUrl) {
-        // Read wrangler.jsonc or hardcode based on recent deploy
-        modalUrl = "https://diananerdoficial--drimit-shield-demo-process-image.modal.run"; 
+        // Updated URL after deployment
+        modalUrl = "https://diananerdoficial--drimit-shield-demo-submit-protection-job.modal.run"; 
     }
     
     // Fallback token if not found (from earlier turns)
@@ -40,47 +40,29 @@ async function main() {
     `);
 
     try {
-        // Test JSON mode
-        console.log("1. Testing JSON mode...");
+        // Test Submit Job
+        console.log("1. Testing Submit Job...");
+        const payload = {
+            image_url: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
+            artwork_id: "test-artwork-123",
+            user_id: "test-user-456",
+            method: "mist"
+        };
+
         const jsonResponse = await fetch(modalUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${modalToken}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                image_url: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png"
-            })
+            body: JSON.stringify(payload)
         });
 
         if (jsonResponse.ok) {
-            const blob = await jsonResponse.blob();
-            console.log(`[SUCCESS] JSON mode received image of size: ${blob.size} bytes`);
+            const data = await jsonResponse.json();
+            console.log(`[SUCCESS] Job submitted! response:`, data);
         } else {
-            console.error(`[FAILED] JSON mode: ${jsonResponse.status} - ${await jsonResponse.text()}`);
-        }
-
-        // Test Binary mode
-        console.log("\n2. Testing Binary mode...");
-        
-        // Fetch a small image first
-        const pikachu = await fetch("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png");
-        const pikachuArrayBuffer = await pikachu.arrayBuffer();
-        
-        const binResponse = await fetch(modalUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${modalToken}`,
-                'Content-Type': 'application/octet-stream', // or image/png
-            },
-            body: pikachuArrayBuffer
-        });
-
-        if (binResponse.ok) {
-             const blob = await binResponse.blob();
-             console.log(`[SUCCESS] Binary mode received image of size: ${blob.size} bytes`);
-        } else {
-             console.error(`[FAILED] Binary mode: ${binResponse.status} - ${await binResponse.text()}`);
+            console.error(`[FAILED] Submit job: ${jsonResponse.status} - ${await jsonResponse.text()}`);
         }
 
     } catch (err) {

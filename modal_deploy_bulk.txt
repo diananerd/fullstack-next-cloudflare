@@ -1,0 +1,15 @@
+✓ Created objects.
+├── 🔨 Created mount 
+│   /Users/diananerd/Documents/work/drimit/code/experiments/shield/modal/main.py
+├── 🔨 Created function download_mist_models.
+├── 🔨 Created function MistApp.*.
+├── 🔨 Created web function check_bulk_status => 
+│   https://diananerdoficial--drimit-shield-demo-check-bulk-status.modal.run
+├── 🔨 Created web function check_status => 
+│   https://diananerdoficial--drimit-shield-demo-check-status.modal.run
+└── 🔨 Created web function submit_protection_job => 
+    https://diananerdoficial--drimit-shield-demo-submit-protection-job.modal.run
+✓ App deployed in 2.115s! 🎉
+
+View Deployment: 
+https://modal.com/apps/diananerdoficial/main/deployed/drimit-shield-demo
