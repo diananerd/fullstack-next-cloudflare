@@ -24,7 +24,19 @@ export function ArtworkFullView({
     const actions = useArtworkActions(artwork);
     const { isProtected, isProcessing, optimisticStatus } = actions;
 
-    const variants = (artwork.metadata as any)?.variants || [];
+    // Robustly parse variants from metadata
+    const getVariants = () => {
+        try {
+            const meta = typeof artwork.metadata === 'string' 
+                ? JSON.parse(artwork.metadata) 
+                : artwork.metadata;
+            return (meta as any)?.variants || [];
+        } catch (e) {
+            console.error("Failed to parse variants", e);
+            return [];
+        }
+    };
+    const variants = getVariants();
     
     // State for selected view: null = original, or variant object
     const [selectedVariant, setSelectedVariant] = useState<any>(null);
@@ -40,20 +52,28 @@ export function ArtworkFullView({
 
     // url logic
     const getVariantUrl = (variant: any) => {
+        if (!variant) return "";
         if (variant.url) return variant.url;
-        // Construct from key if needed (assuming same R2 domain proxy logic)
-        try {
-            // New Structure: {hash}/filename.ext
-            // We need to know the endpoint structure. 
-            // ArtworkUrl util does `/api/assets/${hash}/mist-v2.png`
-            // If we stored the full relative key like `hash/mist.png`:
-             const parts = variant.key.split("/");
-             if (parts.length > 0) {
-                 const hash = parts[0];
-                 const filename = variant.key.replace(`${hash}/`, '');
-                 return `/api/assets/${hash}/${filename}`;
-             }
-        } catch(e) { return "" }
+        
+        // Fallback: Infer from parent artwork structure if we know the method
+        // This handles cases where we know the folder structure but URL is missing
+        if (artwork.r2Key && variant.method) {
+             try {
+                const parts = artwork.r2Key.split("/");
+                if (parts.length > 0) {
+                    const hash = parts[0]; 
+                    // Use standard filenames based on method
+                    let filename = "";
+                    switch(variant.method) {
+                        case "mist": filename = "mist-v2.png"; break;
+                        case "grayscale": filename = "grayscale.png"; break;
+                        case "watermark": filename = "watermark.png"; break;
+                        default: filename = "protected.png";
+                    }
+                    if (filename) return `/api/assets/${hash}/${filename}`;
+                }
+             } catch(e) {}
+        }
         return "";
     };
 
@@ -79,7 +99,7 @@ export function ArtworkFullView({
                             alt={artwork.title}
                             className={cn(
                                 "max-w-full max-h-full w-full h-full object-contain",
-                                isProcessing && "blur-sm opacity-80",
+                                // isProcessing && "opacity-80", // No blur or opacity needed
                             )}
                             onError={() => setImageError(true)}
                         />
