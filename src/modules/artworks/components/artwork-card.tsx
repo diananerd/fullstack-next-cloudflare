@@ -63,7 +63,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                             className={cn(
                                 "w-full h-auto min-h-[12rem] object-cover transition-all duration-500 rounded-lg block",
                                 isProcessing
-                                    ? "blur-sm scale-105 opacity-80"
+                                    ? "scale-105 opacity-80"
                                     : "group-hover:opacity-95",
                             )}
                             loading="lazy"

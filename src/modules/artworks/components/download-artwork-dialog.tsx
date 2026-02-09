@@ -62,15 +62,35 @@ export function DownloadArtworkDialog({
 
         // Helper to get URL
         const getUrl = (v: any) => {
+             // Prefer key-based proxy for authenticated access
+             if (v.key) {
+                 try {
+                     const parts = v.key.split("/");
+                     if (parts.length > 0) {
+                         const hash = parts[0];
+                         const filename = v.key.replace(`${hash}/`, '');
+                         return `/api/assets/${hash}/${filename}`;
+                     }
+                 } catch(e) { console.error("Error parsing variant key", e) }
+             }
+
+             // Fallback: Infer from parent artwork structure
+             if (!v.url && artwork.r2Key && v.method) {
+                try {
+                    const parts = artwork.r2Key.split("/");
+                    if (parts.length > 1) {
+                        const hash = parts[0]; 
+                        let filename = "";
+                        if (v.method === "mist") filename = "mist-v2.png";
+                        else if (v.method === "grayscale") filename = "grayscale.png";
+                        else if (v.method === "watermark") filename = "watermark.png";
+                        
+                        if (filename) return `/api/assets/${hash}/${filename}`;
+                    }
+                } catch(e) {}
+             }
+
              if (v.url) return v.url;
-             try {
-                 const parts = v.key.split("/");
-                 if (parts.length > 0) {
-                     const hash = parts[0];
-                     const filename = v.key.replace(`${hash}/`, '');
-                     return `/api/assets/${hash}/${filename}`;
-                 }
-             } catch(e) { return "" }
              return "";
         };
 

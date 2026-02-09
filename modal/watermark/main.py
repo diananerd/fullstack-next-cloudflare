@@ -173,9 +173,10 @@ class WatermarkApp:
             spacing_y = int(text_height * 4.0) # Vertical spacing between lines
             
             # Create a separate image for the text
-            txt_img = Image.new('RGBA', (text_width + 20, text_height + 20), (255, 255, 255, 0))
+            # Fix: Increase height buffer significantly to avoid descender clipping
+            txt_img = Image.new('RGBA', (text_width + 40, text_height + 60), (255, 255, 255, 0))
             d = ImageDraw.Draw(txt_img)
-            d.text((10, 10), text, font=font, fill=(255, 255, 255, int(opacity)))
+            d.text((20, 20), text, font=font, fill=(255, 255, 255, int(opacity)))
             
             # Rotate the text image
             rotated_txt = txt_img.rotate(angle, expand=True, resample=Image.Resampling.BICUBIC)

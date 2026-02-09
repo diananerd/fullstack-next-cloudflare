@@ -134,8 +134,8 @@ export async function GET(req: NextRequest) {
                 const newVariant = {
                     id: crypto.randomUUID(),
                     method: job.method, // Method used for this job
-                    url: state.result.url, // If Modal returns a direct URL
-                    key: state.result.file_key || state.result.key, // Construct key
+                    url: state.result.protected_image_url, // If Modal returns a direct URL
+                    key: state.result.protected_image_key || state.result.file_key, // Construct key
                     createdAt: new Date().toISOString(),
                     metadata: state.result.file_metadata,
                 };
@@ -144,9 +144,11 @@ export async function GET(req: NextRequest) {
                 const existingVariants =
                     (job.metadata as any)?.variants || [];
 
-                // Append new variant (LIFO or FIFO? User said "ordered... from last to first". 
-                // We'll store chronological order here and sort in UI).
-                const updatedVariants = [...existingVariants, newVariant];
+                // Remove existing variants of same method to prevent duplicates (Upsert)
+                const uniqueVariants = existingVariants.filter((v: any) => v.method !== job.method);
+
+                // Append new variant
+                const updatedVariants = [...uniqueVariants, newVariant];
 
                 await db
                     .update(artworks)

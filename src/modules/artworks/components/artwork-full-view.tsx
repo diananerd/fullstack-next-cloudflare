@@ -49,20 +49,37 @@ export function ArtworkFullView({
 
     // url logic
     const getVariantUrl = (variant: any) => {
+        // Prefer key-based proxy for authenticated access
+        if (variant.key) {
+            try {
+                // New Structure: {hash}/filename.ext
+                const parts = variant.key.split("/");
+                if (parts.length > 0) {
+                    const hash = parts[0];
+                    const filename = variant.key.replace(`${hash}/`, '');
+                    return `/api/assets/${hash}/${filename}`;
+                }
+            } catch(e) { console.error("Error parsing variant key", e) }
+        }
+        
+        // Fallback: Infer from parent artwork structure (if we know the method)
+        // This covers cases where variant code didn't save the key but we know the folder
+        if (!variant.url && artwork.r2Key && variant.method) {
+            try {
+                const parts = artwork.r2Key.split("/");
+                if (parts.length > 1) {
+                    const hash = parts[0]; 
+                    let filename = "";
+                    if (variant.method === "mist") filename = "mist-v2.png";
+                    else if (variant.method === "grayscale") filename = "grayscale.png";
+                    else if (variant.method === "watermark") filename = "watermark.png";
+                    
+                    if (filename) return `/api/assets/${hash}/${filename}`;
+                }
+            } catch(e) {}
+        }
+        
         if (variant.url) return variant.url;
-        // Construct from key if needed (assuming same R2 domain proxy logic)
-        try {
-            // New Structure: {hash}/filename.ext
-            // We need to know the endpoint structure. 
-            // ArtworkUrl util does `/api/assets/${hash}/mist-v2.png`
-            // If we stored the full relative key like `hash/mist.png`:
-             const parts = variant.key.split("/");
-             if (parts.length > 0) {
-                 const hash = parts[0];
-                 const filename = variant.key.replace(`${hash}/`, '');
-                 return `/api/assets/${hash}/${filename}`;
-             }
-        } catch(e) { return "" }
         return "";
     };
 
@@ -88,7 +105,7 @@ export function ArtworkFullView({
                             alt={artwork.title}
                             className={cn(
                                 "max-w-full max-h-full w-full h-full object-contain",
-                                isProcessing && "blur-sm opacity-80",
+                                isProcessing && "opacity-80",
                             )}
                             onError={() => setImageError(true)}
                         />
