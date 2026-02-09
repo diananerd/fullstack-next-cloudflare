@@ -1,7 +1,7 @@
 "use client";
 
 import { ImageIcon, ImageOff } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
@@ -29,10 +29,30 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     const actions = useArtworkActions(liveArtwork);
     const { isProcessing, isProtected, optimisticStatus } = actions;
 
-    const _router = useRouter();
-    const [_, _startTransition] = useTransition();
-    const [showFullView, setShowFullView] = useState(false);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const pathname = usePathname();
+
     const [imageError, setImageError] = useState(false);
+
+    // Deep Linking: Sync URL with Modal State
+    // Use Hash from r2Key as identifier
+    const artworkHash = artwork.r2Key.split("/")[0];
+    const showFullView = searchParams.get("artwork") === artworkHash;
+
+    const handleOpen = () => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("artwork", artworkHash);
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    };
+
+    const handleClose = () => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("artwork");
+        const newQuery = params.toString();
+        const newPath = newQuery ? `${pathname}?${newQuery}` : pathname;
+        router.push(newPath, { scroll: false });
+    };
 
     // Reset error when URL changes
     useEffect(() => {
@@ -52,7 +72,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
             {/* biome-ignore lint/a11y/noStaticElementInteractions: Card click interaction */}
             <div
                 className="group relative overflow-hidden rounded-lg w-full bg-gray-100/50 hover:bg-gray-100 transition-colors cursor-pointer"
-                onClick={() => setShowFullView(true)}
+                onClick={handleOpen}
             >
                 {/* Image (Main Content) */}
                 <div className="relative w-full">
@@ -88,8 +108,10 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                     {/* Overlays */}
                     <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
                         {/* Top Row: Status & Actions */}
-                        <div className="flex justify-between items-start w-full">
-                            <ArtworkStatusBadge status={optimisticStatus} />
+                        <div className="flex items-start w-full gap-2">
+                            <div className="mr-auto">
+                                <ArtworkStatusBadge status={optimisticStatus} />
+                            </div>
                             <ArtworkActionButtons actions={actions} />
                         </div>
                         
@@ -115,7 +137,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
             <ArtworkFullView
                 artwork={liveArtwork}
                 isOpen={showFullView}
-                onClose={() => setShowFullView(false)}
+                onClose={handleClose}
             />
         </>
     );
