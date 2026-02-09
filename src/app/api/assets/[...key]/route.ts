@@ -78,11 +78,16 @@ export async function GET(
         }
 
         const params = await props.params;
-        const objectKey = params.key.join("/");
+        // Decode URI components to handle spaces or special chars in filenames
+        const objectKey = params.key
+            .map((k) => decodeURIComponent(k))
+            .join("/");
 
         if (!objectKey) {
             return new NextResponse("Key required", { status: 400 });
         }
+
+        console.log(`[AssetProxy] Fetching Key: ${objectKey}`);
 
         // Security: Ensure we are not allowing directory traversal if that were possible (R2 is flat, but good practice)
         // const sanitizedKey = objectKey.replace(/\.\./g, "");
@@ -90,6 +95,26 @@ export async function GET(
         const object = await env.drimit_shield_bucket.get(objectKey);
 
         if (!object) {
+            console.error(`[AssetProxy] Not Found: '${objectKey}'`);
+
+            // DIAGNOSTIC LOOP: List similar keys to find typos or path issues
+            try {
+                const prefix = objectKey.split("/")[0]; // e.g. "protected" or "raw"
+                const list = await env.drimit_shield_bucket.list({
+                    prefix: prefix,
+                    limit: 5,
+                });
+                console.log(
+                    `[AssetProxy] Existing keys in '${prefix}/':`,
+                    list.objects.map((o) => o.key),
+                );
+            } catch (listErr) {
+                console.error(
+                    "[AssetProxy] Failed to list keys for debug",
+                    listErr,
+                );
+            }
+
             return new NextResponse("Not Found", { status: 404 });
         }
 

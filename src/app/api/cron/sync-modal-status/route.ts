@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { and, eq, inArray, lt, or, like } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { MAX_POLLING_TIME_MS } from "@/constants/job.constant";
 import { getDb } from "@/db";
@@ -67,17 +67,23 @@ export async function GET(req: NextRequest) {
   }
   */
 
-    // 4. Select ACTIVE processing/queued artworks
+    // 4. Select ACTIVE processing/queued artworks OR Broken Protected URLs
+    // We include PROTECTED items that have a public R2 URL (r2.dev) to self-repair them.
     const jobs = await db
         .select()
         .from(artworks)
         .where(
-            and(
+            or(
                 inArray(artworks.protectionStatus, [
                     ProtectionStatus.QUEUED,
                     ProtectionStatus.PROCESSING,
                     ProtectionStatus.RUNNING,
                 ]),
+                // Self-repair condition: Protected but with public URL
+                and(
+                    eq(artworks.protectionStatus, ProtectionStatus.PROTECTED),
+                    like(artworks.protectedUrl, "%r2.dev%"),
+                ),
             ),
         );
 
