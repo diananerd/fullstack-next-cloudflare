@@ -36,6 +36,14 @@ export const artworks = sqliteTable(
             processingTime?: number;
             error?: string;
             syncedAt?: string;
+            pipeline?: {
+                steps: {
+                    method: ProtectionMethodType;
+                    config?: Record<string, any>;
+                }[];
+                currentStep: number;
+                pending?: boolean; 
+            };
             variants?: {
                 id: string,
                 method: ProtectionMethodType,
