@@ -24,7 +24,16 @@ export function ArtworkFullView({
     const actions = useArtworkActions(artwork);
     const { isProtected, isProcessing, optimisticStatus } = actions;
 
-    const variants = (artwork.metadata as any)?.variants || [];
+    // Safety check for metadata parsing (D1 sometimes returns string)
+    let variants = [];
+    try {
+        const meta = typeof artwork.metadata === 'string' 
+            ? JSON.parse(artwork.metadata) 
+            : artwork.metadata;
+        variants = meta?.variants || [];
+    } catch (e) {
+        console.error("Failed to parse artwork metadata variants", e);
+    }
     
     // State for selected view: null = original, or variant object
     const [selectedVariant, setSelectedVariant] = useState<any>(null);

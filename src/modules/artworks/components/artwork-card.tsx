@@ -87,9 +87,8 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
 
                     {/* Overlays */}
                     <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
-                        {/* Top Row: Status & Actions */}
-                        <div className="flex justify-between items-start w-full">
-                            <ArtworkStatusBadge status={optimisticStatus} />
+                        {/* Top Row: Actions */}
+                        <div className="flex justify-end items-start w-full">
                             <ArtworkActionButtons actions={actions} />
                         </div>
                         
@@ -113,7 +112,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
             </div>
 
             <ArtworkFullView
-                artwork={artwork}
+                artwork={liveArtwork}
                 isOpen={showFullView}
                 onClose={() => setShowFullView(false)}
             />
