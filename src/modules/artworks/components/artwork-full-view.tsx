@@ -111,8 +111,11 @@ export function ArtworkFullView({
                     <div className="absolute inset-0 p-4 flex flex-col justify-between pointer-events-none">
                         {/* Top Row */}
                         <div className="flex justify-between items-center w-full">
-                            {/* Top-Left: Status */}
+                            {/* Top-Left: Status & File Size */}
                             <div className="flex items-center gap-2 pointer-events-auto">
+                                <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded text-xs font-medium text-white/90 select-none">
+                                    {fileSize}
+                                </div>
                                 <ArtworkStatusBadge status={optimisticStatus} />
                             </div>
 
@@ -129,10 +132,8 @@ export function ArtworkFullView({
 
                         {/* Bottom Row */}
                         <div className="flex justify-between items-end w-full">
-                            {/* Bottom-Left: File Size */}
-                            <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded text-xs font-medium text-white/90 pointer-events-auto select-none">
-                                {fileSize}
-                            </div>
+                            {/* Spacer to balance flex layout since FileSize moved up */}
+                            <div className="w-10" />
                             
                             {/* Bottom-Center: Variant Switcher */}
                              <div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex gap-2 pointer-events-auto bg-black/60 backdrop-blur-xl p-2 rounded-full border border-white/10">
