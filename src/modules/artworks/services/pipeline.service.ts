@@ -5,6 +5,7 @@ import { artworkJobs, JobStatus, type JobStatusType } from "../schemas/artwork-j
 import { ProtectionStatus, type ProtectionMethodType } from "../models/artwork.enum";
 import { dispatchProtectionJob } from "../utils/dispatch-job";
 import { getProtectionConfig } from "@/lib/protection-config";
+import { deleteFromR2 } from "@/lib/r2";
 
 export class PipelineService {
     
@@ -22,26 +23,38 @@ export class PipelineService {
         
         if (!artwork) throw new Error("Artwork not found");
 
-        // 1. Reset / Cleanup Logic
+        // 1. Hard Reset / Cleanup Logic
         // We force a clean slate for the NEW pipeline request. 
-        // Any existing jobs that are still "alive" (PENDING, QUEUED, PROCESSING) must be marked as superseded (FAILED)
-        // so that async callbacks or CRON syncs don't try to update the state of this new pipeline based on old data.
-        const activeJobs = await db.select().from(artworkJobs).where(
-             and(
-                 eq(artworkJobs.artworkId, artworkId),
-                 inArray(artworkJobs.status, [JobStatus.PENDING, JobStatus.QUEUED, JobStatus.PROCESSING])
-             )
+        // We must fetch ALL previous jobs, delete their artifacts from R2 (to avoid stale content),
+        // and mark them as superseded.
+        const allPreviousJobs = await db.select().from(artworkJobs).where(
+             eq(artworkJobs.artworkId, artworkId)
         );
         
-        if (activeJobs.length > 0) {
-             console.warn(`[Pipeline] Resetting ${activeJobs.length} active jobs for artwork ${artworkId} before starting new pipeline.`);
+        if (allPreviousJobs.length > 0) {
+             console.log(`[Pipeline] Hard Reset: Cleaning up ${allPreviousJobs.length} previous jobs for artwork ${artworkId}.`);
              
+             // A. Delete R2 Artifacts (Sequential to ensure simple error handling, or parallel if many)
+             const keysToDelete = allPreviousJobs
+                .map(j => j.outputKey)
+                .filter((k): k is string => !!k);
+            
+             if (keysToDelete.length > 0) {
+                 // We don't await strictly for all deletes to finish to avoid blocking UI too long,
+                 // but for a "Hard Reset" it is safer to ensure they are gone.
+                 // Let's use Promise.allsettled to not throw on single fail
+                 await Promise.allSettled(
+                     keysToDelete.map(key => deleteFromR2(key).catch(e => console.error(`Failed to delete ${key}`, e)))
+                 );
+             }
+
+             // B. Invalidate DB Rows
              await db.update(artworkJobs).set({
                  status: JobStatus.FAILED,
-                 errorMessage: "Pipeline Reset: Superseded by new protection request.",
+                 errorMessage: "Hard Reset: Superseded by new protection request.",
                  updatedAt: new Date().toISOString()
              }).where(
-                 inArray(artworkJobs.id, activeJobs.map(j => j.id))
+                 inArray(artworkJobs.id, allPreviousJobs.map(j => j.id))
              );
         }
 
@@ -281,17 +294,30 @@ export class PipelineService {
         
         const jobsByMethod: Record<string, typeof activeJobs> = {};
         for (const j of activeJobs) {
-            // ZOMBIE CHECK: If job is processing/queued for > 6 hours, mark as FAILED (Timeout).
-            // Increased to 6h to handle long queues + long runtimes (e.g. 15m+ per step).
+            // ZOMBIE CHECK:
+            // 1. PROCESSING Timeout: If processing for > 30 mins, it's likely dead (Modal timeout is 10m).
+            // 2. QUEUED Timeout: If queued for > 6 hours, it's a system failure or extreme backlog.
             const lastUpdate = new Date(j.updatedAt).getTime();
             const now = Date.now();
-            const hoursDiff = (now - lastUpdate) / (1000 * 60 * 60);
+            const elapsedHours = (now - lastUpdate) / (1000 * 60 * 60);
+            const elapsedMinutes = (now - lastUpdate) / (1000 * 60);
 
-            if (hoursDiff > 6) {
-                console.warn(`[Pipeline] Job ${j.id} timed out (Zombie > 6h). Marking as failed.`);
+            let isZombie = false;
+            let zombieReason = "";
+
+            if (j.status === JobStatus.PROCESSING && elapsedMinutes > 30) {
+                 isZombie = true;
+                 zombieReason = "Processing Timeout: No heartbeat for > 30m (Modal limit ~10m)";
+            } else if (j.status === JobStatus.QUEUED && elapsedHours > 6) {
+                 isZombie = true;
+                 zombieReason = "Queue Timeout: Stuck in queue for > 6h";
+            }
+
+            if (isZombie) {
+                console.warn(`[Pipeline] Job ${j.id} timed out (${zombieReason}). Marking as failed.`);
                 await db.update(artworkJobs).set({
                     status: JobStatus.FAILED,
-                    errorMessage: "System Timeout: Job unresponsive for > 6h",
+                    errorMessage: zombieReason,
                     updatedAt: new Date().toISOString()
                 }).where(eq(artworkJobs.id, j.id));
                 continue; // Skip sync for this job
@@ -302,6 +328,7 @@ export class PipelineService {
         }
 
         const updates = [];
+        const pendingAcks: Record<string, string[]> = {};
 
         for (const [method, jobs] of Object.entries(jobsByMethod)) {
             try {
@@ -339,6 +366,7 @@ export class PipelineService {
                 };
 
                 const results = await response.json() as Record<string, any>;
+                const finishedIds: string[] = [];
 
                 for (const [artId, state] of Object.entries(results)) {
                     const job = jobMap.get(artId);
@@ -354,6 +382,7 @@ export class PipelineService {
                                 updatedAt: new Date().toISOString()
                             }).where(eq(artworkJobs.id, job.id))
                         );
+                        finishedIds.push(artId);
                     } else if (state.status === "failed") {
                         updates.push(
                             db.update(artworkJobs).set({
@@ -362,6 +391,7 @@ export class PipelineService {
                                 updatedAt: new Date().toISOString()
                             }).where(eq(artworkJobs.id, job.id))
                         );
+                        finishedIds.push(artId);
                     } else if (state.status === "running" || state.status === "processing") {
                         // Heartbeat / Status Promotion
                         // If job moves from QUEUED -> PROCESSING, or just to keep alive
@@ -376,12 +406,33 @@ export class PipelineService {
                     }
                 }
 
+                if (finishedIds.length > 0) {
+                    pendingAcks[method] = finishedIds;
+                }
+
             } catch (err) {
                 console.error(`[Pipeline] Error syncing method ${method}:`, err);
             }
         }
 
         await Promise.all(updates);
+
+        // Process ACKs only after successful DB updates
+        for (const [method, ids] of Object.entries(pendingAcks)) {
+             try {
+                 const config = getProtectionConfig(method as ProtectionMethodType);
+                 if (config.statusUrl) {
+                      await fetch(config.statusUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ artwork_ids: [], ack_ids: ids }),
+                    });
+                 }
+             } catch (err) {
+                 console.warn(`[Pipeline] Failed to ACK jobs for ${method}:`, err);
+             }
+        }
+        
         return { synced: updates.length };
     }
 

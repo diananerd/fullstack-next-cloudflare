@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { deleteFromR2 } from "@/lib/r2";
+import { deleteFromR2, deleteFolderFromR2 } from "@/lib/r2";
 import {
     ProtectionStatus,
 } from "@/modules/artworks/models/artwork.enum";
@@ -27,7 +27,17 @@ export async function deleteArtworkAction(artworkId: number) {
             return { success: false, error: "Unauthorized" };
 
         if (artwork.r2Key) {
-            await deleteFromR2(artwork.r2Key);
+            // Check if key is in a folder (Deep Clean)
+            // Expecting format: "{hash}/original.png"
+            const parts = artwork.r2Key.split("/");
+            if (parts.length > 1) {
+                const folderPrefix = parts[0];
+                console.log(`[DeleteArtwork] Deleting entire folder: ${folderPrefix}`);
+                await deleteFolderFromR2(folderPrefix);
+            } else {
+                console.log(`[DeleteArtwork] Deleting single file: ${artwork.r2Key}`);
+                await deleteFromR2(artwork.r2Key);
+            }
         }
 
         await db.delete(artworks).where(eq(artworks.id, artworkId));
