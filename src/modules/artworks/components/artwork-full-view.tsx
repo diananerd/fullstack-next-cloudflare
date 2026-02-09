@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useArtworkActions } from "../hooks/use-artwork-actions";
 import type { Artwork } from "../schemas/artwork.schema";
+import { getArtworkDisplayUrl } from "../utils/artwork-url";
 import { ArtworkActionButtons } from "./artwork-action-buttons";
 import { ArtworkStatusBadge } from "./artwork-status-badge";
 
@@ -28,10 +29,7 @@ export function ArtworkFullView({
         if (isOpen) setImageError(false);
     }, [isOpen]);
 
-    const displayUrl =
-        isProtected && artwork.protectedUrl
-            ? artwork.protectedUrl
-            : artwork.url;
+    const displayUrl = getArtworkDisplayUrl(artwork);
     const fileSize = artwork.size
         ? `${(artwork.size / 1024 / 1024).toFixed(2)} MB`
         : "";

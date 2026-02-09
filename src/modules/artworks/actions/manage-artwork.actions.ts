@@ -25,12 +25,11 @@ export async function deleteArtworkAction(artworkId: number) {
             return { success: false, error: "Unauthorized" };
 
         console.log(
-            `[Delete] Processing delete for ID ${artworkId}. R2: ${artwork.r2Key}, Protected: ${artwork.protectedR2Key}`,
+            `[Delete] Processing delete for ID ${artworkId}. R2: ${artwork.r2Key}`,
         );
 
         // Safe Deletion: Check if R2 items are used by OTHER artworks before deleting
-        let shouldDeleteRaw = true;
-        let shouldDeleteProtected = true;
+        let shouldDelete = true;
 
         if (artwork.r2Key) {
             const result = await db
@@ -50,29 +49,7 @@ export async function deleteArtworkAction(artworkId: number) {
             );
 
             if (usageCount > 0) {
-                shouldDeleteRaw = false;
-            }
-        }
-
-        if (artwork.protectedR2Key) {
-            const result = await db
-                .select({ value: count() })
-                .from(artworks)
-                .where(
-                    and(
-                        eq(artworks.protectedR2Key, artwork.protectedR2Key),
-                        ne(artworks.id, artworkId),
-                    ),
-                )
-                .get();
-
-            const usageCount = result?.value ?? 0;
-            console.log(
-                `[Delete] Protected Key ${artwork.protectedR2Key} usage elsewhere: ${usageCount}`,
-            );
-
-            if (usageCount > 0) {
-                shouldDeleteProtected = false;
+                shouldDelete = false;
             }
         }
 
@@ -80,15 +57,24 @@ export async function deleteArtworkAction(artworkId: number) {
         await db.delete(artworks).where(eq(artworks.id, artworkId));
 
         // File cleanup (Direct R2 Delete)
-        if (shouldDeleteRaw && artwork.r2Key) {
+        if (shouldDelete && artwork.r2Key) {
             await deleteFromR2(artwork.r2Key);
             console.log(`[Delete] Deleted raw file: ${artwork.r2Key}`);
-        }
-        if (shouldDeleteProtected && artwork.protectedR2Key) {
-            await deleteFromR2(artwork.protectedR2Key);
-            console.log(
-                `[Delete] Deleted protected file: ${artwork.protectedR2Key}`,
-            );
+
+            // Also delete the protected derivative
+            try {
+                const parts = artwork.r2Key.split("/");
+                const filename = parts[parts.length - 1];
+                const hash = filename.split(".")[0];
+                const protectedR2Key = `protected/${hash}.png`;
+
+                await deleteFromR2(protectedR2Key);
+                console.log(
+                    `[Delete] Deleted protected file: ${protectedR2Key}`,
+                );
+            } catch (e) {
+                console.error("Error deriving protected key for deletion", e);
+            }
         }
 
         revalidatePath(DASHBOARD_ROUTE);

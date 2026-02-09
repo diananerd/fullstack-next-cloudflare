@@ -8,6 +8,7 @@ import {
 } from "../actions/manage-artwork.actions";
 import { ProtectionStatus } from "../models/artwork.enum";
 import type { Artwork } from "../schemas/artwork.schema";
+import { getArtworkDisplayUrl } from "../utils/artwork-url";
 
 export function useArtworkActions(artwork: Artwork) {
     const router = useRouter();
@@ -27,7 +28,7 @@ export function useArtworkActions(artwork: Artwork) {
 
     const handleDownload = () => {
         // Assuming protectedUrl exists if we are calling this, but safe check
-        const urlToOpen = artwork.protectedUrl;
+        const urlToOpen = getArtworkDisplayUrl(artwork);
         if (urlToOpen) window.open(urlToOpen, "_blank");
     };
 

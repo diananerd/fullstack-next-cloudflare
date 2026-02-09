@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
+import { getArtworkDisplayUrl } from "../utils/artwork-url";
 import { useArtworkActions } from "../hooks/use-artwork-actions";
 import { useArtworkStatus } from "../hooks/use-artwork-status";
 import { ArtworkActionButtons } from "./artwork-action-buttons";
@@ -36,14 +37,11 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     // Reset error when URL changes
     useEffect(() => {
         setImageError(false);
-    }, [artwork.url, artwork.protectedUrl]);
+    }, [artwork.url, artwork.protectionStatus]);
 
     // Note: Polling logic removed in favor of SSE in useArtworkStatus
 
-    const displayUrl =
-        isProtected && artwork.protectedUrl
-            ? artwork.protectedUrl
-            : artwork.url;
+    const displayUrl = getArtworkDisplayUrl(liveArtwork);
 
     return (
         <>

@@ -20,8 +20,6 @@ export const artworks = sqliteTable(
             .references(() => user.id, { onDelete: "cascade" }),
         r2Key: text("r2_key").notNull(),
         url: text("url").notNull(),
-        protectedUrl: text("protected_url"),
-        protectedR2Key: text("protected_r2_key"),
         method: text("method")
             .$type<ProtectionMethodType>()
             .notNull()
@@ -62,8 +60,6 @@ export const insertArtworkSchema = createInsertSchema(artworks, {
     userId: z.string().min(1, "User ID is required"),
     r2Key: z.string().min(1, "R2 Key is required"),
     url: z.string().url("Invalid URL"),
-    protectedUrl: z.string().url().optional(),
-    protectedR2Key: z.string().optional(),
     method: z
         .enum([ProtectionMethod.MIST, ProtectionMethod.WATERMARK])
         .optional(),

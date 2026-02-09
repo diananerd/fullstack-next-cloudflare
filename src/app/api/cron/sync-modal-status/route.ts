@@ -67,24 +67,16 @@ export async function GET(req: NextRequest) {
   }
   */
 
-    // 4. Select ACTIVE processing/queued artworks OR Broken Protected URLs
-    // We include PROTECTED items that have a public R2 URL (r2.dev) to self-repair them.
+    // 4. Select ACTIVE processing/queued artworks
     const jobs = await db
         .select()
         .from(artworks)
         .where(
-            or(
-                inArray(artworks.protectionStatus, [
-                    ProtectionStatus.QUEUED,
-                    ProtectionStatus.PROCESSING,
-                    ProtectionStatus.RUNNING,
-                ]),
-                // Self-repair condition: Protected but with public URL
-                and(
-                    eq(artworks.protectionStatus, ProtectionStatus.PROTECTED),
-                    like(artworks.protectedUrl, "%r2.dev%"),
-                ),
-            ),
+            inArray(artworks.protectionStatus, [
+                ProtectionStatus.QUEUED,
+                ProtectionStatus.PROCESSING,
+                ProtectionStatus.RUNNING,
+            ]),
         );
 
     const updates: { id: number; status: string }[] = [];
@@ -138,35 +130,10 @@ export async function GET(req: NextRequest) {
             // console.log(`[Cron] Job ${job.id} status: ${state.status}`);
 
             if (state.status === "completed" && state.result) {
-                // Determine the correct URL for the protected image
-                // Prefer the local asset proxy via key if available, otherwise fallback to the public URL.
-                const appUrl =
-                    process.env.NEXT_PUBLIC_APP_URL ||
-                    "https://shield.drimit.io";
-
-                let r2Key = state.result.protected_image_key;
-
-                // Fallback: Extract key from URL if missing (handles old jobs or missing keys)
-                if (!r2Key && state.result.protected_image_url) {
-                    const urlStr = state.result.protected_image_url;
-                    if (urlStr.includes("/protected/")) {
-                        r2Key = `protected/${urlStr.split("/protected/")[1]}`;
-                    } else {
-                        const parts = urlStr.split("/");
-                        r2Key = `protected/${parts[parts.length - 1]}`;
-                    }
-                }
-
-                const finalUrl = r2Key
-                    ? `${appUrl}/api/assets/${r2Key}`
-                    : state.result.protected_image_url;
-
                 await db
                     .update(artworks)
                     .set({
                         protectionStatus: ProtectionStatus.PROTECTED,
-                        protectedUrl: finalUrl,
-                        protectedR2Key: r2Key,
                         metadata: {
                             ...(job.metadata || {}),
                             ...state.result.file_metadata,
