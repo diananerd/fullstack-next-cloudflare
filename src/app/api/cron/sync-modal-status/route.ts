@@ -134,8 +134,12 @@ export async function GET(req: NextRequest) {
             if (state.status === "completed" && state.result) {
                 // Determine the correct URL for the protected image
                 // Prefer the local asset proxy via key if available, otherwise fallback to the public URL.
+                const appUrl =
+                    process.env.NEXT_PUBLIC_APP_URL ||
+                    "https://shield.drimit.io";
+
                 const finalUrl = state.result.protected_image_key
-                    ? `/api/assets/${state.result.protected_image_key}`
+                    ? `${appUrl}/api/assets/${state.result.protected_image_key}`
                     : state.result.protected_image_url;
 
                 await db
@@ -143,6 +147,7 @@ export async function GET(req: NextRequest) {
                     .set({
                         protectionStatus: ProtectionStatus.PROTECTED,
                         protectedUrl: finalUrl,
+                        protectedR2Key: state.result.protected_image_key,
                         metadata: {
                             ...(job.metadata || {}),
                             ...state.result.file_metadata,
