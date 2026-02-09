@@ -83,15 +83,10 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                     )}
 
                     {/* Overlays */}
-                    <div className="absolute inset-0 p-3 flex flex-col justify-between pointer-events-none">
-                        {/* Top Row: Status */}
-                        <div className="flex justify-start w-full">
+                    <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
+                        {/* Top Row: Status & Actions */}
+                        <div className="flex justify-between items-start w-full">
                             <ArtworkStatusBadge status={optimisticStatus} />
-                        </div>
-
-                        {/* Bottom Row */}
-                        <div className="flex justify-between items-end">
-                            <div /> {/* Spacer */}
                             <ArtworkActionButtons actions={actions} />
                         </div>
                     </div>
