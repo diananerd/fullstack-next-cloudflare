@@ -29,10 +29,13 @@ export function UploadArtworkButton({
         fileInputRef.current?.click();
     };
 
-    const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
+    const getImageDimensions = (
+        file: File,
+    ): Promise<{ width: number; height: number }> => {
         return new Promise((resolve, reject) => {
             const img = new Image();
-            img.onload = () => resolve({ width: img.width, height: img.height });
+            img.onload = () =>
+                resolve({ width: img.width, height: img.height });
             img.onerror = reject;
             img.src = URL.createObjectURL(file);
         });
@@ -72,26 +75,31 @@ export function UploadArtworkButton({
 
             // 1. Min Dimension Check (for Stable Diffusion stability)
             if (width < minDim && height < minDim) {
-                toast.error(`Image is too small. Minimum dimension is ${minDim}px.`);
+                toast.error(
+                    `Image is too small. Minimum dimension is ${minDim}px.`,
+                );
                 e.target.value = "";
                 return;
             }
 
             // 2. Max Dimension Check (sanity check before server)
             if (width > maxDim || height > maxDim) {
-                 toast.error(`Image is too large. Max dimension is ${maxDim}px.`);
-                 e.target.value = "";
-                 return;
+                toast.error(
+                    `Image is too large. Max dimension is ${maxDim}px.`,
+                );
+                e.target.value = "";
+                return;
             }
 
             // 3. Aspect Ratio Check (Prevent extreme strips)
             const ratio = width / height;
             if (ratio < 0.2 || ratio > 5) {
-                 toast.error("Extreme aspect ratio detected. Please use standard image proportions.");
-                 e.target.value = "";
-                 return;
+                toast.error(
+                    "Extreme aspect ratio detected. Please use standard image proportions.",
+                );
+                e.target.value = "";
+                return;
             }
-
         } catch (e) {
             console.error("Failed to validate image dimensions", e);
             toast.error("Failed to validate image file.");

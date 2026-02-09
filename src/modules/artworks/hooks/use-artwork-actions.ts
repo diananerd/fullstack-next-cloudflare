@@ -55,7 +55,7 @@ export function useArtworkActions(artwork: Artwork) {
     const isActuallyProcessing =
         artwork.protectionStatus === ProtectionStatus.PENDING ||
         artwork.protectionStatus === ProtectionStatus.PROCESSING ||
-        artwork.protectionStatus === ProtectionStatus.UPLOADING || 
+        artwork.protectionStatus === ProtectionStatus.UPLOADING ||
         artwork.protectionStatus === ProtectionStatus.QUEUED ||
         artwork.protectionStatus === ProtectionStatus.RUNNING;
 

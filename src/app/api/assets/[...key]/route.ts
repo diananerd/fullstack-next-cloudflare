@@ -15,28 +15,36 @@ export async function GET(
         // Enterprise Security: Verify Authentication
         // 1. Allow System/Service access via Token (for Modal)
         const authHeader = _request.headers.get("Authorization");
-        
+
         // Try all possible sources for the token
-        const systemToken = 
-            (env as any).MODAL_AUTH_TOKEN || 
-            process.env.MODAL_AUTH_TOKEN;
+        const systemToken =
+            (env as any).MODAL_AUTH_TOKEN || process.env.MODAL_AUTH_TOKEN;
 
         // Debug Logging
         console.log(`[AssetProxy] Request URL: ${_request.url}`);
-        console.log(`[AssetProxy] Auth Header: ${authHeader ? (authHeader.substring(0, 10) + "...") : "MISSING"}`);
+        console.log(
+            `[AssetProxy] Auth Header: ${authHeader ? authHeader.substring(0, 10) + "..." : "MISSING"}`,
+        );
         console.log(`[AssetProxy] System Token Found: ${!!systemToken}`);
-        
+
         if (!systemToken) {
-             console.error("[AssetProxy] CRITICIAL: MODAL_AUTH_TOKEN is missing in environment!");
-             console.error(`[AssetProxy] Env Keys: ${Object.keys(env).join(", ")}`);
+            console.error(
+                "[AssetProxy] CRITICIAL: MODAL_AUTH_TOKEN is missing in environment!",
+            );
+            console.error(
+                `[AssetProxy] Env Keys: ${Object.keys(env).join(", ")}`,
+            );
         }
-        
-        const isSystemRequest = systemToken && authHeader === `Bearer ${systemToken}`;
+
+        const isSystemRequest =
+            systemToken && authHeader === `Bearer ${systemToken}`;
 
         if (isSystemRequest) {
-             console.log("[AssetProxy] Authorized via System Token");
+            console.log("[AssetProxy] Authorized via System Token");
         } else if (authHeader && systemToken) {
-             console.log(`[AssetProxy] Token mismatch. Header: ${authHeader.length} chars, Env: ${systemToken.length} chars`);
+            console.log(
+                `[AssetProxy] Token mismatch. Header: ${authHeader.length} chars, Env: ${systemToken.length} chars`,
+            );
         }
 
         // 2. Allow User access via Session
@@ -47,19 +55,26 @@ export async function GET(
 
         if (!authed && !isSystemRequest) {
             console.warn("[AssetProxy] Unauthorized access attempt");
-            
+
             // Return debug info in body to help diagnose (only for 401s)
-            return NextResponse.json({
-                error: "Unauthorized",
-                debug: {
-                    hasAuthHeader: !!authHeader,
-                    authHeaderLen: authHeader ? authHeader.length : 0,
-                    hasSystemToken: !!systemToken,
-                    systemTokenLen: systemToken ? systemToken.length : 0,
-                    envKeys: Object.keys(env || {}).filter(k => !k.includes("SECRET") && !k.includes("KEY")), // Safe keys
-                    processEnvKeys: Object.keys(process.env || {}).filter(k => !k.includes("SECRET") && !k.includes("KEY"))
-                }
-            }, { status: 401 });
+            return NextResponse.json(
+                {
+                    error: "Unauthorized",
+                    debug: {
+                        hasAuthHeader: !!authHeader,
+                        authHeaderLen: authHeader ? authHeader.length : 0,
+                        hasSystemToken: !!systemToken,
+                        systemTokenLen: systemToken ? systemToken.length : 0,
+                        envKeys: Object.keys(env || {}).filter(
+                            (k) => !k.includes("SECRET") && !k.includes("KEY"),
+                        ), // Safe keys
+                        processEnvKeys: Object.keys(process.env || {}).filter(
+                            (k) => !k.includes("SECRET") && !k.includes("KEY"),
+                        ),
+                    },
+                },
+                { status: 401 },
+            );
         }
 
         const params = await props.params;

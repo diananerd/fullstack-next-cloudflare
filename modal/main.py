@@ -26,6 +26,7 @@ class ProtectionResult(BaseModel):
     status: str
     original_image_url: str
     protected_image_url: Optional[str] = None
+    protected_image_key: Optional[str] = None
     processing_time: float
     file_metadata: Dict[str, Any] = {} # sha256, size, width, height
     error_message: Optional[str] = None
@@ -165,7 +166,7 @@ class MistApp:
                  raise Exception(f"Download Message Failed: {r.status_code}")
 
             # 2. Pre-processing (Resize/Convert)
-
+            img = Image.open(io.BytesIO(r.content))
             
             # Ensure RGB
             if img.mode != "RGB":
@@ -293,6 +294,7 @@ class MistApp:
                 status="completed",
                 original_image_url=req.image_url,
                 protected_image_url=protected_url,
+                protected_image_key=output_key,
                 processing_time=total_duration,
                 file_metadata={
                     "width": width,

@@ -1,8 +1,14 @@
-import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ProtectionStatus, type ProtectionStatusType } from "../models/artwork.enum";
+import { useEffect, useState, useTransition } from "react";
+import {
+    ProtectionStatus,
+    type ProtectionStatusType,
+} from "../models/artwork.enum";
 
-export function useArtworkStatus(artworkId: number, initialStatus: ProtectionStatusType) {
+export function useArtworkStatus(
+    artworkId: number,
+    initialStatus: ProtectionStatusType,
+) {
     const [status, setStatus] = useState<ProtectionStatusType>(initialStatus);
     const router = useRouter();
     const [_, startTransition] = useTransition();
@@ -22,36 +28,45 @@ export function useArtworkStatus(artworkId: number, initialStatus: ProtectionSta
 
         if (!isProcessing) return;
 
-        console.log(`[Polling V2] Starting polling for artwork ${artworkId} (Status: ${status})`);
+        console.log(
+            `[Polling V2] Starting polling for artwork ${artworkId} (Status: ${status})`,
+        );
 
         const checkStatus = async () => {
             try {
                 // Polling the local API which syncs with Modal on-demand
                 const res = await fetch(`/api/artworks/${artworkId}/status`);
                 if (!res.ok) {
-                    console.error(`[Polling] Failed to fetch status: HTTP ${res.status}`);
+                    console.error(
+                        `[Polling] Failed to fetch status: HTTP ${res.status}`,
+                    );
                     return;
                 }
-                const data = (await res.json()) as { status?: ProtectionStatusType | "ERROR" };
-                
+                const data = (await res.json()) as {
+                    status?: ProtectionStatusType | "ERROR";
+                };
+
                 // Only log if interesting or debug
                 // console.log(`[Polling] Received status: ${data.status}`);
 
                 if (data.status && data.status !== "ERROR") {
                     // Only update if changed
                     setStatus((prev) => {
-                        if (prev !== data.status) return data.status as ProtectionStatusType;
+                        if (prev !== data.status)
+                            return data.status as ProtectionStatusType;
                         return prev;
                     });
 
                     // Check for completion
-                    const isFinal = 
-                        data.status === ProtectionStatus.PROTECTED || 
-                        data.status === ProtectionStatus.FAILED || 
+                    const isFinal =
+                        data.status === ProtectionStatus.PROTECTED ||
+                        data.status === ProtectionStatus.FAILED ||
                         data.status === ProtectionStatus.CANCELED;
 
                     if (isFinal) {
-                        console.log(`[Polling] Job finished: ${data.status}. Refreshing...`);
+                        console.log(
+                            `[Polling] Job finished: ${data.status}. Refreshing...`,
+                        );
                         startTransition(() => {
                             router.refresh();
                         });
@@ -74,7 +89,7 @@ export function useArtworkStatus(artworkId: number, initialStatus: ProtectionSta
         return () => {
             clearInterval(intervalId);
         };
-    }, [artworkId, initialStatus, status]); 
+    }, [artworkId, initialStatus, status]);
 
     return status;
 }

@@ -81,12 +81,14 @@ export async function deleteArtworkAction(artworkId: number) {
 
         // File cleanup (Direct R2 Delete)
         if (shouldDeleteRaw && artwork.r2Key) {
-             await deleteFromR2(artwork.r2Key);
-             console.log(`[Delete] Deleted raw file: ${artwork.r2Key}`);
+            await deleteFromR2(artwork.r2Key);
+            console.log(`[Delete] Deleted raw file: ${artwork.r2Key}`);
         }
         if (shouldDeleteProtected && artwork.protectedR2Key) {
-             await deleteFromR2(artwork.protectedR2Key);
-             console.log(`[Delete] Deleted protected file: ${artwork.protectedR2Key}`);
+            await deleteFromR2(artwork.protectedR2Key);
+            console.log(
+                `[Delete] Deleted protected file: ${artwork.protectedR2Key}`,
+            );
         }
 
         revalidatePath(DASHBOARD_ROUTE);
@@ -138,9 +140,9 @@ export async function retryProtectionAction(artworkId: number) {
         // Set back to QUEUED
         await db
             .update(artworks)
-            .set({ 
+            .set({
                 protectionStatus: ProtectionStatus.QUEUED,
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
             })
             .where(eq(artworks.id, artworkId));
 
@@ -152,52 +154,59 @@ export async function retryProtectionAction(artworkId: number) {
             const modalToken = process.env.MODAL_AUTH_TOKEN;
 
             if (!modalUrl || !modalToken) {
-                 throw new Error("System Configuration Error: Protection Service Unavailable (Missing Config)");
+                throw new Error(
+                    "System Configuration Error: Protection Service Unavailable (Missing Config)",
+                );
             }
 
             const payload = {
                 artwork_id: String(artworkId),
                 user_id: user.id,
                 image_url: artwork.url,
-                method: "mist", 
-                config: { steps: 3, epsilon: 0.0627 }
+                method: "mist",
+                config: { steps: 3, epsilon: 0.0627 },
             };
 
             const modalResponse = await fetch(modalUrl, {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${modalToken}`,
-                    "Content-Type": "application/json"
+                    Authorization: `Bearer ${modalToken}`,
+                    "Content-Type": "application/json",
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
             });
 
             if (!modalResponse.ok) {
                 const errText = await modalResponse.text();
-                throw new Error(`Protection Service Failed (${modalResponse.status}): ${errText}`);
+                throw new Error(
+                    `Protection Service Failed (${modalResponse.status}): ${errText}`,
+                );
             }
 
-            const responseData = await modalResponse.json() as any;
-            console.log(`[Retry] Job Dispatched. Job ID: ${responseData.job_id}`);
-            
-             // Update Job ID
-             await db.update(artworks)
-                .set({ 
+            const responseData = (await modalResponse.json()) as any;
+            console.log(
+                `[Retry] Job Dispatched. Job ID: ${responseData.job_id}`,
+            );
+
+            // Update Job ID
+            await db
+                .update(artworks)
+                .set({
                     protectionStatus: ProtectionStatus.PROCESSING,
                     jobId: responseData.job_id,
-                    updatedAt: new Date().toISOString()
-                 })
+                    updatedAt: new Date().toISOString(),
+                })
                 .where(eq(artworks.id, artworkId));
-
         } catch (submitErr) {
-             console.error("[Retry] Submission Failed:", submitErr);
-             await db.update(artworks)
-                 .set({ 
-                     protectionStatus: ProtectionStatus.FAILED,
-                     metadata: { error: String(submitErr) } 
-                 })
-                 .where(eq(artworks.id, artworkId));
-             return { success: false, error: "Submission to backend failed." };
+            console.error("[Retry] Submission Failed:", submitErr);
+            await db
+                .update(artworks)
+                .set({
+                    protectionStatus: ProtectionStatus.FAILED,
+                    metadata: { error: String(submitErr) },
+                })
+                .where(eq(artworks.id, artworkId));
+            return { success: false, error: "Submission to backend failed." };
         }
 
         revalidatePath(DASHBOARD_ROUTE);

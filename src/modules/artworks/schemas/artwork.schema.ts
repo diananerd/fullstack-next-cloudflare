@@ -2,10 +2,10 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import {
-    ProtectionStatus,
-    type ProtectionStatusType,
     ProtectionMethod,
     type ProtectionMethodType,
+    ProtectionStatus,
+    type ProtectionStatusType,
 } from "@/modules/artworks/models/artwork.enum";
 import { user } from "@/modules/auth/schemas/auth.schema";
 
@@ -32,11 +32,11 @@ export const artworks = sqliteTable(
             .default(ProtectionStatus.QUEUED),
         jobId: text("job_id"),
         metadata: text("metadata", { mode: "json" }).$type<{
-             inputSha256?: string;
-             outputSha256?: string;
-             mistTimeSeconds?: number;
-             processingTime?: number;
-             error?: string;
+            inputSha256?: string;
+            outputSha256?: string;
+            mistTimeSeconds?: number;
+            processingTime?: number;
+            error?: string;
         }>(),
         width: integer("width"),
         height: integer("height"),
@@ -64,7 +64,9 @@ export const insertArtworkSchema = createInsertSchema(artworks, {
     url: z.string().url("Invalid URL"),
     protectedUrl: z.string().url().optional(),
     protectedR2Key: z.string().optional(),
-    method: z.enum([ProtectionMethod.MIST, ProtectionMethod.WATERMARK]).optional(),
+    method: z
+        .enum([ProtectionMethod.MIST, ProtectionMethod.WATERMARK])
+        .optional(),
     protectionStatus: z
         .enum(Object.values(ProtectionStatus) as [string, ...string[]])
         .optional(),

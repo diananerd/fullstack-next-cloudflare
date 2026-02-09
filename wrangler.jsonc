@@ -3,68 +3,63 @@
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "drimit-shield",
-	"main": "worker.ts",
-	"compatibility_date": "2025-03-01",
-	"compatibility_flags": [
-		"nodejs_compat",
-		"global_fetch_strictly_public"
-	],
-	"assets": {
-		"binding": "ASSETS",
-		"directory": ".open-next/assets"
-	},
-	"observability": {
-		"enabled": true
-	},
-	"d1_databases": [
-		{
-			"binding": "drimit_shield_db",
-			"database_name": "drimit-shield-db",
-			"database_id": "7ae44be5-bd72-4f6f-a5d2-21a26ba54ea8",
-			"migrations_dir": "./src/drizzle"
-		}
-	],
-	"r2_buckets": [
-		{
-			"bucket_name": "drimit-shield-bucket",
-			"binding": "drimit_shield_bucket",
-			"preview_bucket_name": "drimit-shield-dev-bucket"
-		}
-	],
-	"vectorize": [
-		{
-			"binding": "VECTORIZE",
-			"index_name": "drimit-shield-index"
-		}
-	],
-	"ai": {
-		"binding": "AI"
-	},
-	"triggers": {
-		"crons": [
-			"* * * * *"
-		]
-	},
-	"kv_namespaces": [
-		{
-			"binding": "drimit_shield_kv",
-			"id": "f3ddbd40149b47a49203065e47e4cafd",
-			"preview_id": "ca462c7fd8ad40ff9005df25f8316933"
-		}
-	],
-	"vars": {
-		"BETTER_AUTH_URL": "https://shield.drimit.io",
-		"NEXT_PUBLIC_APP_URL": "https://shield.drimit.io",
-		"MODAL_API_URL": "https://diananerdoficial--drimit-shield-demo-submit-protection-job.modal.run",
-		"MODAL_STATUS_URL": "https://diananerdoficial--drimit-shield-demo-check-status.modal.run",
-		"MODAL_AUTH_TOKEN": "335555d491176b3cf77699e46a74adbb02e5358700201d4a0443d3e696d5b94e"
-	},
-	"routes": [
-		{
-			"pattern": "shield.drimit.io",
-			"custom_domain": true
-		}
-	]
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "drimit-shield",
+    "main": "worker.ts",
+    "compatibility_date": "2025-03-01",
+    "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+    "assets": {
+        "binding": "ASSETS",
+        "directory": ".open-next/assets"
+    },
+    "observability": {
+        "enabled": true
+    },
+    "d1_databases": [
+        {
+            "binding": "drimit_shield_db",
+            "database_name": "drimit-shield-db",
+            "database_id": "7ae44be5-bd72-4f6f-a5d2-21a26ba54ea8",
+            "migrations_dir": "./src/drizzle"
+        }
+    ],
+    "r2_buckets": [
+        {
+            "bucket_name": "drimit-shield-bucket",
+            "binding": "drimit_shield_bucket",
+            "preview_bucket_name": "drimit-shield-dev-bucket"
+        }
+    ],
+    "vectorize": [
+        {
+            "binding": "VECTORIZE",
+            "index_name": "drimit-shield-index"
+        }
+    ],
+    "ai": {
+        "binding": "AI"
+    },
+    "triggers": {
+        "crons": ["* * * * *"]
+    },
+    "kv_namespaces": [
+        {
+            "binding": "drimit_shield_kv",
+            "id": "f3ddbd40149b47a49203065e47e4cafd",
+            "preview_id": "ca462c7fd8ad40ff9005df25f8316933"
+        }
+    ],
+    "vars": {
+        "BETTER_AUTH_URL": "https://shield.drimit.io",
+        "NEXT_PUBLIC_APP_URL": "https://shield.drimit.io",
+        "MODAL_API_URL": "https://diananerdoficial--drimit-shield-demo-submit-protection-job.modal.run",
+        "MODAL_STATUS_URL": "https://diananerdoficial--drimit-shield-demo-check-status.modal.run",
+        "MODAL_AUTH_TOKEN": "335555d491176b3cf77699e46a74adbb02e5358700201d4a0443d3e696d5b94e"
+    },
+    "routes": [
+        {
+            "pattern": "shield.drimit.io",
+            "custom_domain": true
+        }
+    ]
 }

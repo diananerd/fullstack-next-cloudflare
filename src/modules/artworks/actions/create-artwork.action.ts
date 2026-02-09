@@ -1,21 +1,21 @@
 "use server";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { eq } from "drizzle-orm"; // Added for direct updates
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
 // import { sendToQueue } from "@/lib/queue"; // DEPRECATED
 import { deleteFromR2, type UploadResult, uploadToR2 } from "@/lib/r2";
 import {
+    type ProtectionMethodType,
     ProtectionStatus,
     type ProtectionStatusType,
-    type ProtectionMethodType,
 } from "@/modules/artworks/models/artwork.enum";
 import {
     artworks,
     insertArtworkSchema,
 } from "@/modules/artworks/schemas/artwork.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
-import { eq } from "drizzle-orm"; // Added for direct updates
 
 // Temporary route definition until we have a proper route file
 const DASHBOARD_ROUTE = "/artworks";
@@ -27,12 +27,16 @@ const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png"];
 export async function createArtworkAction(formData: FormData) {
     try {
         const hash = formData.get("hash") as string;
-        console.log(`[CreateArtworkAction] Starting action for ${hash || "unknown"}`);
-        
+        console.log(
+            `[CreateArtworkAction] Starting action for ${hash || "unknown"}`,
+        );
+
         const user = await requireAuth();
 
         const imageFile = formData.get("image") as File | null;
-        console.log(`[CreateArtworkAction] Validating file. Size: ${imageFile?.size}, Type: ${imageFile?.type}`);
+        console.log(
+            `[CreateArtworkAction] Validating file. Size: ${imageFile?.size}, Type: ${imageFile?.type}`,
+        );
 
         if (!imageFile || imageFile.size === 0) {
             return { success: false, error: "Image file is required" };
@@ -102,14 +106,18 @@ export async function createArtworkAction(formData: FormData) {
         );
 
         if (!uploadResult.success || !uploadResult.key || !uploadResult.url) {
-            console.error(`[CreateArtworkAction] R2 Upload failed: ${uploadResult.error}`);
+            console.error(
+                `[CreateArtworkAction] R2 Upload failed: ${uploadResult.error}`,
+            );
             return {
                 success: false,
                 error: uploadResult.error || "Failed to upload image",
             };
         }
-        
-        console.log(`[CreateArtworkAction] Upload success. Key: ${uploadResult.key}`);
+
+        console.log(
+            `[CreateArtworkAction] Upload success. Key: ${uploadResult.key}`,
+        );
 
         const title = formData.get("title") as string;
         const descriptionRaw = formData.get("description");
@@ -150,7 +158,9 @@ export async function createArtworkAction(formData: FormData) {
         };
 
         const db = await getDb();
-        console.log(`[CreateArtworkAction] Saving to DB. User: ${user.id}, Key: ${uploadResult.key}`);
+        console.log(
+            `[CreateArtworkAction] Saving to DB. User: ${user.id}, Key: ${uploadResult.key}`,
+        );
 
         // biome-ignore lint/suspicious/noExplicitAny: DB result type
         let result: any;
@@ -159,10 +169,14 @@ export async function createArtworkAction(formData: FormData) {
                 .insert(artworks)
                 .values(safeData)
                 .returning({ insertedId: artworks.id });
-                
-             console.log(`[CreateArtworkAction] DB Insert Success. Result: ${JSON.stringify(result)}`);
+
+            console.log(
+                `[CreateArtworkAction] DB Insert Success. Result: ${JSON.stringify(result)}`,
+            );
         } catch (dbError) {
-            console.error(`[CreateArtworkAction] DB Insert Failed: ${dbError}. Cleaning up R2...`);
+            console.error(
+                `[CreateArtworkAction] DB Insert Failed: ${dbError}. Cleaning up R2...`,
+            );
             if (uploadResult.key) {
                 await deleteFromR2(uploadResult.key);
             }
@@ -175,67 +189,77 @@ export async function createArtworkAction(formData: FormData) {
             // Task to run in background
             const dispatchTask = async () => {
                 try {
-                     console.log(
+                    console.log(
                         `[CreateArtworkAction] Background: Dispatching logic for ID ${newArtworkId}, URL: ${uploadResult.url}`,
                     );
-                    
+
                     // --- Modal Direct Dispatch (Monolith) ---
                     const payload = {
                         artwork_id: String(newArtworkId),
                         user_id: user.id,
                         image_url: uploadResult.url,
-                        method: "mist", 
-                        config: { steps: 3, epsilon: 0.0627 }
+                        method: "mist",
+                        config: { steps: 3, epsilon: 0.0627 },
                     };
 
                     const modalUrl = process.env.MODAL_API_URL;
                     const modalToken = process.env.MODAL_AUTH_TOKEN;
 
                     if (!modalUrl || !modalToken) {
-                         throw new Error("CRITICAL: MODAL_API_URL or MODAL_AUTH_TOKEN missing.");
+                        throw new Error(
+                            "CRITICAL: MODAL_API_URL or MODAL_AUTH_TOKEN missing.",
+                        );
                     }
 
                     const modalResponse = await fetch(modalUrl, {
                         method: "POST",
                         headers: {
-                            "Authorization": `Bearer ${modalToken}`,
-                            "Content-Type": "application/json"
+                            Authorization: `Bearer ${modalToken}`,
+                            "Content-Type": "application/json",
                         },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify(payload),
                     });
 
                     if (!modalResponse.ok) {
                         const errText = await modalResponse.text();
-                        throw new Error(`Protection Service Failed (${modalResponse.status}): ${errText}`);
+                        throw new Error(
+                            `Protection Service Failed (${modalResponse.status}): ${errText}`,
+                        );
                     }
 
-                    const responseData = await modalResponse.json() as any;
-                    console.log(`[CreateArtworkAction] Job Dispatched. Job ID: ${responseData.job_id}`);
+                    const responseData = (await modalResponse.json()) as any;
+                    console.log(
+                        `[CreateArtworkAction] Job Dispatched. Job ID: ${responseData.job_id}`,
+                    );
 
                     // Update status to PROCESSING
                     const db = await getDb(); // Re-fetch DB context inside async task
-                    await db.update(artworks)
-                        .set({ 
+                    await db
+                        .update(artworks)
+                        .set({
                             protectionStatus: ProtectionStatus.PROCESSING,
                             jobId: responseData.job_id,
-                            updatedAt: new Date().toISOString()
+                            updatedAt: new Date().toISOString(),
                         })
                         .where(eq(artworks.id, newArtworkId));
-
                 } catch (e) {
-                     console.error(`[CreateArtworkAction] Background Dispatch ERROR:`, e);
-                     try {
-                         const db = await getDb();
-                         await db.update(artworks)
-                            .set({ 
+                    console.error(
+                        `[CreateArtworkAction] Background Dispatch ERROR:`,
+                        e,
+                    );
+                    try {
+                        const db = await getDb();
+                        await db
+                            .update(artworks)
+                            .set({
                                 protectionStatus: ProtectionStatus.FAILED,
                                 metadata: { error: String(e) },
-                                updatedAt: new Date().toISOString()
+                                updatedAt: new Date().toISOString(),
                             })
                             .where(eq(artworks.id, newArtworkId));
-                     } catch (dbErr) {
-                         console.error("Failed to mark job as FAILED", dbErr);
-                     }
+                    } catch (dbErr) {
+                        console.error("Failed to mark job as FAILED", dbErr);
+                    }
                 }
             };
 
@@ -244,20 +268,27 @@ export async function createArtworkAction(formData: FormData) {
                 // In Cloudflare Workers (OpenNext), we can attach to the context
                 // Note: getCloudflareContext might throw in local Node dev mode
                 const { ctx } = await getCloudflareContext();
-                if (ctx && typeof ctx.waitUntil === 'function') {
-                    console.log(`[CreateArtworkAction] Offloading dispatch to waitUntil`);
+                if (ctx && typeof ctx.waitUntil === "function") {
+                    console.log(
+                        `[CreateArtworkAction] Offloading dispatch to waitUntil`,
+                    );
                     ctx.waitUntil(dispatchTask());
                 } else {
-                    console.warn(`[CreateArtworkAction] ctx.waitUntil not available. Awaiting task sequentially.`);
+                    console.warn(
+                        `[CreateArtworkAction] ctx.waitUntil not available. Awaiting task sequentially.`,
+                    );
                     await dispatchTask();
                 }
             } catch (ctxErr) {
-                console.warn(`[CreateArtworkAction] Could not get Cloudflare context (${ctxErr}). Awaiting task sequentially.`);
+                console.warn(
+                    `[CreateArtworkAction] Could not get Cloudflare context (${ctxErr}). Awaiting task sequentially.`,
+                );
                 await dispatchTask();
             }
-
         } else {
-             console.error(`[CreateArtworkAction] No ID returned from DB insert!`);
+            console.error(
+                `[CreateArtworkAction] No ID returned from DB insert!`,
+            );
         }
 
         revalidatePath(DASHBOARD_ROUTE);

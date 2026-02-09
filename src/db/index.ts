@@ -13,8 +13,11 @@ export async function getDb(envOverride?: Cloudflare.Env) {
             const context = await getCloudflareContext();
             env = context.env as unknown as Cloudflare.Env;
         }
-        
-        console.log("[DB] Env fetched. DB Binding exists:", !!env.drimit_shield_db);
+
+        console.log(
+            "[DB] Env fetched. DB Binding exists:",
+            !!env.drimit_shield_db,
+        );
         return drizzle(env.drimit_shield_db, { schema });
     } catch (e) {
         console.error("[DB] Initialization Failed:", e);

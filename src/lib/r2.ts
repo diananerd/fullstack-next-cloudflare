@@ -11,15 +11,15 @@ export async function uploadToR2(
     file: File,
     folder: string = "uploads",
     customFilename?: string,
-    envOverride?: Cloudflare.Env
+    envOverride?: Cloudflare.Env,
 ): Promise<UploadResult> {
     try {
         let env: Cloudflare.Env;
         if (envOverride) {
             env = envOverride;
         } else {
-             const context = await getCloudflareContext();
-             env = context.env as unknown as Cloudflare.Env;
+            const context = await getCloudflareContext();
+            env = context.env as unknown as Cloudflare.Env;
         }
 
         const extension = file.name.split(".").pop() || "bin";
@@ -36,8 +36,10 @@ export async function uploadToR2(
 
         // Convert File to ArrayBuffer
         const arrayBuffer = await file.arrayBuffer();
-        
-        console.log(`[R2] Uploading ${key} (${arrayBuffer.byteLength} bytes) to bucket`);
+
+        console.log(
+            `[R2] Uploading ${key} (${arrayBuffer.byteLength} bytes) to bucket`,
+        );
 
         // Upload to R2
         // !starterconf - update this to match your R2 bucket binding name
@@ -61,7 +63,7 @@ export async function uploadToR2(
                 error: "Upload failed",
             };
         }
-        
+
         console.log(`[R2] Upload SUCCESS for ${key}`);
 
         // Return URL proxied through the application
@@ -84,14 +86,17 @@ export async function uploadToR2(
     }
 }
 
-export async function getFromR2(key: string, envOverride?: Cloudflare.Env): Promise<R2Object | null> {
+export async function getFromR2(
+    key: string,
+    envOverride?: Cloudflare.Env,
+): Promise<R2Object | null> {
     try {
         let env: Cloudflare.Env;
         if (envOverride) {
             env = envOverride;
         } else {
-             const context = await getCloudflareContext();
-             env = context.env as unknown as Cloudflare.Env;
+            const context = await getCloudflareContext();
+            env = context.env as unknown as Cloudflare.Env;
         }
         return env.drimit_shield_bucket.get(key);
     } catch (error) {
@@ -100,14 +105,17 @@ export async function getFromR2(key: string, envOverride?: Cloudflare.Env): Prom
     }
 }
 
-export async function deleteFromR2(key: string, envOverride?: Cloudflare.Env): Promise<boolean> {
+export async function deleteFromR2(
+    key: string,
+    envOverride?: Cloudflare.Env,
+): Promise<boolean> {
     try {
         let env: Cloudflare.Env;
         if (envOverride) {
             env = envOverride;
         } else {
-             const context = await getCloudflareContext();
-             env = context.env as unknown as Cloudflare.Env;
+            const context = await getCloudflareContext();
+            env = context.env as unknown as Cloudflare.Env;
         }
         await env.drimit_shield_bucket.delete(key);
         return true;

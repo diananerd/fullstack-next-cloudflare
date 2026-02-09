@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
-import { useArtworkStatus } from "../hooks/use-artwork-status";
 import { useArtworkActions } from "../hooks/use-artwork-actions";
+import { useArtworkStatus } from "../hooks/use-artwork-status";
 import { ArtworkActionButtons } from "./artwork-action-buttons";
 import { ArtworkFullView } from "./artwork-full-view";
 import { ArtworkStatusBadge } from "./artwork-status-badge";
@@ -18,16 +18,16 @@ interface ArtworkCardProps {
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
     // Live status updates via SSE (replaces polling)
     const liveStatus = useArtworkStatus(artwork.id, artwork.protectionStatus);
-    
+
     // Memoize the live artwork object to prevent unnecessary re-renders of hooks
     const liveArtwork = {
         ...artwork,
-        protectionStatus: liveStatus
+        protectionStatus: liveStatus,
     };
 
     const actions = useArtworkActions(liveArtwork);
     const { isProcessing, isProtected, optimisticStatus } = actions;
-    
+
     const router = useRouter();
     const [_, startTransition] = useTransition();
     const [showFullView, setShowFullView] = useState(false);
