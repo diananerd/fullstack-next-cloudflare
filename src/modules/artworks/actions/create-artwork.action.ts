@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
+import { eq, desc } from "drizzle-orm";
 import { deleteFromR2, type UploadResult, uploadToR2 } from "@/lib/r2";
 import {
     type ProtectionMethodType,
@@ -22,20 +23,28 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png"];
 
 // Helper to check for existing hash efficiently
+// Note: D1/SQLite JSON filtering is fragile, so we fetch items and filter in JS
 async function checkDuplicateHash(userId: string, hash: string) {
     const db = await getDb();
-    // Use LIKE operator to search within the JSON string stored in metadata column
-    // Pattern matches: "inputSha256":"<hash>"
-    // This assumes canonical JSON serialization but is effective for simple checks
-    const existing = await db.query.artworks.findFirst({
-        where: (artworks, { and, eq, like }) =>
-            and(
-                eq(artworks.userId, userId),
-                like(artworks.metadata, `%"inputSha256":"${hash}"%`),
-            ),
-        columns: { id: true },
-    });
-    return !!existing;
+    try {
+        // Fetch all uploads by this user to guarantee uniqueness
+        const userUploads = await db
+            .select({ metadata: artworks.metadata })
+            .from(artworks)
+            .where(eq(artworks.userId, userId));
+
+        // Check if any of them match the hash
+        const isDuplicate = userUploads.some((artwork) => {
+             // biome-ignore lint/suspicious/noExplicitAny: Metadata is loosely typed
+            const meta = artwork.metadata as any;
+            return meta?.inputSha256 === hash;
+        });
+
+        return isDuplicate;
+    } catch (error) {
+        console.error("[CreateArtworkAction] Hash Check Error:", error);
+        return false;
+    }
 }
 
 export async function createArtworkAction(formData: FormData) {
