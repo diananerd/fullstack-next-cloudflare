@@ -116,7 +116,7 @@ def get_r2_client():
 
 @app.cls(
     gpu="T4", # Using GPU directly for the main class to avoid cold starts or separation
-    timeout=600, # 10 min max
+    timeout=1200, # 20 min max (Increased from 10m to handle large/slow batches)
     secrets=[
         modal.Secret.from_name("shield-secret"),
         modal.Secret.from_name("cloudflare-r2-secret")
