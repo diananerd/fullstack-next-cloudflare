@@ -1,4 +1,4 @@
-import { eq, inArray, and, asc, desc } from "drizzle-orm";
+import { eq, inArray, and, asc, desc, count, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { artworks } from "../schemas/artwork.schema";
 import {
@@ -6,6 +6,10 @@ import {
     JobStatus,
     type JobStatusType,
 } from "../schemas/artwork-job.schema";
+import {
+    MAX_CONCURRENT_JOBS,
+    JOB_TIMEOUT_MINUTES,
+} from "@/constants/job.constant";
 import {
     ProtectionStatus,
     type ProtectionMethodType,
@@ -130,9 +134,12 @@ export class PipelineService {
                 })
                 .where(eq(artworks.id, artworkId));
 
-            // 5. Dispatch Immediately (Optional optimization for UX)
-            // We do this here to avoid waiting for the next CRON tick
-            await this.dispatchJob(insertedJob.id, userId);
+            // 5. Queue Job (No immediate dispatch)
+            // We rely on the unified Queue System (processQueue) to pick this up
+            // respecting concurrency limits.
+            console.log(`[Pipeline] Job ${insertedJob.id} queued (pending dispatch).`);
+
+            // await this.dispatchJob(insertedJob.id, userId);
         } catch (error) {
             console.error("[Pipeline] Start failed:", error);
             // If job was created but dispatch failed, mark as failed
@@ -286,8 +293,11 @@ export class PipelineService {
                 })
                 .where(eq(artworks.id, artworkId));
 
-            // Immediate dispatch attempt
-            await this.dispatchJob(jobToRestart.id, userId);
+            // Queue for dispatch
+            console.log(
+                `[Pipeline] Job ${jobToRestart.id} marked as PENDING (Queued for dispatch).`,
+            );
+            // await this.dispatchJob(jobToRestart.id, userId);
         } else {
             // Fallback: If no jobs exist but pipeline does, start from scratch?
             if (jobs.length === 0) {
@@ -383,7 +393,8 @@ export class PipelineService {
                     JobStatus.QUEUED,
                     JobStatus.PROCESSING,
                 ]),
-            );
+            )
+            .limit(100); // Batching: Only process 100 jobs per cycle to prevent OOM
 
         if (activeJobs.length === 0) return { synced: 0 };
 
@@ -402,11 +413,9 @@ export class PipelineService {
             let isZombie = false;
             let zombieReason = "";
 
-            if (j.status === JobStatus.PROCESSING && elapsedMinutes > 30) {
+            if (j.status === JobStatus.PROCESSING && elapsedMinutes > JOB_TIMEOUT_MINUTES) {
                 isZombie = true;
-                // Update reason for extended timeout (20m + buffer)
-                zombieReason =
-                    "Processing Timeout: No heartbeat for > 30m (Modal limit ~20m)";
+                zombieReason = `Processing Timeout: Exceeded ${JOB_TIMEOUT_MINUTES}m limit.`;
             } else if (j.status === JobStatus.QUEUED && elapsedHours > 6) {
                 isZombie = true;
                 zombieReason = "Queue Timeout: Stuck in queue for > 6h";
@@ -581,50 +590,63 @@ export class PipelineService {
 
     /**
      * Main Orchestration Loop part 2: Advance Pipelines
-     * Checks for completed jobs and triggers the next step.
+     * Checks for completed jobs and queues the next step.
+     * Uses optimized batching to avoid N+1 queries.
      */
     static async advancePipelines() {
         const db = await getDb();
 
-        // 1. Find Artworks that are theoretically "Processing"
-        // We look for Artworks where protectionStatus is PROCESSING or QUEUED
-        // AND have a recently COMPLETED job that is NOT the last one.
-        // OR simply, strict approach: Select all artworks in PROCESSING state.
+        // 1. Fetch Artworks that need advancing (Processing/Queued)
+        // Optimized: Fetch recent jobs for these artworks in parallel or via smarter query?
+        // Drizzle doesn't support easy "Last Job per Group" in one obscure line without raw SQL.
+        // But we can optimize by fetching ALL relevant jobs for these artworks in one go if the set is smallish (batch size).
 
+        // A. Get Candidates (Batch Limit 50)
         const activeArtworks = await db.query.artworks.findMany({
             where: inArray(artworks.protectionStatus, [
                 ProtectionStatus.PROCESSING,
                 ProtectionStatus.QUEUED,
             ]),
+            limit: 50, // Batch size for advancing
             with: {
-                // Fetch recent jobs? No, `query.artworks` with `jobs` relation not yet defined in schema TS (manual join needed)
+                // Efficiently fetch only the latest job?
+                // Drizzle `with` doesn't support limit/orderBy on relations easily in SQLite driver sometimes.
+                // Fallback: Fetch IDs, then fetch jobs.
             },
         });
+
+        if (activeArtworks.length === 0) return { advancements: 0 };
+
+        const artworkIds = activeArtworks.map((a) => a.id);
+
+        // B. Fetch Latest Jobs for these IDs using Window Function equivalent or just raw list and filtering in memory (for 50 items it's fast)
+        // We fetch ALL jobs for these 50 artworks. It's safe because usually < 5 jobs per artwork.
+        const allJobs = await db
+            .select()
+            .from(artworkJobs)
+            .where(inArray(artworkJobs.artworkId, artworkIds))
+            .orderBy(desc(artworkJobs.stepOrder), desc(artworkJobs.id));
+
+        // Group in memory
+        const jobsByArtwork = new Map<number, (typeof allJobs)[0]>();
+        for (const job of allJobs) {
+            if (!jobsByArtwork.has(job.artworkId)) {
+                jobsByArtwork.set(job.artworkId, job); // First one is latest due to orderBy desc
+            }
+        }
 
         let advancements = 0;
 
         for (const artwork of activeArtworks) {
             try {
-                // Manual fetch of latest job
-                const jobs = await db
-                    .select()
-                    .from(artworkJobs)
-                    .where(eq(artworkJobs.artworkId, artwork.id))
-                    .orderBy(desc(artworkJobs.stepOrder))
-                    .limit(1);
-
-                if (jobs.length === 0) continue;
-                const lastJob = jobs[0];
+                const lastJob = jobsByArtwork.get(artwork.id);
+                if (!lastJob) continue;
 
 
-                // RECOVERY: If job is stuck in PENDING (never dispatched) due to server crash, retry
-                if (lastJob.status === JobStatus.PENDING) {
-                    const pendingMinutes = (Date.now() - new Date(lastJob.updatedAt).getTime()) / (1000 * 60);
-                    if (pendingMinutes > 5) { // 5 min buffer
-                         console.log(`[Pipeline] Recovery: Retrying stuck PENDING job ${lastJob.id}`);
-                         await this.dispatchJob(lastJob.id, artwork.userId);
-                    }
-                }
+
+                // RECOVERY: handled by processQueue automatically.
+                // if (lastJob.status === JobStatus.PENDING) ...
+
 
                 // If last job is PENDING/QUEUED/PROCESSING/FAILED, we wait (or stop).
                 if (lastJob.status !== JobStatus.COMPLETED) {
@@ -744,9 +766,13 @@ export class PipelineService {
                         })
                         .returning();
 
-                    // Dispatch
+                    // Dispatch (Queue)
                     try {
-                        await this.dispatchJob(newJob.id, artwork.userId);
+                        // We do NOT dispatch immediately. We let processQueue handle it.
+                        // await this.dispatchJob(newJob.id, artwork.userId);
+                        console.log(
+                            `[Pipeline] Job ${newJob.id} (Step ${nextStepIdx}) created and queued.`,
+                        );
                         advancements++;
 
                         // Update Metadata current step
@@ -779,5 +805,112 @@ export class PipelineService {
             }
         }
         return { advancements };
+    }
+
+    /**
+     * Main Orchestration Loop part 3: Queue Processor
+     * Manages flow control and concurrency limits.
+     */
+    static async processQueue() {
+        const db = await getDb();
+
+        // 1. Check Capacity
+        const activeJobsResult = await db
+            .select({ count: count() })
+            .from(artworkJobs)
+            .where(
+                inArray(artworkJobs.status, [
+                    JobStatus.QUEUED,
+                    JobStatus.PROCESSING,
+                ]),
+            );
+
+        const activeCount = activeJobsResult[0]?.count || 0;
+        const slotsAvailable = MAX_CONCURRENT_JOBS - activeCount;
+
+        if (slotsAvailable <= 0) {
+            console.log(
+                `[Queue] Full capacity (${activeCount}/${MAX_CONCURRENT_JOBS}). Waiting.`,
+            );
+            return { dispatched: 0, active: activeCount };
+        }
+
+        console.log(
+            `[Queue] Slots available: ${slotsAvailable} (Active: ${activeCount})`,
+        );
+
+        // 2. Fetch High Priority (Continuing Pipelines)
+        const highPriorityJobs = await db
+            .select()
+            .from(artworkJobs)
+            .where(
+                and(
+                    eq(artworkJobs.status, JobStatus.PENDING),
+                    sql`${artworkJobs.stepOrder} > 0`,
+                ),
+            )
+            .orderBy(asc(artworkJobs.createdAt))
+            .limit(slotsAvailable);
+
+        let jobsToDispatch = [...highPriorityJobs];
+
+        // 3. Fetch Normal Priority (New Pipelines)
+        if (jobsToDispatch.length < slotsAvailable) {
+            const remaining = slotsAvailable - jobsToDispatch.length;
+            const normalPriorityJobs = await db
+                .select()
+                .from(artworkJobs)
+                .where(
+                    and(
+                        eq(artworkJobs.status, JobStatus.PENDING),
+                        eq(artworkJobs.stepOrder, 0),
+                    ),
+                )
+                .orderBy(asc(artworkJobs.createdAt))
+                .limit(remaining);
+
+            jobsToDispatch = [...jobsToDispatch, ...normalPriorityJobs];
+        }
+
+        if (jobsToDispatch.length === 0) {
+            console.log(`[Queue] No pending jobs.`);
+            return { dispatched: 0, active: activeCount };
+        }
+
+        console.log(`[Queue] Dispatching ${jobsToDispatch.length} jobs.`);
+
+        // 4. Dispatch
+        for (const job of jobsToDispatch) {
+            try {
+                const artwork = await db.query.artworks.findFirst({
+                    where: eq(artworks.id, job.artworkId),
+                    columns: { userId: true },
+                });
+
+                if (artwork) {
+                    await this.dispatchJob(job.id, artwork.userId);
+                } else {
+                    console.error(
+                        `[Queue] Artwork not found for Job ${job.id}`,
+                    );
+                    await db
+                        .update(artworkJobs)
+                        .set({
+                            status: JobStatus.FAILED,
+                            errorMessage:
+                                "Artwork not found during queue processing",
+                            updatedAt: new Date().toISOString(),
+                        })
+                        .where(eq(artworkJobs.id, job.id));
+                }
+            } catch (err) {
+                console.error(`[Queue] Error dispatching job ${job.id}`, err);
+            }
+        }
+
+        return {
+            dispatched: jobsToDispatch.length,
+            active: activeCount + jobsToDispatch.length,
+        };
     }
 }

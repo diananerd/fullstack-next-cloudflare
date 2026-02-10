@@ -23,14 +23,19 @@ export async function GET(req: NextRequest) {
         const syncResult = await PipelineService.syncRunningJobs();
         console.log(`[Cron] Synced ${syncResult.synced} jobs.`);
 
-        // Phase 2: Advance Pipelines (Dispatch next steps for completed jobs)
+        // Phase 2: Advance Pipelines (Create next steps)
         const advanceResult = await PipelineService.advancePipelines();
         console.log(`[Cron] Advanced ${advanceResult.advancements} pipelines.`);
+
+        // Phase 3: Process Queue (Dispatch pending jobs)
+        const queueResult = await PipelineService.processQueue();
+        console.log(`[Cron] Queue processed. Dispatched: ${queueResult.dispatched}, Active: ${queueResult.active}`);
 
         return NextResponse.json({
             success: true,
             synced: syncResult.synced,
             advanced: advanceResult.advancements,
+            queue: queueResult
         });
     } catch (error) {
         console.error("[Cron] Critical Execution Error:", error);
