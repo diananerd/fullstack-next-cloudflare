@@ -18,7 +18,8 @@ export async function GET(
 
         // Try all possible sources for the token
         // biome-ignore lint/suspicious/noExplicitAny: Env types are dynamic in Cloudflare
-        const systemToken = (env as any).MODAL_AUTH_TOKEN || process.env.MODAL_AUTH_TOKEN;
+        const systemToken =
+            (env as any).MODAL_AUTH_TOKEN || process.env.MODAL_AUTH_TOKEN;
 
         // Debug Logging
         console.log(`[AssetProxy] Request URL: ${_request.url}`);

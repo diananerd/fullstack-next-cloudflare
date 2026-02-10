@@ -30,14 +30,13 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
             success: true,
             synced: syncResult.synced,
-            advanced: advanceResult.advancements
+            advanced: advanceResult.advancements,
         });
-
     } catch (error) {
         console.error("[Cron] Critical Execution Error:", error);
         return NextResponse.json(
             { success: false, error: String(error) },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }

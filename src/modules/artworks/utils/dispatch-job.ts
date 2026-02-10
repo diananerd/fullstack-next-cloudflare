@@ -12,16 +12,19 @@ interface DispatchJobInput {
 
 export async function dispatchProtectionJob(input: DispatchJobInput) {
     const { artworkId, userId, imageUrl, method, config, isPreview } = input;
-    
+
     // Resolve configuration and credentials
     // Note: getProtectionConfig reads from process.env, which works in Next.js server actions / API routes
     const protectionConfig = getProtectionConfig(method);
-    const methodConfig = { ...protectionConfig.defaultConfig, ...(config || {}) };
+    const methodConfig = {
+        ...protectionConfig.defaultConfig,
+        ...(config || {}),
+    };
 
     const modalUrl = protectionConfig.url; // Resolved URL
     const modalToken = protectionConfig.token;
 
-     if (!modalUrl || !modalToken) {
+    if (!modalUrl || !modalToken) {
         throw new Error(
             `Configuration missing for method ${method}. Please check server configuration.`,
         );
@@ -56,6 +59,6 @@ export async function dispatchProtectionJob(input: DispatchJobInput) {
 
     const responseData = (await modalResponse.json()) as any;
     console.log(`[Dispatch] Job Dispatched. Job ID: ${responseData.job_id}`);
-    
+
     return responseData.job_id as string;
 }

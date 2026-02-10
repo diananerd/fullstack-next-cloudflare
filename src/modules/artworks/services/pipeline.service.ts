@@ -616,17 +616,18 @@ export class PipelineService {
                 if (jobs.length === 0) continue;
                 const lastJob = jobs[0];
 
-                // If last job is PENDING/QUEUED/PROCESSING/FAILED, we wait (or stop).
-                if ( // RECOVERY: If job is stuck in PENDING (never dispatched) due to server crash, retry
-                     if (lastJob.status === JobStatus.PENDING) {
-                        const pendingMinutes = (Date.now() - new Date(lastJob.updatedAt).getTime()) / (1000 * 60);
-                        if (pendingMinutes > 5) { // 5 min buffer
-                             console.log(`[Pipeline] Recovery: Retrying stuck PENDING job ${lastJob.id}`);
-                             await this.dispatchJob(lastJob.id, artwork.userId);
-                        }
-                     }
 
-                    lastJob.status !== JobStatus.COMPLETED) {
+                // RECOVERY: If job is stuck in PENDING (never dispatched) due to server crash, retry
+                if (lastJob.status === JobStatus.PENDING) {
+                    const pendingMinutes = (Date.now() - new Date(lastJob.updatedAt).getTime()) / (1000 * 60);
+                    if (pendingMinutes > 5) { // 5 min buffer
+                         console.log(`[Pipeline] Recovery: Retrying stuck PENDING job ${lastJob.id}`);
+                         await this.dispatchJob(lastJob.id, artwork.userId);
+                    }
+                }
+
+                // If last job is PENDING/QUEUED/PROCESSING/FAILED, we wait (or stop).
+                if (lastJob.status !== JobStatus.COMPLETED) {
                     if (lastJob.status === JobStatus.FAILED) {
                         await db
                             .update(artworks)

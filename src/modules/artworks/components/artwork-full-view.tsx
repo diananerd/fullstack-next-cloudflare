@@ -23,22 +23,24 @@ export function ArtworkFullView({
 }: ArtworkFullViewProps) {
     const actions = useArtworkActions(artwork);
     const { isProtected, isProcessing, optimisticStatus } = actions;
-    
+
     // View state: 'protected' | 'original'
     // Default to 'protected' if available, else 'original'
-    const [viewMode, setViewMode] = useState<'protected' | 'original'>('protected');
+    const [viewMode, setViewMode] = useState<"protected" | "original">(
+        "protected",
+    );
 
     const [imageError, setImageError] = useState(false);
-    
+
     // Track if protected is genuinely broken (404) to disable the option
     const [protectedBroken, setProtectedBroken] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
-             setImageError(false);
-             setProtectedBroken(false);
-             // Reset to protected view on open if applicable
-             setViewMode('protected');
+            setImageError(false);
+            setProtectedBroken(false);
+            // Reset to protected view on open if applicable
+            setViewMode("protected");
         }
     }, [isOpen]);
 
@@ -48,27 +50,34 @@ export function ArtworkFullView({
             try {
                 const parts = artwork.r2Key.split("/");
                 if (parts.length > 0) {
-                    const hash = parts[0]; 
+                    const hash = parts[0];
                     return `/api/assets/${hash}/protected.png`;
                 }
-            } catch(e) {}
+            } catch (e) {}
         }
         return "";
     };
 
     const protectedUrl = getProtectedUrl();
     const originalUrl = artwork.url;
-    
+
     // Determine what to show
-    const displayUrl = (viewMode === 'protected' && protectedUrl && optimisticStatus === ProtectionStatus.DONE && !protectedBroken) 
-        ? protectedUrl 
-        : originalUrl;
+    const displayUrl =
+        viewMode === "protected" &&
+        protectedUrl &&
+        optimisticStatus === ProtectionStatus.DONE &&
+        !protectedBroken
+            ? protectedUrl
+            : originalUrl;
 
     const fileSize = artwork.size
         ? `${(artwork.size / 1024 / 1024).toFixed(2)} MB`
         : "";
 
-    const hasProtectedVersion = !!protectedUrl && optimisticStatus === ProtectionStatus.DONE && !protectedBroken;
+    const hasProtectedVersion =
+        !!protectedUrl &&
+        optimisticStatus === ProtectionStatus.DONE &&
+        !protectedBroken;
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -90,9 +99,12 @@ export function ArtworkFullView({
                             )}
                             onError={() => {
                                 // If we are attempting to show protected, and it fails, fallback.
-                                if (viewMode === 'protected' && displayUrl === protectedUrl) {
+                                if (
+                                    viewMode === "protected" &&
+                                    displayUrl === protectedUrl
+                                ) {
                                     setProtectedBroken(true);
-                                    setViewMode('original');
+                                    setViewMode("original");
                                 } else {
                                     setImageError(true);
                                 }
@@ -153,7 +165,7 @@ export function ArtworkFullView({
                         {/* Bottom Row */}
                         <div className="flex justify-center items-end w-full relative">
                             {/* Bottom-Center: Original/Protected Toggle */}
-                             {hasProtectedVersion && (
+                            {hasProtectedVersion && (
                                 <div className="absolute left-1/2 -translate-x-1/2 bottom-8 flex gap-1 pointer-events-auto bg-black/60 backdrop-blur-xl p-1 rounded-lg border border-white/10">
                                     <Button
                                         variant="ghost"
@@ -161,14 +173,19 @@ export function ArtworkFullView({
                                         title="View Protected"
                                         className={cn(
                                             "h-9 w-9 rounded-md transition-all",
-                                            viewMode === 'protected' 
-                                                ? "bg-indigo-500 text-white shadow-glow" 
-                                                : "text-white/60 hover:text-white hover:bg-white/10"
+                                            viewMode === "protected"
+                                                ? "bg-indigo-500 text-white shadow-glow"
+                                                : "text-white/60 hover:text-white hover:bg-white/10",
                                         )}
-                                        onClick={(e) => { e.stopPropagation(); setViewMode('protected'); }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setViewMode("protected");
+                                        }}
                                     >
                                         <ShieldCheck className="h-5 w-5" />
-                                        <span className="sr-only">Protected</span>
+                                        <span className="sr-only">
+                                            Protected
+                                        </span>
                                     </Button>
                                     <Button
                                         variant="ghost"
@@ -176,17 +193,22 @@ export function ArtworkFullView({
                                         title="View Original"
                                         className={cn(
                                             "h-9 w-9 rounded-md transition-all",
-                                            viewMode === 'original' 
-                                                ? "bg-white text-black shadow-lg" 
-                                                : "text-white/60 hover:text-white hover:bg-white/10"
+                                            viewMode === "original"
+                                                ? "bg-white text-black shadow-lg"
+                                                : "text-white/60 hover:text-white hover:bg-white/10",
                                         )}
-                                        onClick={(e) => { e.stopPropagation(); setViewMode('original'); }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setViewMode("original");
+                                        }}
                                     >
                                         <ImageIcon className="h-5 w-5" />
-                                        <span className="sr-only">Original</span>
+                                        <span className="sr-only">
+                                            Original
+                                        </span>
                                     </Button>
                                 </div>
-                             )}
+                            )}
                         </div>
                     </div>
                 </div>

@@ -27,7 +27,7 @@ export const artworks = sqliteTable(
         protectionStatus: text("protection_status")
             .$type<ProtectionStatusType>()
             .notNull()
-            .default(ProtectionStatus.DONE),
+            .default(ProtectionStatus.IDLE),
         jobId: text("job_id"),
         metadata: text("metadata", { mode: "json" }).$type<{
             inputSha256?: string;
@@ -42,7 +42,7 @@ export const artworks = sqliteTable(
                     config?: Record<string, any>;
                 }[];
                 currentStep: number;
-                pending?: boolean; 
+                pending?: boolean;
             };
         }>(),
         width: integer("width"),

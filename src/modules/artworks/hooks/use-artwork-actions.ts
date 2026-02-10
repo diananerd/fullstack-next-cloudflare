@@ -48,14 +48,17 @@ export function useArtworkActions(artwork: Artwork) {
             const safeTitle = (artwork.title || "artwork")
                 .replace(/[^a-z0-9]/gi, "_")
                 .toLowerCase();
-            
+
             // Try to detect extension from URL, default to png
             let extension = "png";
             try {
-                const urlPath = new URL(urlToOpen, window.location.origin).pathname;
+                const urlPath = new URL(urlToOpen, window.location.origin)
+                    .pathname;
                 const extMatch = urlPath.match(/\.([a-zA-Z0-9]+)$/);
                 if (extMatch && extMatch[1]) extension = extMatch[1];
-            } catch (e) { /* ignore */ }
+            } catch (e) {
+                /* ignore */
+            }
 
             link.download = `${safeTitle}_protected.${extension}`;
 
@@ -120,7 +123,6 @@ export function useArtworkActions(artwork: Artwork) {
         ? ProtectionStatus.QUEUED
         : artwork.protectionStatus;
 
-
     return {
         isPending,
         deleteOpen,
@@ -140,4 +142,3 @@ export function useArtworkActions(artwork: Artwork) {
         artwork,
     };
 }
-

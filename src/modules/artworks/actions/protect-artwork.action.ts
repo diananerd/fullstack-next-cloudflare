@@ -17,7 +17,9 @@ export type ProtectArtworkInput = {
 
 export async function protectArtworkAction(input: ProtectArtworkInput) {
     try {
-        console.log(`[ProtectArtworkAction] Initiating pipeline for ID ${input.artworkId} with ${input.pipeline.length} steps`);
+        console.log(
+            `[ProtectArtworkAction] Initiating pipeline for ID ${input.artworkId} with ${input.pipeline.length} steps`,
+        );
         const user = await requireAuth();
 
         if (input.pipeline.length === 0) {
@@ -26,16 +28,21 @@ export async function protectArtworkAction(input: ProtectArtworkInput) {
 
         // Delegate to Service
         // This handles validation, job creation, and initial dispatch
-        await PipelineService.startPipeline(input.artworkId, user.id, input.pipeline);
+        await PipelineService.startPipeline(
+            input.artworkId,
+            user.id,
+            input.pipeline,
+        );
 
         revalidatePath(DASHBOARD_ROUTE);
         return { success: true };
-
     } catch (error: unknown) {
         console.error(`[ProtectArtworkAction] Error:`, error);
         return {
             success: false,
-            error: (error as Error).message || "Failed to start protection process",
+            error:
+                (error as Error).message ||
+                "Failed to start protection process",
         };
     }
 }

@@ -4,9 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
 import { deleteFromR2, deleteFolderFromR2 } from "@/lib/r2";
-import {
-    ProtectionStatus,
-} from "@/modules/artworks/models/artwork.enum";
+import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { PipelineService } from "../services/pipeline.service";
@@ -32,10 +30,14 @@ export async function deleteArtworkAction(artworkId: number) {
             const parts = artwork.r2Key.split("/");
             if (parts.length > 1) {
                 const folderPrefix = parts[0];
-                console.log(`[DeleteArtwork] Deleting entire folder: ${folderPrefix}`);
+                console.log(
+                    `[DeleteArtwork] Deleting entire folder: ${folderPrefix}`,
+                );
                 await deleteFolderFromR2(folderPrefix);
             } else {
-                console.log(`[DeleteArtwork] Deleting single file: ${artwork.r2Key}`);
+                console.log(
+                    `[DeleteArtwork] Deleting single file: ${artwork.r2Key}`,
+                );
                 await deleteFromR2(artwork.r2Key);
             }
         }
@@ -67,7 +69,7 @@ export async function cancelProtectionAction(artworkId: number) {
 
         await db
             .update(artworks)
-            .set({ protectionStatus: ProtectionStatus.DONE, jobId: null }) 
+            .set({ protectionStatus: ProtectionStatus.DONE, jobId: null })
             .where(eq(artworks.id, artworkId));
 
         revalidatePath(DASHBOARD_ROUTE);
@@ -80,7 +82,7 @@ export async function cancelProtectionAction(artworkId: number) {
 export async function retryProtectionAction(artworkId: number) {
     try {
         const user = await requireAuth();
-        
+
         // Delegate to centralized Pipeline Service
         await PipelineService.resumePipeline(artworkId, user.id);
 
@@ -88,6 +90,9 @@ export async function retryProtectionAction(artworkId: number) {
         return { success: true };
     } catch (error: any) {
         console.error("Retry Action Failed:", error);
-        return { success: false, error: error.message || "Failed to retry protection" };
+        return {
+            success: false,
+            error: error.message || "Failed to retry protection",
+        };
     }
 }

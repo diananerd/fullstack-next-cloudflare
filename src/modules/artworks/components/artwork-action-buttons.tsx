@@ -47,10 +47,10 @@ export function ArtworkActionButtons({
     const handleDownload = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!artwork.r2Key) return;
-        const hash = artwork.r2Key.split('/')[0];
+        const hash = artwork.r2Key.split("/")[0];
         const url = `/api/assets/${hash}/protected.png`;
-        
-        const link = document.createElement('a');
+
+        const link = document.createElement("a");
         link.href = url;
         link.download = `drimit-ai-shield-${hash}-protected.png`;
         document.body.appendChild(link);
@@ -79,13 +79,13 @@ export function ArtworkActionButtons({
                         className={cn(
                             "h-7 w-7 text-white rounded-full border-0 shadow-sm",
                             "bg-black/60 hover:bg-indigo-500/80",
-                            isProcessing && "opacity-50 cursor-not-allowed"
+                            isProcessing && "opacity-50 cursor-not-allowed",
                         )}
                         onClick={stopProp}
                         disabled={isPending || isProcessing}
                         title={isProcessing ? "Processing..." : "Protect"}
                     >
-                         {isPending ? (
+                        {isPending ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                             <Shield className="h-3.5 w-3.5" />
@@ -130,20 +130,26 @@ export function ArtworkActionButtons({
                             Are you absolutely sure?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the
-                            artwork and its protected variants from our servers.
+                            This action cannot be undone. This will permanently
+                            delete the artwork and its protected variants from
+                            our servers.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeleteOpen(false)}
+                        >
                             Cancel
                         </Button>
-                        <Button 
-                            variant="destructive" 
+                        <Button
+                            variant="destructive"
                             onClick={handleDeleteConfirm}
                             disabled={isPending}
                         >
-                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isPending && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
                             Delete
                         </Button>
                     </AlertDialogFooter>

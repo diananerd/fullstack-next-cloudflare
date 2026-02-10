@@ -134,7 +134,7 @@ export async function createArtworkAction(formData: FormData) {
             userId: user.id,
             r2Key: uploadResult.key,
             url: uploadResult.url,
-            protectionStatus: ProtectionStatus.DONE,
+            protectionStatus: ProtectionStatus.IDLE,
             size: imageFile.size,
             method: method,
         };
@@ -147,7 +147,7 @@ export async function createArtworkAction(formData: FormData) {
             userId: validatedData.userId,
             r2Key: validatedData.r2Key,
             url: validatedData.url,
-            protectionStatus: ProtectionStatus.DONE,
+            protectionStatus: ProtectionStatus.IDLE,
             size: validatedData.size,
             method: validatedData.method as ProtectionMethodType,
             // Explicitly exclude ID
@@ -182,7 +182,9 @@ export async function createArtworkAction(formData: FormData) {
         const newArtworkId = result[0]?.insertedId;
 
         if (newArtworkId) {
-             console.log(`[CreateArtworkAction] Artwork created with ID: ${newArtworkId}. Status: DONE`);
+            console.log(
+                `[CreateArtworkAction] Artwork created with ID: ${newArtworkId}. Status: DONE`,
+            );
         } else {
             console.error(
                 `[CreateArtworkAction] No ID returned from DB insert!`,

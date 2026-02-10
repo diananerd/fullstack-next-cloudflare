@@ -1,4 +1,5 @@
 export const ProtectionStatus = {
+    IDLE: "idle", // Recién subido, sin procesar
     UPLOADING: "uploading",
     QUEUED: "queued",
     PROCESSING: "processing",
