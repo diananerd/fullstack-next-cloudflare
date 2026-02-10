@@ -50,6 +50,8 @@ import {
 interface ProtectArtworkDialogProps {
     artworkId: number;
     children?: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 const PROTECTION_OPTIONS = [
@@ -86,8 +88,22 @@ const PROTECTION_OPTIONS = [
 export function ProtectArtworkDialog({
     artworkId,
     children,
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
 }: ProtectArtworkDialogProps) {
-    const [open, setOpen] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
+    
+    const isControlled = controlledOpen !== undefined;
+    const open = isControlled ? controlledOpen : internalOpen;
+    // Safe setter that handles both modes
+    const setOpen = (newOpen: boolean) => {
+        if (isControlled) {
+            controlledOnOpenChange?.(newOpen);
+        } else {
+            setInternalOpen(newOpen);
+        }
+    };
+
     const [step, setStep] = useState(1);
     const [selectedMethods, setSelectedMethods] = useState<
         ProtectionMethodType[]

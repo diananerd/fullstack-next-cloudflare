@@ -51,10 +51,12 @@ export function ForgotPasswordForm({
     async function onSubmit(data: ForgotPasswordSchema) {
         setIsLoading(true);
         try {
+            // @ts-ignore - forgetPassword exists in runtime for emailAndPassword plugin, but types might be missing in basic createAuthClient inference
             const { error } = await authClient.forgetPassword({
                 email: data.email,
-                redirectTo: "/reset-password", // Internal route for reset
+                redirectTo: "/reset-password",
             });
+
 
             if (error) {
                 toast.error(error.message || "Failed to send reset email");

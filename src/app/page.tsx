@@ -26,15 +26,12 @@ export default async function HomePage() {
                         {/* biome-ignore lint/performance/noImgElement: Icon optimization not critical */}
                         <img
                             src="/icon.png"
-                            alt="Drimit AI Shield"
+                            alt="Drimit"
                             className="h-8 w-8"
                         />
                         <span className="flex items-center gap-2 text-xl">
                             <span className="font-bold text-gray-900">
                                 Drimit
-                            </span>
-                            <span className="font-normal text-blue-500">
-                                AI Shield
                             </span>
                         </span>
                     </Link>
@@ -66,7 +63,7 @@ export default async function HomePage() {
                         AI Shield
                     </div>
 
-                    {/* Main Heading */}
+                    {/* Protectioning */}
                     <TypewriterTitle />
 
                     {/* Subtitle - Shortened for impact */}
@@ -134,7 +131,7 @@ export default async function HomePage() {
                         </Link>
                     )}
                 </div>
-                <p>© 2026 Drimit AI Shield. Protecting your Art.</p>
+                <p>© 2026 Drimit. Protecting your Art.</p>
             </footer>
         </div>
     );

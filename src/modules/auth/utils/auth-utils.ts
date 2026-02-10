@@ -7,14 +7,29 @@ import { headers } from "next/headers";
 import { getDb } from "@/db";
 import { CreditService } from "@/modules/credits/services/credit.service";
 import type { AuthUser } from "@/modules/auth/models/user.model";
+import { eq } from "drizzle-orm";
 // Note: sendEmail is imported dynamically to avoid pulling in 'resend' (and its Node/stream dependencies)
 // into the Edge runtime until strictly necessary.
 // import { sendEmail } from "@/lib/email";
+import Stripe from "stripe";
+import { user as userSchema } from "@/modules/auth/schemas/auth.schema";
 
 /**
  * Cached auth instance singleton so we don't create a new instance every time
  */
 let cachedAuth: ReturnType<typeof betterAuth> | null = null;
+let cachedStripe: Stripe | null = null;
+
+/**
+ * Initialize Stripe safely for key access
+ */
+function getStripe(apiKey: string) {
+    if (cachedStripe) return cachedStripe;
+    cachedStripe = new Stripe(apiKey, {
+        httpClient: Stripe.createFetchHttpClient(),
+    });
+    return cachedStripe;
+}
 
 /**
  * Create auth instance dynamically to avoid top-level async issues
@@ -24,7 +39,8 @@ async function getAuth() {
         return cachedAuth;
     }
 
-    const { env } = await getCloudflareContext();
+    const context = await getCloudflareContext();
+    const env = context.env as any;
     const db = await getDb();
 
     cachedAuth = betterAuth({
@@ -101,6 +117,32 @@ async function getAuth() {
                             `[AuthHook] 🟢 User Created Loop Triggered. Full User Object:`,
                             JSON.stringify(user, null, 2),
                         );
+                        
+                        // --- Stripe Customer Creation ---
+                        try {
+                            if (env.STRIPE_SECRET_KEY && !user.stripeCustomerId) {
+                                console.log(`[AuthHook] Creating Stripe Customer for ${user.email}`);
+                                const stripe = getStripe(env.STRIPE_SECRET_KEY);
+                                const customer = await stripe.customers.create({
+                                    email: user.email,
+                                    name: user.name,
+                                    metadata: {
+                                        userId: user.id
+                                    }
+                                });
+                                
+                                console.log(`[AuthHook] Stripe Customer created: ${customer.id}. Updating user...`);
+                                
+                                // Update user with Stripe Customer ID
+                                await db.update(userSchema)
+                                    .set({ stripeCustomerId: customer.id })
+                                    .where(eq(userSchema.id, user.id));
+                            }
+                        } catch (err) {
+                            console.error(`[AuthHook] Failed to create Stripe Customer for ${user.id}:`, err);
+                            // Ensure signup continues even if Stripe creation fails
+                        }
+
                         try {
                             // Verify user object structure
                             if (!user.id) {
@@ -142,6 +184,35 @@ async function getAuth() {
                                 error,
                             );
                             // In a real prod environment, we might push to a dead-letter queue here
+                        }
+                    },
+                },
+                delete: {
+                    before: async (user: any) => {
+                        console.log(
+                            `[AuthHook] Deleting user ${user.email} (${user.id})...`,
+                        );
+                        try {
+                            // Check for stripeCustomerId (using 'any' cast if type definition isn't updated in this scope's context yet, 
+                            // though we updated schema so it should be fine if types are regenerated/inferred)
+                            const customerId = (user as any).stripeCustomerId;
+                            
+                            if (env.STRIPE_SECRET_KEY && customerId) {
+                                console.log(
+                                    `[AuthHook] Deleting Stripe Customer ${customerId}...`,
+                                );
+                                const stripe = getStripe(env.STRIPE_SECRET_KEY);
+                                await stripe.customers.del(customerId);
+                                console.log(
+                                    `[AuthHook] Stripe Customer deleted.`,
+                                );
+                            }
+                        } catch (err) {
+                            console.error(
+                                `[AuthHook] Failed to delete Stripe Customer:`,
+                                err,
+                            );
+                            // Don't block deletion of user
                         }
                     },
                 },

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import ForgotPasswordPage from "@/modules/auth/forgot-password.page";
 
 export const metadata: Metadata = {
-    title: "Forgot Password - Drimit AI Shield",
+    title: "Forgot Password - Drimit",
     description: "Reset your password",
 };
 

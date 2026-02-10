@@ -21,7 +21,7 @@ export async function Navigation() {
                         >
                             <Image
                                 src="/icon.png"
-                                alt="Drimit AI Shield"
+                                alt="Drimit"
                                 width={32}
                                 height={32}
                                 className="h-8 w-8"
@@ -30,9 +30,6 @@ export async function Navigation() {
                             <span className="flex items-center gap-2 text-xl">
                                 <span className="font-bold text-gray-900">
                                     Drimit
-                                </span>
-                                <span className="font-normal text-blue-500">
-                                    AI Shield
                                 </span>
                             </span>
                         </Link>

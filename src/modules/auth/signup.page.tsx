@@ -16,9 +16,6 @@ export default function SignUpPage() {
                     />
                     <span className="flex items-center gap-2">
                         <span className="font-bold text-gray-900">Drimit</span>
-                        <span className="font-normal text-blue-500">
-                            AI Shield
-                        </span>
                     </span>
                 </a>
                 <SignupForm />

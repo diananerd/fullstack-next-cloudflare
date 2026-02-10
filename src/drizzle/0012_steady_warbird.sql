@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `credit_transactions_reference_id_unique` ON `credit_transactions` (`reference_id`);

@@ -457,7 +457,13 @@ export class PipelineService {
                 const config = getProtectionConfig(
                     method as ProtectionMethodType,
                 );
-                if (!config.statusUrl) continue;
+
+                console.log(`[Pipeline] Syncing ${method}: URL=${config.statusUrl} (Token=${config.token ? 'Yes' : 'No'})`);
+
+                if (!config.statusUrl) {
+                     console.warn(`[Pipeline] No Status URL for method ${method}. Skipping sync.`);
+                     continue;
+                }
 
                 // Map by External ID (Modal Job ID) because that's what we have
                 // Note: The previous implementation mapped by Artwork ID.
@@ -477,16 +483,22 @@ export class PipelineService {
                 jobs.forEach((j) => jobMap.set(String(j.artworkId), j));
 
                 const artworkIds = Array.from(jobMap.keys());
+                
+                console.log(`[Pipeline] Requesting status for ${artworkIds.length} jobs from ${method} (${config.statusUrl})`);
+
+                const headers: Record<string, string> = { "Content-Type": "application/json" };
+                if (config.token) headers["Authorization"] = `Bearer ${config.token}`;
 
                 const response = await fetch(config.statusUrl, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers,
                     body: JSON.stringify({ artwork_ids: artworkIds }),
                 });
 
                 if (!response.ok) {
+                    const errText = await response.text();
                     console.error(
-                        `[Pipeline] Status check failed for ${method}: ${response.status}`,
+                        `[Pipeline] Status check failed for ${method}: ${response.status} - ${errText}`,
                     );
                     continue;
                 }

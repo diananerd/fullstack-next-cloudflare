@@ -251,7 +251,7 @@ export async function createArtworkAction(formData: FormData) {
 
         revalidatePath(DASHBOARD_ROUTE);
 
-        return { success: true };
+        return { success: true, artworkId: newArtworkId };
     } catch (error: unknown) {
         console.error(`[CreateArtworkAction] Critical Error:`, error);
         // Return Zod errors if available

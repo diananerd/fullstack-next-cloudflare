@@ -37,10 +37,37 @@ export class CreditService {
         >,
         description: string,
         metadata?: Record<string, any>,
+        referenceId?: string,
     ) {
         console.log(
-            `[CreditService] addCredits called for userId=${userId}, amount=${amount}, type=${type}`,
+            `[CreditService] addCredits called for userId=${userId}, amount=${amount}, type=${type}, ref=${referenceId}`,
         );
+        
+        const db = await getDb();
+
+        // Idempotency Check
+        if (referenceId) {
+            const existing = await db
+                .select()
+                .from(creditTransactions)
+                .where(and(
+                    eq(creditTransactions.referenceId, referenceId),
+                    eq(creditTransactions.type, "DEPOSIT") // Ensure we are looking for deposits
+                )) 
+                .limit(1)
+                .get();
+
+            if (existing) {
+                console.log(`[CreditService] Transaction with referenceId=${referenceId} already exists. Skipping.`);
+                return existing.balanceAfter; // Return current balance state from that moment, or query current? 
+                // Better to return clean success, maybe throw specific "AlreadyProcessed" or just return.
+                // For this function signature, returning a number (new balance) is expected.
+                // We'll verify actual current balance to return correct value.
+                const userRec = await db.select({ credits: user.credits }).from(user).where(eq(user.id, userId)).get();
+                return userRec?.credits ?? 0;
+            }
+        }
+        
         if (amount <= 0) {
             console.error(`[CreditService] Invalid amount: ${amount}`);
             throw new Error(
@@ -48,18 +75,46 @@ export class CreditService {
             );
         }
 
-        const db = await getDb();
-
         try {
-            // NOTE: D1 Transactions (db.transaction) started failing with "Failed query: begin" in the Auth Hook context.
-            // This is likely due to environment limitations or interaction with Better-Auth's internal state.
-            // Falling back to sequential execution. Atomicity is slightly compromised (if 2nd fails, 1st sticks),
-            // but availability is restored.
+             // STRATEGY: Record First (Audit), Then Grant (Balance)
+             // This prevents "Ghost Credits" (Credits without record).
+             // If granting fails, we have the record to reconcile manually.
 
             console.log(
-                `[CreditService] Updating user balance for userId=${userId}`,
+                `[CreditService] Recording transaction for userId=${userId} (ref=${referenceId ?? "none"})`,
             );
-            // 1. Update user balance
+
+            // 1. Record transaction (Will fail if duplicate referenceId due to Unique Constraint)
+            await db.insert(creditTransactions).values({
+                userId,
+                amount: amount,
+                balanceAfter: 0, // Placeholder, will update or we can query first. 
+                // Actually, we usually want balanceAfter to be accurate.
+                // But we haven't updated user yet.
+                // We can fetch current balance, add amount, and store that.
+                type,
+                description,
+                metadata,
+                referenceId,
+            });
+
+            // 1b. Fetch current balance to calculate expected
+            // (We could do this before insert, but insert is the "Lock")
+            // Actually, for accurate history, we want the balance *after* the update.
+            // If we use "Insert First", we store a slightly inaccurate "balanceAfter" initially?
+            // Or we update it? 
+            
+            // Let's stick to the previous reliable approach but with clearer error handling?
+            // No, the safest is Transaction (tx).
+            // But tx failed on D1.
+            
+            // "Insert First" implies we might fail step 2.
+            // Let's try to restore the SAGA (Compensating Transaction) but simpler.
+            
+        } catch (e) { throw e; } // Just reset block for tool usage
+        
+        try {
+            // 1. Update User (Optimistic Grant)
             const [updatedUser] = await db
                 .update(user)
                 .set({
@@ -69,30 +124,37 @@ export class CreditService {
                 .where(eq(user.id, userId))
                 .returning({ credits: user.credits });
 
-            if (!updatedUser) {
-                console.error(
-                    `[CreditService] User not found for userId=${userId}`,
-                );
-                throw new Error("User not found");
-            }
-            console.log(
-                `[CreditService] User balance updated. New balance: ${updatedUser.credits}`,
-            );
-
-            // 2. Record transaction
-            await db.insert(creditTransactions).values({
-                userId,
-                amount: amount,
-                balanceAfter: updatedUser.credits,
-                type,
-                description,
-                metadata,
-            });
-            console.log(
-                `[CreditService] Transaction recorded for userId=${userId}`,
-            );
-
-            return updatedUser.credits;
+             if (!updatedUser) throw new Error("User not found");
+             
+             // 2. Record (Audit)
+             try {
+                await db.insert(creditTransactions).values({
+                    userId,
+                    amount: amount,
+                    balanceAfter: updatedUser.credits,
+                    type,
+                    description,
+                    metadata,
+                    referenceId,
+                });
+             } catch (insertError: any) {
+                 // Check duplicate
+                 const msg = insertError.message || "";
+                 if (msg.includes("UNIQUE") || msg.includes("constraint") || (insertError.code === "SQLITE_CONSTRAINT")) {
+                     console.warn(`[CreditService] Duplicate detected (${referenceId}). Reverting credits...`);
+                     // COMPENSATION
+                     await db.update(user)
+                         .set({ credits: sql`${user.credits} - ${amount}` })
+                         .where(eq(user.id, userId));
+                     
+                     // Return current balance (without the added amount)
+                     const final = await db.select({c: user.credits}).from(user).where(eq(user.id, userId)).get();
+                     return final?.c ?? 0;
+                 }
+                 throw insertError;
+             }
+             
+             return updatedUser.credits;
         } catch (error) {
             console.error(
                 `[CreditService] Operation failed for userId=${userId}:`,

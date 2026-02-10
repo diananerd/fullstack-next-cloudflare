@@ -24,7 +24,7 @@ export const creditTransactions = sqliteTable("credit_transactions", {
     description: text("description").notNull(),
 
     // Store IDs like 'stripe_charge_xu123' or 'job_abc123'
-    referenceId: text("reference_id"),
+    referenceId: text("reference_id").unique(),
 
     // Store arbitrary data
     metadata: text("metadata", { mode: "json" }),

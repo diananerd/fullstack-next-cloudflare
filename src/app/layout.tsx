@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "AI Shield by Drimit",
+    title: "Drimit",
     description:
-        "AI Shield - Protect your images from generative AI editing. Powered by Drimit.",
+        "Protect your images from generative AI editing. Powered by Drimit.",
     icons: {
         icon: "/favicon.png",
         shortcut: "/favicon.png",

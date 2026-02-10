@@ -204,7 +204,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                 </h3>
                 <p className="text-gray-600 text-lg">
                     Our{" "}
-                    <span className="font-bold text-gray-900">AI Shield</span>{" "}
+                    <span className="font-bold text-gray-900">Protection</span>{" "}
                     blocks algorithms from learning your unique style, while
                     keeping your art intact for human viewers.
                 </p>
@@ -425,10 +425,10 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                             <p className="text-sm text-gray-500 mb-6 font-medium leading-relaxed">
                                 Our{" "}
                                 <span className="font-bold text-gray-900">
-                                    AI Shield
+                                    Protection
                                 </span>{" "}
-                                protection technology blocks AI copying while
-                                keeping your art intact.
+                                technology blocks AI copying while keeping your
+                                art intact.
                             </p>
                             <div className="flex flex-col gap-3 w-full">
                                 <Button

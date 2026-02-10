@@ -1,0 +1,1 @@
+ALTER TABLE `user` ADD `stripe_customer_id` text;

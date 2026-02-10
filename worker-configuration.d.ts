@@ -18,6 +18,12 @@ declare namespace Cloudflare {
         CLOUDFLARE_D1_TOKEN: string;
         CLOUDFLARE_API_TOKEN: string;
         CLOUDFLARE_R2_URL: string;
+        STRIPE_SECRET_KEY: string;
+        STRIPE_WEBHOOK_SECRET: string;
+        GOOGLE_CLIENT_ID: string;
+        GOOGLE_CLIENT_SECRET: string;
+        BETTER_AUTH_SECRET: string;
+        BETTER_AUTH_URL: string;
         BETTER_AUTH_SECRET: string;
         BETTER_AUTH_URL: string;
         GOOGLE_CLIENT_ID: string;

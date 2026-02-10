@@ -27,9 +27,6 @@ export default function FAQPage() {
                             <span className="font-bold text-gray-900">
                                 Drimit
                             </span>
-                            <span className="font-normal text-blue-500">
-                                AI Shield
-                            </span>
                         </span>
                     </Link>
                 </div>
@@ -53,7 +50,7 @@ export default function FAQPage() {
                     </h1>
                     <p className="text-lg text-gray-500 max-w-xl mx-auto">
                         Everything you need to know about protecting your art
-                        with Drimit AI Shield.
+                        with Drimit.
                     </p>
                 </div>
 
@@ -153,7 +150,7 @@ export default function FAQPage() {
             </main>
 
             <footer className="absolute bottom-6 w-full text-center text-gray-400 text-sm">
-                <p>&copy; 2026 Drimit AI Shield. Protecting your Art.</p>
+                <p>&copy; 2026 Drimit. Protecting your Art.</p>
             </footer>
         </div>
     );

@@ -1,6 +1,6 @@
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { CreditService } from "@/modules/credits/services/credit.service";
-import { CreditCard, History, Zap } from "lucide-react";
+import { History } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
-import { AddCreditsCard } from "@/modules/credits/components/add-credits-card";
+import { CreditsManager } from "@/modules/credits/components/credits-manager";
 
 export default async function BillingPage() {
     const user = await requireAuth();
@@ -32,7 +32,7 @@ export default async function BillingPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">
-                        Billing & Credits
+                        Credits
                     </h1>
                     <p className="text-muted-foreground mt-1">
                         Manage your credits and view transaction history.
@@ -40,31 +40,8 @@ export default async function BillingPage() {
                 </div>
             </div>
 
-            {/* Top Section: Balance & Add Credits */}
-            <div className="grid gap-6 md:grid-cols-2">
-                {/* Balance Card */}
-                <Card className="flex flex-col h-full bg-gradient-to-br from-primary/5 to-transparent border-primary/20">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-                            <Zap className="h-4 w-4 text-primary" />
-                            AVAILABLE BALANCE
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex-1 flex flex-col justify-center gap-2">
-                        <div className="text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight flex items-baseline gap-1">
-                            <span className="text-2xl md:text-3xl font-semibold text-gray-400">$</span>
-                            {currentBalance.toFixed(2)}
-                            <span className="text-lg font-medium text-gray-500 ml-2">credits</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground font-medium bg-primary/10 w-fit px-2 py-1 rounded inline-block mt-2">
-                            1 Credit = 1 Image Processed
-                        </p>
-                    </CardContent>
-                </Card>
-
-                {/* Add Credits Card */}
-                <AddCreditsCard />
-            </div>
+            {/* Top Section: Credits Manager */}
+            <CreditsManager balance={currentBalance} />
 
             {/* Transaction History */}
             <Card>
@@ -105,7 +82,7 @@ export default async function BillingPage() {
                             ) : (
                                 transactions.map((tx) => (
                                     <TableRow key={tx.id}>
-                                        <TableCell className="font-medium whitespace-nowrap">
+                                        <TableCell className="font-medium whitespace-nowrap first-letter:capitalize">
                                             {formatDistanceToNow(tx.createdAt, {
                                                 addSuffix: true,
                                             })}

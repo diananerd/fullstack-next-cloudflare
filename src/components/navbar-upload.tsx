@@ -2,11 +2,12 @@
 
 import { Loader2, UploadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useTransition } from "react";
+import { useRef, useTransition, useState } from "react";
 import { toast } from "react-hot-toast";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createArtworkAction } from "@/modules/artworks/actions/create-artwork.action";
+import { ProtectArtworkDialog } from "@/modules/artworks/components/protect-artwork-dialog";
 
 interface UploadArtworkButtonProps extends ButtonProps {
     text?: string;
@@ -27,6 +28,8 @@ export function UploadArtworkButton({
 }: UploadArtworkButtonProps) {
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
+    const [createdArtworkId, setCreatedArtworkId] = useState<number | null>(null);
+    const [showProtection, setShowProtection] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleClick = () => {
@@ -135,6 +138,13 @@ export function UploadArtworkButton({
                         toast.success("Artwork uploaded successfully", {
                             id: toastId,
                         });
+                        
+                        // Automatically open protection dialog
+                        if (result.artworkId) {
+                            setCreatedArtworkId(result.artworkId);
+                            setTimeout(() => setShowProtection(true), 300);
+                        }
+
                         router.refresh();
                     } else {
                         // Handle server-returned errors
@@ -188,6 +198,14 @@ export function UploadArtworkButton({
                     </>
                 )}
             </Button>
+            
+            {createdArtworkId && (
+                <ProtectArtworkDialog 
+                    artworkId={createdArtworkId}
+                    open={showProtection}
+                    onOpenChange={setShowProtection}
+                />
+            )}
         </>
     );
 }
