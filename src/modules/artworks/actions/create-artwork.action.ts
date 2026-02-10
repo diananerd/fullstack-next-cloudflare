@@ -21,6 +21,23 @@ const DASHBOARD_ROUTE = "/artworks";
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png"];
 
+// Helper to check for existing hash efficiently
+async function checkDuplicateHash(userId: string, hash: string) {
+    const db = await getDb();
+    // Use LIKE operator to search within the JSON string stored in metadata column
+    // Pattern matches: "inputSha256":"<hash>"
+    // This assumes canonical JSON serialization but is effective for simple checks
+    const existing = await db.query.artworks.findFirst({
+        where: (artworks, { and, eq, like }) =>
+            and(
+                eq(artworks.userId, userId),
+                like(artworks.metadata, `%"inputSha256":"${hash}"%`),
+            ),
+        columns: { id: true },
+    });
+    return !!existing;
+}
+
 export async function createArtworkAction(formData: FormData) {
     try {
         const hash = formData.get("hash") as string;
@@ -76,6 +93,16 @@ export async function createArtworkAction(formData: FormData) {
                 success: false,
                 error: "Invalid file content. The file does not appear to be a genuine Image.",
             };
+        // Check for duplicates before expensive operations
+        const isDuplicate = await checkDuplicateHash(user.id, hash);
+        if (isDuplicate) {
+            console.log(`[CreateArtworkAction] Duplicate detected for user ${user.id} hash ${hash}`);
+            return {
+                success: false,
+                error: "Image already exists in your library.",
+            };
+        }
+
         }
 
         // Validate File Size
@@ -137,6 +164,9 @@ export async function createArtworkAction(formData: FormData) {
             protectionStatus: ProtectionStatus.IDLE,
             size: imageFile.size,
             method: method,
+            metadata: {
+                inputSha256: hash,
+            },
         };
 
         const validatedData = insertArtworkSchema.parse(artworkData);
@@ -147,6 +177,7 @@ export async function createArtworkAction(formData: FormData) {
             userId: validatedData.userId,
             r2Key: validatedData.r2Key,
             url: validatedData.url,
+            metadata: validatedData.metadata,
             protectionStatus: ProtectionStatus.IDLE,
             size: validatedData.size,
             method: validatedData.method as ProtectionMethodType,
