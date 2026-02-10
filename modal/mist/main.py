@@ -265,14 +265,25 @@ class MistApp:
             # 4. Post-processing & Upload
             from urllib.parse import urlparse
             
+            # Request contains user_id and artwork_id. 
+            # We must ensure the output key follows the pattern: {user_id}/{hash}/protected.png
+            
             parsed_url = urlparse(req.image_url)
             path = parsed_url.path 
             
-            # Assume Bundle Structure: Parent folder is the Hash
-            # path e.g. /api/assets/<hash>/original.png
-            parent_dir = os.path.dirname(path)
-            image_hash = os.path.basename(parent_dir)
-            output_key = f"{image_hash}/protected.png"
+            # path e.g. /api/assets/<userId>/<hash>/original.png
+            # We extract the hash from the path.
+            # Assuming standard structure: .../assets/.../<userId>/<hash>/<filename>
+            # Let's be robust: get the parent directory structure
+            
+            parent_dir = os.path.dirname(path) # .../<userId>/<hash>
+            image_hash = os.path.basename(parent_dir) # <hash>
+            
+            # Fallback if hash lookup fails or structure is weird (old structure support?)
+            # If the path is just /assets/<hash>/original (old), we might not have user_id in path
+            # But we HAVE user_id in req.
+            
+            output_key = f"{req.user_id}/{image_hash}/protected.png"
 
             # Compute hash for metadata only, not filename
             output_sha256 = hashlib.sha256(output_bytes).hexdigest()

@@ -124,6 +124,18 @@ class WatermarkApp:
 
             # 3. Apply Watermark
             print(f"[Modal] Applying Watermark...")
+            
+            # Request contains user_id and artwork_id. 
+            # We must ensure the output key follows the pattern: {user_id}/{hash}/protected.png
+            from urllib.parse import urlparse
+            parsed_url = urlparse(req.image_url)
+            path = parsed_url.path 
+            
+            parent_dir = os.path.dirname(path) # .../<userId>/<hash>
+            image_hash = os.path.basename(parent_dir) # <hash>
+            
+            output_key = f"{req.user_id}/{image_hash}/protected.png"
+            
             t0_worker = time.time()
             
             # Config

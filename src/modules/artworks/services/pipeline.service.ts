@@ -17,6 +17,10 @@ import {
 import { dispatchProtectionJob } from "../utils/dispatch-job";
 import { getProtectionConfig } from "@/lib/protection-config";
 import { deleteFromR2 } from "@/lib/r2";
+import { CreditService } from "@/modules/credits/services/credit.service";
+
+// Temporary constant, should share with action
+const PROCESS_COST = 1.00;
 
 export class PipelineService {
     /**
@@ -679,6 +683,25 @@ export class PipelineService {
                         console.log(
                             `[Pipeline] Artwork ${artwork.id} FINISHED.`,
                         );
+
+                        // Charge Credits for successful processing
+                        try {
+                            await CreditService.chargeCredits(
+                                artwork.userId,
+                                PROCESS_COST,
+                                "Image Protection Processing (Completed)",
+                                `artwork_${artwork.id}`,
+                                { 
+                                    artworkId: artwork.id,
+                                    jobIds: allJobs.filter(j => j.artworkId === artwork.id).map(j => j.id)
+                                }
+                            );
+                            console.log(`[Pipeline] Charged ${PROCESS_COST} credits to user ${artwork.userId}`);
+                        } catch (error) {
+                            console.error(`[Pipeline] Failed to charge user ${artwork.userId} for artwork ${artwork.id}:`, error);
+                            // We do NOT stop the status update. The service was rendered.
+                            // TODO: Add to debt ledger or retry queue
+                        }
 
                         await db
                             .update(artworks)

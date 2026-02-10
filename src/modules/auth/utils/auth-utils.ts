@@ -5,6 +5,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
 import { getDb } from "@/db";
+import { CreditService } from "@/modules/credits/services/credit.service";
 import type { AuthUser } from "@/modules/auth/models/user.model";
 
 /**
@@ -36,6 +37,35 @@ async function getAuth() {
                 enabled: true,
                 clientId: env.GOOGLE_CLIENT_ID!,
                 clientSecret: env.GOOGLE_CLIENT_SECRET!,
+            },
+        },
+        user: {
+            additionalFields: {
+                credits: {
+                    type: "number",
+                    defaultValue: 0,
+                },
+            },
+        },
+        databaseHooks: {
+            user: {
+                create: {
+                    after: async (user) => {
+                        try {
+                            // Give 5.00 credits welcome bonus
+                            console.log(`[AuthHook] Awarding welcome bonus to ${user.id}`);
+                            await CreditService.addCredits(
+                                user.id,
+                                5.00,
+                                "BONUS",
+                                "Welcome Bonus (New Account)",
+                                { trigger: "user.create" }
+                            );
+                        } catch (error) {
+                            console.error(`[AuthHook] Failed to award welcome bonus: ${error}`);
+                        }
+                    },
+                },
             },
         },
         plugins: [nextCookies()],

@@ -149,6 +149,20 @@ class GrayscaleApp:
             # 3. Post-processing & Upload
             from urllib.parse import urlparse
             
+            # Request contains user_id and artwork_id. 
+            # We must ensure the output key follows the pattern: {user_id}/{hash}/protected.png
+            
+            parsed_url = urlparse(req.image_url)
+            path = parsed_url.path 
+            
+            parent_dir = os.path.dirname(path) # .../<userId>/<hash>
+            image_hash = os.path.basename(parent_dir) # <hash>
+            
+            output_key = f"{req.user_id}/{image_hash}/protected.png"
+
+            # Compute hash for metadata only, not filename
+            output_sha256 = hashlib.sha256(output_bytes).hexdigest()
+            
             parsed_url = urlparse(req.image_url)
             path = parsed_url.path 
             

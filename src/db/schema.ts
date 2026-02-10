@@ -6,3 +6,4 @@ export {
     user,
     verification,
 } from "@/modules/auth/schemas/auth.schema";
+export { creditTransactions } from "@/modules/credits/schemas/credit.schema";

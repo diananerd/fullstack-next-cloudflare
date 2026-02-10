@@ -26,17 +26,19 @@ export async function deleteArtworkAction(artworkId: number) {
 
         if (artwork.r2Key) {
             // Check if key is in a folder (Deep Clean)
-            // Expecting format: "{hash}/original.png"
-            const parts = artwork.r2Key.split("/");
-            if (parts.length > 1) {
-                const folderPrefix = parts[0];
+            // Expecting format: "{userId}/{hash}/original.png"
+            // We want to delete "{userId}/{hash}" folder.
+            
+            const lastSlashIndex = artwork.r2Key.lastIndexOf("/");
+            if (lastSlashIndex !== -1) {
+                const folderPath = artwork.r2Key.substring(0, lastSlashIndex);
                 console.log(
-                    `[DeleteArtwork] Deleting entire folder: ${folderPrefix}`,
+                    `[DeleteArtwork] Deleting folder: ${folderPath}`,
                 );
-                await deleteFolderFromR2(folderPrefix);
+                await deleteFolderFromR2(folderPath);
             } else {
                 console.log(
-                    `[DeleteArtwork] Deleting single file: ${artwork.r2Key}`,
+                    `[DeleteArtwork] Deleting single file (legacy?): ${artwork.r2Key}`,
                 );
                 await deleteFromR2(artwork.r2Key);
             }

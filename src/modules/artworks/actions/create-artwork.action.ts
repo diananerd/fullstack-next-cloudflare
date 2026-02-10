@@ -14,9 +14,11 @@ import {
     insertArtworkSchema,
 } from "@/modules/artworks/schemas/artwork.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
+import { CreditService } from "@/modules/credits/services/credit.service";
 
 // Temporary route definition until we have a proper route file
 const DASHBOARD_ROUTE = "/artworks";
+const UPLOAD_COST = 1.00;
 
 // Constants for validation
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -129,12 +131,26 @@ export async function createArtworkAction(formData: FormData) {
             };
         }
 
+        // Check balance before allowing upload (Anti-Abuse)
+        // We don't charge here, but we ensure they have enough valid credits to start.
+        // Charge happens asynchronously upon successful completion.
+        const balance = await CreditService.getBalance(user.id);
+        if (balance < UPLOAD_COST) {
+             return {
+                success: false,
+                error: "Insufficient credits. Please add more credits to your account to process this image.",
+            };
+        }
+
         console.log(`[CreateArtworkAction] Uploading raw image to R2: ${hash}`);
 
-        // Upload to R2: {hash}/original.{ext}
+        // Upload to R2: {userId}/{hash}/original.{ext}
+        // Change: Use userId namespacing instead of global hash
+        const uploadFolder = `${user.id}/${hash}`;
+        
         const uploadResult: UploadResult = await uploadToR2(
             imageFile,
-            hash, // Folder is the hash
+            uploadFolder, 
             "original", // Filename is fixed to 'original'
         );
 
