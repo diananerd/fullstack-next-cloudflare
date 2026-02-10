@@ -93,6 +93,8 @@ export async function createArtworkAction(formData: FormData) {
                 success: false,
                 error: "Invalid file content. The file does not appear to be a genuine Image.",
             };
+        }
+
         // Check for duplicates before expensive operations
         const isDuplicate = await checkDuplicateHash(user.id, hash);
         if (isDuplicate) {
@@ -101,8 +103,6 @@ export async function createArtworkAction(formData: FormData) {
                 success: false,
                 error: "Image already exists in your library.",
             };
-        }
-
         }
 
         // Validate File Size
