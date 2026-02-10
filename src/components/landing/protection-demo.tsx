@@ -49,9 +49,14 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
     // Auto-scroll to bottom of chat
     useEffect(() => {
         if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+             // Use requestAnimationFrame to ensure DOM update is complete before scrolling
+            requestAnimationFrame(() => {
+                 if (scrollRef.current) {
+                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                 }
+            });
         }
-    }, []);
+    }, [messages, status]);
 
     // Auto-scroll input text
     useEffect(() => {
