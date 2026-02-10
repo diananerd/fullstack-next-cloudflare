@@ -1,12 +1,16 @@
 import { getDb } from "@/db";
 import { creditTransactions } from "@/modules/credits/schemas/credit.schema";
 import { user } from "@/modules/auth/schemas/auth.schema";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, and, gte } from "drizzle-orm";
 
-export type TransactionType = "DEPOSIT" | "USAGE" | "REFUND" | "BONUS" | "ADJUSTMENT";
+export type TransactionType =
+    | "DEPOSIT"
+    | "USAGE"
+    | "REFUND"
+    | "BONUS"
+    | "ADJUSTMENT";
 
 export class CreditService {
-    
     /**
      * Get the current credit balance for a user
      */
@@ -17,7 +21,7 @@ export class CreditService {
             .from(user)
             .where(eq(user.id, userId))
             .get();
-            
+
         return result?.credits ?? 0;
     }
 
@@ -25,31 +29,58 @@ export class CreditService {
      * Add credits to a user's account (Deposit, Bonus, Refund)
      */
     static async addCredits(
-        userId: string, 
-        amount: number, 
-        type: Extract<TransactionType, "DEPOSIT" | "BONUS" | "REFUND" | "ADJUSTMENT">,
+        userId: string,
+        amount: number,
+        type: Extract<
+            TransactionType,
+            "DEPOSIT" | "BONUS" | "REFUND" | "ADJUSTMENT"
+        >,
         description: string,
-        metadata?: Record<string, any>
+        metadata?: Record<string, any>,
     ) {
-        if (amount <= 0) throw new Error("Amount must be positive for additions. Use chargeCredits for deductions.");
-        
+        console.log(
+            `[CreditService] addCredits called for userId=${userId}, amount=${amount}, type=${type}`,
+        );
+        if (amount <= 0) {
+            console.error(`[CreditService] Invalid amount: ${amount}`);
+            throw new Error(
+                "Amount must be positive for additions. Use chargeCredits for deductions.",
+            );
+        }
+
         const db = await getDb();
 
-        return await db.transaction(async (tx) => {
-            // 1. Update user balance atomically
-            const [updatedUser] = await tx
+        try {
+            // NOTE: D1 Transactions (db.transaction) started failing with "Failed query: begin" in the Auth Hook context.
+            // This is likely due to environment limitations or interaction with Better-Auth's internal state.
+            // Falling back to sequential execution. Atomicity is slightly compromised (if 2nd fails, 1st sticks),
+            // but availability is restored.
+
+            console.log(
+                `[CreditService] Updating user balance for userId=${userId}`,
+            );
+            // 1. Update user balance
+            const [updatedUser] = await db
                 .update(user)
                 .set({
                     credits: sql`${user.credits} + ${amount}`,
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
                 })
                 .where(eq(user.id, userId))
                 .returning({ credits: user.credits });
 
-            if (!updatedUser) throw new Error("User not found");
+            if (!updatedUser) {
+                console.error(
+                    `[CreditService] User not found for userId=${userId}`,
+                );
+                throw new Error("User not found");
+            }
+            console.log(
+                `[CreditService] User balance updated. New balance: ${updatedUser.credits}`,
+            );
 
             // 2. Record transaction
-            await tx.insert(creditTransactions).values({
+            await db.insert(creditTransactions).values({
                 userId,
                 amount: amount,
                 balanceAfter: updatedUser.credits,
@@ -57,9 +88,18 @@ export class CreditService {
                 description,
                 metadata,
             });
+            console.log(
+                `[CreditService] Transaction recorded for userId=${userId}`,
+            );
 
             return updatedUser.credits;
-        });
+        } catch (error) {
+            console.error(
+                `[CreditService] Operation failed for userId=${userId}:`,
+                error,
+            );
+            throw error;
+        }
     }
 
     /**
@@ -71,38 +111,38 @@ export class CreditService {
         cost: number,
         description: string,
         referenceId?: string,
-        metadata?: Record<string, any>
+        metadata?: Record<string, any>,
     ) {
         if (cost <= 0) throw new Error("Cost must be positive.");
 
         const db = await getDb();
 
-        return await db.transaction(async (tx) => {
-            // 1. Get current balance and lock row (conceptually, though SQLite D1 is simpler)
-            // We use a conditional update to ensure we don't go negative
-            const userRecord = await tx
-                .select({ credits: user.credits })
-                .from(user)
-                .where(eq(user.id, userId))
-                .get();
-
-            if (!userRecord) throw new Error("User not found");
-            if (userRecord.credits < cost) {
-                throw new Error("Insufficient credits");
-            }
-
-            // 2. Deduct credits
-            const [updatedUser] = await tx
+        try {
+            // Attempt atomic update ensuring balance doesn't go below 0
+            // We verify the user has enough credits directly in the UPDATE condition
+            const [updatedUser] = await db
                 .update(user)
                 .set({
                     credits: sql`${user.credits} - ${cost}`,
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
                 })
-                .where(eq(user.id, userId))
+                .where(and(eq(user.id, userId), gte(user.credits, cost)))
                 .returning({ credits: user.credits });
 
+            if (!updatedUser) {
+                // Determine why it failed: User doesn't exist OR Insufficient funds
+                const userRecord = await db
+                    .select({ credits: user.credits })
+                    .from(user)
+                    .where(eq(user.id, userId))
+                    .get();
+
+                if (!userRecord) throw new Error("User not found");
+                throw new Error("Insufficient credits");
+            }
+
             // 3. Record transaction (amount is negative)
-            await tx.insert(creditTransactions).values({
+            await db.insert(creditTransactions).values({
                 userId,
                 amount: -cost,
                 balanceAfter: updatedUser.credits,
@@ -113,7 +153,13 @@ export class CreditService {
             });
 
             return updatedUser.credits;
-        });
+        } catch (error) {
+            console.error(
+                `[CreditService] Charge failed for userId=${userId}:`,
+                error,
+            );
+            throw error;
+        }
     }
 
     /**

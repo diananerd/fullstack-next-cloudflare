@@ -262,9 +262,6 @@ class MistApp:
             dt_worker = time.time() - t0_worker
             print(f"[Modal] Mist finished in {dt_worker:.2f}s")
 
-            # 4. Post-processing & Upload
-            from urllib.parse import urlparse
-            
             # Request contains user_id and artwork_id. 
             # We must ensure the output key follows the pattern: {user_id}/{hash}/protected.png
             

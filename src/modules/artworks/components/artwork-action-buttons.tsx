@@ -108,16 +108,18 @@ export function ArtworkActionButtons({
                 )}
 
                 {/* Delete Button */}
-                <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-7 w-7 bg-black/60 hover:bg-red-500/80 text-white rounded-full border-0 shadow-sm"
-                    onClick={onDeleteClick}
-                    disabled={isPending}
-                    title="Delete"
-                >
-                    <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {!isProcessing && (
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        className="h-7 w-7 bg-black/60 hover:bg-red-500/80 text-white rounded-full border-0 shadow-sm"
+                        onClick={onDeleteClick}
+                        disabled={isPending}
+                        title="Delete"
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                )}
 
                 {/* Custom Actions (e.g. Close in Full View) */}
                 {children}

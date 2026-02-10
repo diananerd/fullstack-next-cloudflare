@@ -29,13 +29,15 @@ export async function GET(req: NextRequest) {
 
         // Phase 3: Process Queue (Dispatch pending jobs)
         const queueResult = await PipelineService.processQueue();
-        console.log(`[Cron] Queue processed. Dispatched: ${queueResult.dispatched}, Active: ${queueResult.active}`);
+        console.log(
+            `[Cron] Queue processed. Dispatched: ${queueResult.dispatched}, Active: ${queueResult.active}`,
+        );
 
         return NextResponse.json({
             success: true,
             synced: syncResult.synced,
             advanced: advanceResult.advancements,
-            queue: queueResult
+            queue: queueResult,
         });
     } catch (error) {
         console.error("[Cron] Critical Execution Error:", error);

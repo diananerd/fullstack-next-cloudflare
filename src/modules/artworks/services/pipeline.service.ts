@@ -20,7 +20,7 @@ import { deleteFromR2 } from "@/lib/r2";
 import { CreditService } from "@/modules/credits/services/credit.service";
 
 // Temporary constant, should share with action
-const PROCESS_COST = 1.00;
+const PROCESS_COST = 1.0;
 
 export class PipelineService {
     /**
@@ -141,7 +141,9 @@ export class PipelineService {
             // 5. Queue Job (No immediate dispatch)
             // We rely on the unified Queue System (processQueue) to pick this up
             // respecting concurrency limits.
-            console.log(`[Pipeline] Job ${insertedJob.id} queued (pending dispatch).`);
+            console.log(
+                `[Pipeline] Job ${insertedJob.id} queued (pending dispatch).`,
+            );
 
             // await this.dispatchJob(insertedJob.id, userId);
         } catch (error) {
@@ -417,7 +419,10 @@ export class PipelineService {
             let isZombie = false;
             let zombieReason = "";
 
-            if (j.status === JobStatus.PROCESSING && elapsedMinutes > JOB_TIMEOUT_MINUTES) {
+            if (
+                j.status === JobStatus.PROCESSING &&
+                elapsedMinutes > JOB_TIMEOUT_MINUTES
+            ) {
                 isZombie = true;
                 zombieReason = `Processing Timeout: Exceeded ${JOB_TIMEOUT_MINUTES}m limit.`;
             } else if (j.status === JobStatus.QUEUED && elapsedHours > 6) {
@@ -646,11 +651,8 @@ export class PipelineService {
                 const lastJob = jobsByArtwork.get(artwork.id);
                 if (!lastJob) continue;
 
-
-
                 // RECOVERY: handled by processQueue automatically.
                 // if (lastJob.status === JobStatus.PENDING) ...
-
 
                 // If last job is PENDING/QUEUED/PROCESSING/FAILED, we wait (or stop).
                 if (lastJob.status !== JobStatus.COMPLETED) {
@@ -691,14 +693,23 @@ export class PipelineService {
                                 PROCESS_COST,
                                 "Image Protection Processing (Completed)",
                                 `artwork_${artwork.id}`,
-                                { 
+                                {
                                     artworkId: artwork.id,
-                                    jobIds: allJobs.filter(j => j.artworkId === artwork.id).map(j => j.id)
-                                }
+                                    jobIds: allJobs
+                                        .filter(
+                                            (j) => j.artworkId === artwork.id,
+                                        )
+                                        .map((j) => j.id),
+                                },
                             );
-                            console.log(`[Pipeline] Charged ${PROCESS_COST} credits to user ${artwork.userId}`);
+                            console.log(
+                                `[Pipeline] Charged ${PROCESS_COST} credits to user ${artwork.userId}`,
+                            );
                         } catch (error) {
-                            console.error(`[Pipeline] Failed to charge user ${artwork.userId} for artwork ${artwork.id}:`, error);
+                            console.error(
+                                `[Pipeline] Failed to charge user ${artwork.userId} for artwork ${artwork.id}:`,
+                                error,
+                            );
                             // We do NOT stop the status update. The service was rendered.
                             // TODO: Add to debt ledger or retry queue
                         }

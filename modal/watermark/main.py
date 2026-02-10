@@ -223,12 +223,16 @@ class WatermarkApp:
             dt_worker = time.time() - t0_worker
             print(f"[Modal] Watermark finished in {dt_worker:.2f}s")
              
-            # 4. Upload
+            # Request contains user_id and artwork_id. 
+            # We must ensure the output key follows the pattern: {user_id}/{hash}/protected.png
             from urllib.parse import urlparse
-            path = urlparse(req.image_url).path 
-            parent_dir = os.path.dirname(path)
-            image_hash = os.path.basename(parent_dir)
-            output_key = f"{image_hash}/protected.png"
+            parsed_url = urlparse(req.image_url)
+            path = parsed_url.path 
+            
+            parent_dir = os.path.dirname(path) # .../<userId>/<hash>
+            image_hash = os.path.basename(parent_dir) # <hash>
+            
+            output_key = f"{req.user_id}/{image_hash}/protected.png"
             output_sha256 = hashlib.sha256(output_bytes).hexdigest()
             
             target_bucket = R2_BUCKET_DEV if req.is_preview else R2_BUCKET_PROD

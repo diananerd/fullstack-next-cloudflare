@@ -56,7 +56,8 @@
         "MODAL_GRAYSCALE_API_URL": "https://diananerdoficial--drimit-shield-grayscale-submit-protection-job.modal.run",
         "MODAL_WATERMARK_API_URL": "https://diananerdoficial--drimit-shield-watermark-submit-protection-job.modal.run",
         "MODAL_STATUS_URL": "https://diananerdoficial--drimit-shield-demo-check-status.modal.run",
-        "MODAL_AUTH_TOKEN": "335555d491176b3cf77699e46a74adbb02e5358700201d4a0443d3e696d5b94e"
+        "MODAL_AUTH_TOKEN": "335555d491176b3cf77699e46a74adbb02e5358700201d4a0443d3e696d5b94e",
+        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51SRx3bPYr42ZFOGH48eoeAzCwcTDmKzx60kQRUnkyZiBMJdd8jgTv1DpkkaqCmKxO3WRCWAYJeyHW3vzsv4YxSmh00F6YFaiwO"
     },
     "routes": [
         {

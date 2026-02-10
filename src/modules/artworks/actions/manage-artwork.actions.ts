@@ -28,13 +28,11 @@ export async function deleteArtworkAction(artworkId: number) {
             // Check if key is in a folder (Deep Clean)
             // Expecting format: "{userId}/{hash}/original.png"
             // We want to delete "{userId}/{hash}" folder.
-            
+
             const lastSlashIndex = artwork.r2Key.lastIndexOf("/");
             if (lastSlashIndex !== -1) {
                 const folderPath = artwork.r2Key.substring(0, lastSlashIndex);
-                console.log(
-                    `[DeleteArtwork] Deleting folder: ${folderPath}`,
-                );
+                console.log(`[DeleteArtwork] Deleting folder: ${folderPath}`);
                 await deleteFolderFromR2(folderPath);
             } else {
                 console.log(

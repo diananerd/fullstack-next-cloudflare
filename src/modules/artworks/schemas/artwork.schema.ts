@@ -79,7 +79,7 @@ export const insertArtworkSchema = createInsertSchema(artworks, {
     height: z.number().int().optional(),
     size: z.number().int().optional(),
     // Explicitly define metadata to ensure it's not stripped and allows Any JSON object
-    metadata: z.record(z.string(), z.any()).optional(), 
+    metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export const selectArtworkSchema = createSelectSchema(artworks);

@@ -9,7 +9,7 @@ export function getArtworkDisplayUrl(artwork: Artwork): string {
         // Current key: {userId}/{hash}/original.ext
         // Target: {userId}/{hash}/protected.png
         // We can just swap the filename since we force 'original' name.
-        
+
         // Note: The extension might vary, so we replace based on directory logic or standard name
         const lastSlashIndex = artwork.r2Key.lastIndexOf("/");
         if (lastSlashIndex !== -1) {

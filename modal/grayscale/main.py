@@ -163,16 +163,6 @@ class GrayscaleApp:
             # Compute hash for metadata only, not filename
             output_sha256 = hashlib.sha256(output_bytes).hexdigest()
             
-            parsed_url = urlparse(req.image_url)
-            path = parsed_url.path 
-            
-            # Assume Bundle Structure: Parent folder is the Hash
-            parent_dir = os.path.dirname(path)
-            image_hash = os.path.basename(parent_dir)
-            output_key = f"{image_hash}/protected.png"
-
-            output_sha256 = hashlib.sha256(output_bytes).hexdigest()
-            
             target_bucket = R2_BUCKET_DEV if req.is_preview else R2_BUCKET_PROD
             print(f"[Modal] Uploading result to R2 ({target_bucket}): {output_key}")
             

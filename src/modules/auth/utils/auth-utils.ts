@@ -7,6 +7,9 @@ import { headers } from "next/headers";
 import { getDb } from "@/db";
 import { CreditService } from "@/modules/credits/services/credit.service";
 import type { AuthUser } from "@/modules/auth/models/user.model";
+// Note: sendEmail is imported dynamically to avoid pulling in 'resend' (and its Node/stream dependencies)
+// into the Edge runtime until strictly necessary.
+// import { sendEmail } from "@/lib/email";
 
 /**
  * Cached auth instance singleton so we don't create a new instance every time
@@ -26,11 +29,51 @@ async function getAuth() {
 
     cachedAuth = betterAuth({
         secret: env.BETTER_AUTH_SECRET,
+        baseURL: env.BETTER_AUTH_URL,
+        trustedOrigins: [env.BETTER_AUTH_URL],
         database: drizzleAdapter(db, {
             provider: "sqlite",
         }),
         emailAndPassword: {
             enabled: true,
+            // @ts-ignore - BetterAuth types might be mismatched, but the runtime behavior passes an object
+            async sendResetPassword({ user, url }) {
+                console.log(
+                    `[Auth] Sending reset password email to ${user.email}`,
+                );
+                const { sendEmail } = await import("@/lib/email");
+                await sendEmail({
+                    to: user.email,
+                    subject: "Reset your Drimit Shield password",
+                    html: `
+                        <h1>Reset Password</h1>
+                        <p>Hello ${user.name || "User"},</p>
+                        <p>Click the link below to reset your password. This link will expire shortly.</p>
+                        <p><a href="${url}" style="padding: 10px 20px; background: #000; color: #fff; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
+                        <p>Or copy this link: ${url}</p>
+                    `,
+                    env,
+                });
+            },
+            // @ts-ignore - BetterAuth types might be mismatched, but the runtime behavior passes an object
+            async sendVerificationEmail({ user, url }) {
+                console.log(
+                    `[Auth] Sending verification email to ${user.email}`,
+                );
+                const { sendEmail } = await import("@/lib/email");
+                await sendEmail({
+                    to: user.email,
+                    subject: "Verify your Drimit Shield email",
+                    html: `
+                        <h1>Verify Email</h1>
+                        <p>Hello ${user.name || "User"},</p>
+                        <p>Click the link below to verify your email address.</p>
+                        <p><a href="${url}" style="padding: 10px 20px; background: #000; color: #fff; text-decoration: none; border-radius: 5px;">Verify Email</a></p>
+                        <p>Or copy this link: ${url}</p>
+                    `,
+                    env,
+                });
+            },
         },
         socialProviders: {
             google: {
@@ -40,6 +83,9 @@ async function getAuth() {
             },
         },
         user: {
+            deleteUser: {
+                enabled: true,
+            },
             additionalFields: {
                 credits: {
                     type: "number",
@@ -51,18 +97,51 @@ async function getAuth() {
             user: {
                 create: {
                     after: async (user) => {
+                        console.log(
+                            `[AuthHook] 🟢 User Created Loop Triggered. Full User Object:`,
+                            JSON.stringify(user, null, 2),
+                        );
                         try {
-                            // Give 5.00 credits welcome bonus
-                            console.log(`[AuthHook] Awarding welcome bonus to ${user.id}`);
-                            await CreditService.addCredits(
+                            // Verify user object structure
+                            if (!user.id) {
+                                console.error(
+                                    "[AuthHook] 🔴 User object missing ID. Aborting bonus.",
+                                );
+                                return;
+                            }
+
+                            console.log(
+                                `[AuthHook] Attempting to award 5.00 credits to ${user.id}...`,
+                            );
+
+                            // Check explicit balance before
+                            const currentBalance =
+                                await CreditService.getBalance(user.id);
+                            console.log(
+                                `[AuthHook] Current balance before bonus: ${currentBalance}`,
+                            );
+
+                            // Dynamically import to ensure fresh instance if needed, though top-level is fine usually
+                            // But cleaner stack trace if we separate it.
+                            const newBalance = await CreditService.addCredits(
                                 user.id,
-                                5.00,
+                                5.0,
                                 "BONUS",
                                 "Welcome Bonus (New Account)",
-                                { trigger: "user.create" }
+                                {
+                                    trigger: "user.create",
+                                    timestamp: new Date().toISOString(),
+                                },
+                            );
+                            console.log(
+                                `[AuthHook] ✅ Welcome bonus successfully awarded to ${user.id}. New Balance: ${newBalance}`,
                             );
                         } catch (error) {
-                            console.error(`[AuthHook] Failed to award welcome bonus: ${error}`);
+                            console.error(
+                                `[AuthHook] 🔴 Failed to award welcome bonus:`,
+                                error,
+                            );
+                            // In a real prod environment, we might push to a dead-letter queue here
                         }
                     },
                 },

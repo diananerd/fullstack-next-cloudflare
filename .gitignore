@@ -46,3 +46,6 @@ next-env.d.ts
 !.env.example
 
 __pycache__/
+
+*.log
+*.txt

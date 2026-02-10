@@ -36,10 +36,13 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     const [imageError, setImageError] = useState(false);
 
     // Deep Linking: Sync URL with Modal State
-    // Use Hash from r2Key as identifier. 
+    // Use Hash from r2Key as identifier.
     // Handle both {hash}/... (legacy) and {userId}/{hash}/... (new)
     const r2KeyParts = artwork.r2Key.split("/");
-    const artworkHash = r2KeyParts.length >= 2 ? r2KeyParts[r2KeyParts.length - 2] : r2KeyParts[0];
+    const artworkHash =
+        r2KeyParts.length >= 2
+            ? r2KeyParts[r2KeyParts.length - 2]
+            : r2KeyParts[0];
 
     const showFullView = searchParams.get("artwork") === artworkHash;
 

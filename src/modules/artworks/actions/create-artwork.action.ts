@@ -18,7 +18,7 @@ import { CreditService } from "@/modules/credits/services/credit.service";
 
 // Temporary route definition until we have a proper route file
 const DASHBOARD_ROUTE = "/artworks";
-const UPLOAD_COST = 1.00;
+const UPLOAD_COST = 1.0;
 
 // Constants for validation
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -37,7 +37,7 @@ async function checkDuplicateHash(userId: string, hash: string) {
 
         // Check if any of them match the hash
         const isDuplicate = userUploads.some((artwork) => {
-             // biome-ignore lint/suspicious/noExplicitAny: Metadata is loosely typed
+            // biome-ignore lint/suspicious/noExplicitAny: Metadata is loosely typed
             const meta = artwork.metadata as any;
             return meta?.inputSha256 === hash;
         });
@@ -109,7 +109,9 @@ export async function createArtworkAction(formData: FormData) {
         // Check for duplicates before expensive operations
         const isDuplicate = await checkDuplicateHash(user.id, hash);
         if (isDuplicate) {
-            console.log(`[CreateArtworkAction] Duplicate detected for user ${user.id} hash ${hash}`);
+            console.log(
+                `[CreateArtworkAction] Duplicate detected for user ${user.id} hash ${hash}`,
+            );
             return {
                 success: false,
                 error: "Image already exists in your library.",
@@ -136,7 +138,7 @@ export async function createArtworkAction(formData: FormData) {
         // Charge happens asynchronously upon successful completion.
         const balance = await CreditService.getBalance(user.id);
         if (balance < UPLOAD_COST) {
-             return {
+            return {
                 success: false,
                 error: "Insufficient credits. Please add more credits to your account to process this image.",
             };
@@ -147,10 +149,10 @@ export async function createArtworkAction(formData: FormData) {
         // Upload to R2: {userId}/{hash}/original.{ext}
         // Change: Use userId namespacing instead of global hash
         const uploadFolder = `${user.id}/${hash}`;
-        
+
         const uploadResult: UploadResult = await uploadToR2(
             imageFile,
-            uploadFolder, 
+            uploadFolder,
             "original", // Filename is fixed to 'original'
         );
 

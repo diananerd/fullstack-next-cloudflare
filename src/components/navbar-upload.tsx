@@ -12,6 +12,7 @@ interface UploadArtworkButtonProps extends ButtonProps {
     text?: string;
     showIcon?: boolean;
     method?: string;
+    iconClassName?: string;
 }
 
 export function UploadArtworkButton({
@@ -21,6 +22,7 @@ export function UploadArtworkButton({
     text,
     showIcon = true,
     method,
+    iconClassName,
     ...props
 }: UploadArtworkButtonProps) {
     const [isPending, startTransition] = useTransition();
@@ -175,11 +177,11 @@ export function UploadArtworkButton({
                 {...props}
             >
                 {isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className={cn("h-5 w-5 animate-spin", iconClassName)} />
                 ) : (
-                    showIcon && <UploadCloud className="h-4 w-4" />
+                    showIcon && <UploadCloud className={cn("h-5 w-5", iconClassName)} />
                 )}
-                {text || (
+                {text !== undefined ? text : (
                     <>
                         <span className="hidden sm:inline">Upload Artwork</span>
                         <span className="sm:hidden">Upload</span>
