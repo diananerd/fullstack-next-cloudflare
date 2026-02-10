@@ -56,7 +56,7 @@ export function CreditsManager({ balance }: CreditsManagerProps) {
                         
                         <div className="flex items-baseline gap-2 mb-2">
                              <span className="text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">
-                                {balance.toFixed(2)}
+                                ${balance.toFixed(2)}
                              </span>
                              <span className="text-xl font-medium text-gray-500">credits</span>
                         </div>

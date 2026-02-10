@@ -9,6 +9,7 @@ import time
 import hashlib
 import json
 import uuid
+from urllib.parse import urlparse
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
