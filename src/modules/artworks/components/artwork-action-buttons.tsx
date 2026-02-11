@@ -1,4 +1,4 @@
-import { Download, Loader2, Shield, Trash2 } from "lucide-react";
+import { Download, Loader2, Shield, Trash2, XCircle } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogContent,
@@ -19,10 +19,8 @@ interface ArtworkActionButtonsProps {
     children?: React.ReactNode;
 }
 
-export function ArtworkActionButtons({
-    actions,
-    children,
-}: ArtworkActionButtonsProps) {
+export function ArtworkActionButtons(props: ArtworkActionButtonsProps) {
+    const { actions, children } = props;
     const {
         isPending,
         isProtected,
@@ -31,9 +29,12 @@ export function ArtworkActionButtons({
         setDeleteOpen,
         executeDelete,
         handleDownload,
+        handleCancel,
         artworkId,
         artwork,
     } = actions;
+
+    const { hideCancel = false } = props;
 
     const onDeleteClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -91,6 +92,20 @@ export function ArtworkActionButtons({
                             )}
                         </Button>
                     </ProtectArtworkDialog>
+                )}
+
+                {/* Cancel Button (While Processing) */}
+                {isProcessing && !hideCancel && (
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        className="h-7 w-7 bg-black/60 hover:bg-orange-500/80 text-white rounded-full border-0 shadow-sm"
+                        onClick={handleCancel}
+                        disabled={isPending}
+                        title="Cancel Protection"
+                    >
+                        <XCircle className="h-3.5 w-3.5" />
+                    </Button>
                 )}
 
                 {/* Delete Button */}

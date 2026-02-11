@@ -150,7 +150,7 @@ export function ArtworkFullView({
                             </div>
 
                             {/* Top-Right: Action Group (Protect, Download, Delete, Close) */}
-                            <ArtworkActionButtons actions={actions} hideCancel>
+                            <ArtworkActionButtons actions={actions}>
                                 {/* Separator / Close Button appended to group */}
                                 <div className="w-px h-4 bg-white/20 mx-1" />
                                 <Button

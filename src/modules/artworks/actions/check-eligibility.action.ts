@@ -11,11 +11,40 @@ import { requireAuth } from "@/modules/auth/utils/auth-utils";
 
 export async function checkArtworkProtectionEligibility(
     userId: string,
-    proposedPipeline: { method: ProtectionMethodType }[]
+    proposedPipeline: { method: ProtectionMethodType; config?: any }[]
 ) {
     // 1. Calculate cost of the proposed pipeline
     const proposedCost = proposedPipeline.reduce((acc, step) => {
-        const price = PROTECTION_PRICING[step.method] || { cost: DEFAULT_PROCESS_COST };
+        if (step.method === "poisoning") {
+            // Calculate dynamic cost based on enabled features
+            let cost = 0;
+            const config = step.config || {};
+            
+            console.log(`[Eligibility] Checking pipeline step: poisoning with config:`, config);
+
+            // Explicitly check for true to avoid implicit costs
+            if (config.apply_poison === true) {
+                const p = PROTECTION_PRICING["poison-ivy"];
+                if (!p) throw new Error("Pricing config missing for poison-ivy");
+                cost += p.cost;
+            }
+            if (config.apply_watermark === true) {
+                const p = PROTECTION_PRICING["ai-watermark"];
+                if (!p) throw new Error("Pricing config missing for ai-watermark");
+                cost += p.cost;
+            }
+            if (config.apply_visual_watermark === true) {
+                const p = PROTECTION_PRICING["visual-watermark"];
+                if (!p) throw new Error("Pricing config missing for visual-watermark");
+                cost += p.cost;
+            }
+            
+            console.log(`[Eligibility] Calculated Step Cost: ${cost}`);
+            return acc + cost;
+        }
+
+        const price = PROTECTION_PRICING[step.method];
+        if (!price) throw new Error(`Pricing config missing for method: ${step.method}`);
         return acc + price.cost;
     }, 0);
 

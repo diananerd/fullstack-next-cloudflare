@@ -12,9 +12,9 @@ export type ProtectionStatusType =
     (typeof ProtectionStatus)[keyof typeof ProtectionStatus];
 
 export const ProtectionMethod = {
-    MIST: "mist",
-    GRAYSCALE: "grayscale",
-    WATERMARK: "watermark", // Placeholder for future expansion
+    MIST: "mist", // Keep for backward compatibility if needed, otherwise remove
+    WATERMARK: "watermark", 
+    POISONING: "poisoning",
 } as const;
 
 export type ProtectionMethodType =

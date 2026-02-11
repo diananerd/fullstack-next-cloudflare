@@ -69,7 +69,7 @@ export async function cancelProtectionAction(artworkId: number) {
 
         await db
             .update(artworks)
-            .set({ protectionStatus: ProtectionStatus.DONE, jobId: null })
+            .set({ protectionStatus: ProtectionStatus.CANCELED, jobId: null })
             .where(eq(artworks.id, artworkId));
 
         revalidatePath(DASHBOARD_ROUTE);

@@ -443,6 +443,23 @@ export class PipelineService {
                 continue; // Skip sync for this job
             }
 
+            // --- LEGACY/DEPRECATED CLEANUP ---
+            // If method is 'mist' or 'watermark' (legacy standalone), fail it to stop 401 errors
+            // caused by targeting old Modal apps with old secrets.
+            // But 'poisoning' uses internally 'watermark', so only fail if method string is explicitly the legacy one.
+            if (j.method === "mist" || j.method === "grayscale" || j.method === "watermark") {
+                 console.warn(`[Pipeline] Deprecating legacy job ${j.id} (Method: ${j.method}).`);
+                 await db
+                    .update(artworkJobs)
+                    .set({
+                        status: JobStatus.FAILED,
+                        errorMessage: "Method deprecated. Please restart protection with Shield v2.",
+                        updatedAt: new Date().toISOString(),
+                    })
+                    .where(eq(artworkJobs.id, j.id));
+                 continue;
+            }
+
             if (!jobsByMethod[j.method]) jobsByMethod[j.method] = [];
             jobsByMethod[j.method].push(j);
         }
@@ -482,7 +499,8 @@ export class PipelineService {
 
                 const artworkIds = Array.from(jobMap.keys());
                 
-                console.log(`[Pipeline] Requesting status for ${artworkIds.length} jobs from ${method} (${config.statusUrl})`);
+                const maskedToken = config.token ? `${config.token.substring(0, 4)}...` : "None";
+                console.log(`[Pipeline] Requesting status for ${artworkIds.length} jobs from ${method} (${config.statusUrl}) [Token: ${maskedToken}]`);
 
                 const headers: Record<string, string> = { "Content-Type": "application/json" };
                 if (config.token) headers["Authorization"] = `Bearer ${config.token}`;
@@ -698,9 +716,38 @@ export class PipelineService {
 
                         // Charge Credits for successful processing
                         try {
-                            const steps = pipeline.steps as { method: ProtectionMethodType }[];
+                            const steps = pipeline.steps as { method: ProtectionMethodType; config?: any }[];
                             const totalCost = steps.reduce((acc, step) => {
-                                const price = PROTECTION_PRICING[step.method] || { cost: DEFAULT_PROCESS_COST };
+                                // Smart calculation for consolidated Poisoning method
+                                if (step.method === "poisoning") {
+                                    let cost = 0;
+                                    const config = step.config || {};
+                                    // Use 'process.env' or hardcoded values? Better to use constants if imported.
+                                    // Assuming PROTECTION_PRICING is imported.
+                                    
+                                    if (config.apply_poison === true) {
+                                        const p = PROTECTION_PRICING["poison-ivy"];
+                                        if (!p) throw new Error("Pricing configuration missing for poison-ivy");
+                                        cost += p.cost;
+                                    }
+                                    if (config.apply_watermark === true) {
+                                        const p = PROTECTION_PRICING["ai-watermark"];
+                                        if (!p) throw new Error("Pricing configuration missing for ai-watermark");
+                                        cost += p.cost;
+                                    }
+                                    if (config.apply_visual_watermark === true) {
+                                        const p = PROTECTION_PRICING["visual-watermark"];
+                                        if (!p) throw new Error("Pricing configuration missing for visual-watermark");
+                                        cost += p.cost;
+                                    }
+                                    
+                                    // Make sure we charge at least something if it ran successfully?
+                                    // If everything false (shouldn't happen), explicit cost is 0.
+                                    return acc + cost;
+                                }
+
+                                const price = PROTECTION_PRICING[step.method];
+                                if (!price) throw new Error(`Pricing configuration missing for method ${step.method}`);
                                 return acc + price.cost;
                             }, 0);
 

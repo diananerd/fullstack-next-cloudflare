@@ -31,6 +31,7 @@ export async function dispatchProtectionJob(input: DispatchJobInput) {
     }
 
     console.log(`[Dispatch] Dispatching ${method} for ID ${artworkId}`);
+    console.log(`[Dispatch] Config flags:`, JSON.stringify(methodConfig, null, 2));
 
     const payload = {
         artwork_id: String(artworkId),

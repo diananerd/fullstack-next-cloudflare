@@ -23,7 +23,7 @@ export const artworks = sqliteTable(
         method: text("method")
             .$type<ProtectionMethodType>()
             .notNull()
-            .default(ProtectionMethod.MIST),
+            .default(ProtectionMethod.POISONING),
         protectionStatus: text("protection_status")
             .$type<ProtectionStatusType>()
             .notNull()
@@ -70,7 +70,11 @@ export const insertArtworkSchema = createInsertSchema(artworks, {
     r2Key: z.string().min(1, "R2 Key is required"),
     url: z.string().url("Invalid URL"),
     method: z
-        .enum([ProtectionMethod.MIST, ProtectionMethod.WATERMARK])
+        .enum([
+            ProtectionMethod.POISONING,
+            ProtectionMethod.WATERMARK,
+            ProtectionMethod.MIST,
+        ])
         .optional(),
     protectionStatus: z
         .enum(Object.values(ProtectionStatus) as [string, ...string[]])

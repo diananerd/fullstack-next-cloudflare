@@ -62,30 +62,23 @@ interface ProtectArtworkDialogProps {
 
 const PROTECTION_OPTIONS = [
     {
-        value: ProtectionMethod.GRAYSCALE,
-        label: "B&W Conversion",
-        description: "Simple grayscale filter.",
-        icon: Wand2,
-        disabled: false,
-    },
-    {
-        value: "ai-watermark",
-        label: "AI Watermark",
-        description: "Invisible watermark for provenance.",
-        icon: Fingerprint,
-        disabled: true,
-    },
-    {
-        value: ProtectionMethod.MIST,
+        value: "poison-ivy",
         label: "AI Poisoning",
-        description: "Protects against AI mimicry (Style Transfer / LoRA).",
+        description: "Applies subtle perturbations to disrupt AI recognition (Poison Ivy).",
         icon: ShieldCheck,
         disabled: false,
     },
     {
-        value: ProtectionMethod.WATERMARK,
-        label: "Visible Watermark",
-        description: "Overlays a visible custom text watermark.",
+        value: "ai-watermark",
+        label: "AI Watermark (Invisible)",
+        description: "Adds an invisible signature to prove ownership.",
+        icon: Fingerprint,
+        disabled: false,
+    },
+    {
+        value: "visual-watermark",
+        label: "Visual Watermark",
+        description: "Overlays visible text on the image.",
         icon: Droplets,
         disabled: false,
     },
@@ -113,14 +106,11 @@ export function ProtectArtworkDialog({
     };
 
     const [step, setStep] = useState(1);
-    const [selectedMethods, setSelectedMethods] = useState<
-        ProtectionMethodType[]
-    >([]);
+    const [selectedMethods, setSelectedMethods] = useState<string[]>([]);
 
     // Config States
+    // Watermark text is the only user input needed for these options
     const [watermarkText, setWatermarkText] = useState("DRIMIT SHIELD");
-    const [mistModel, setMistModel] = useState("mist-v2");
-
     const [isPending, startTransition] = useTransition();
 
     // Session for pre-filling watermark
@@ -133,12 +123,19 @@ export function ProtectArtworkDialog({
         proposedCost: number;
     } | null>(null);
 
-    // Check eligibility when reaching summary step
     useEffect(() => {
         if (open && step === 4 && session?.user?.id) {
             setEligibility(null);
             startTransition(async () => {
-                const pipeline = selectedMethods.map((m) => ({ method: m }));
+                // Construct pipeline for eligibility check with correct flags
+                 const pipeline = [{
+                    method: ProtectionMethod.POISONING,
+                    config: {
+                        apply_poison: selectedMethods.includes("poison-ivy"),
+                        apply_watermark: selectedMethods.includes("ai-watermark"),
+                        apply_visual_watermark: selectedMethods.includes("visual-watermark"),
+                    }
+                }];
                 const result = await checkArtworkProtectionEligibility(
                     session.user.id,
                     pipeline,
@@ -153,7 +150,6 @@ export function ProtectArtworkDialog({
             // Reset state on open to avoid pollution from previous runs
             setStep(1);
             setSelectedMethods([]);
-            setMistModel("mist-v2");
             // Resetting to default string triggers the session auto-fill effect below
             setWatermarkText("DRIMIT SHIELD");
         }
@@ -181,13 +177,13 @@ export function ProtectArtworkDialog({
             message: "Invalid characters detected.",
         });
 
-    const toggleMethod = (method: ProtectionMethodType) => {
+    const toggleMethod = (method: string) => {
         if (selectedMethods.includes(method)) {
             setSelectedMethods(selectedMethods.filter((m) => m !== method));
         } else {
             // Respect default order when adding
             const newSelection = [...selectedMethods, method];
-            // Sort based on PROTECTION_OPTIONS index
+            // Sort based on PROTECTION_OPTIONS index so order is consistent
             newSelection.sort((a, b) => {
                 const idxA = PROTECTION_OPTIONS.findIndex((o) => o.value === a);
                 const idxB = PROTECTION_OPTIONS.findIndex((o) => o.value === b);
@@ -198,24 +194,11 @@ export function ProtectArtworkDialog({
     };
 
     const moveMethod = (index: number, direction: "up" | "down") => {
-        const newMethods = [...selectedMethods];
-        if (direction === "up" && index > 0) {
-            [newMethods[index], newMethods[index - 1]] = [
-                newMethods[index - 1],
-                newMethods[index],
-            ];
-        } else if (direction === "down" && index < newMethods.length - 1) {
-            [newMethods[index], newMethods[index + 1]] = [
-                newMethods[index + 1],
-                newMethods[index],
-            ];
-        }
-        setSelectedMethods(newMethods);
+        // No longer needed with flat list
     };
 
     const hasConfigStep =
-        selectedMethods.includes(ProtectionMethod.WATERMARK) ||
-        selectedMethods.includes(ProtectionMethod.MIST);
+        selectedMethods.includes("visual-watermark"); // Only visual watermark needs text input for now
 
     const handleNext = () => {
         if (step === 1) {
@@ -223,22 +206,16 @@ export function ProtectArtworkDialog({
                 toast.error("Please select at least one method.");
                 return;
             }
-
-            // Skip ordering step if only 1 method
-            if (selectedMethods.length === 1) {
-                if (hasConfigStep) setStep(3);
-                else setStep(4);
-            } else {
-                setStep(2);
-            }
-        } else if (step === 2) {
+            
+            // SKIP Step 2 (Ordering) completely as requested
             if (hasConfigStep) {
                 setStep(3);
             } else {
                 setStep(4);
             }
         } else if (step === 3) {
-            if (selectedMethods.includes(ProtectionMethod.WATERMARK)) {
+            // Validate config if needed
+            if (selectedMethods.includes("visual-watermark")) {
                 const result = watermarkSchema.safeParse(watermarkText);
                 if (!result.success) {
                     toast.error(result.error.issues[0].message);
@@ -250,39 +227,39 @@ export function ProtectArtworkDialog({
     };
 
     const handleBack = () => {
-        if (step === 2) {
+        // Step 2 is skipped, so back from 3 goes to 1
+        if (step === 3) {
             setStep(1);
-        } else if (step === 3) {
-            // If we skipped step 2, go back to 1
-            if (selectedMethods.length === 1) setStep(1);
-            else setStep(2);
         } else if (step === 4) {
             if (hasConfigStep) {
                 setStep(3);
             } else {
-                // If no config, check if we skipped step 2
-                if (selectedMethods.length === 1) setStep(1);
-                else setStep(2);
+                setStep(1);
             }
         }
     };
 
     const handleSubmit = () => {
         startTransition(async () => {
-            const pipeline = selectedMethods.map((m) => {
-                const config: Record<string, any> = {};
-                if (m === ProtectionMethod.WATERMARK) {
-                    config.text = watermarkText.trim();
-                }
-                if (m === ProtectionMethod.MIST) {
-                    config.model = mistModel;
-                }
+             // Construct single pipeline step: POISONING with flags
+            const hasPoison = selectedMethods.includes("poison-ivy");
+            const hasAiWatermark = selectedMethods.includes("ai-watermark");
+            const hasVisualWatermark = selectedMethods.includes("visual-watermark");
+            
+            if (!hasPoison && !hasAiWatermark && !hasVisualWatermark) {
+                toast.error("Please select at least one protection method.");
+                return;
+            }
 
-                return {
-                    method: m,
-                    config: Object.keys(config).length > 0 ? config : undefined,
-                };
-            });
+            const pipeline = [{
+                method: ProtectionMethod.POISONING,
+                config: {
+                    apply_poison: hasPoison,
+                    apply_watermark: hasAiWatermark,
+                    apply_visual_watermark: hasVisualWatermark,
+                    watermark_text: watermarkText.trim()
+                }
+            }];
 
             const result = await protectArtworkAction({
                 artworkId,
@@ -330,7 +307,7 @@ export function ProtectArtworkDialog({
                                 {PROTECTION_OPTIONS.map((option) => {
                                     const Icon = option.icon;
                                     const isSelected = selectedMethods.includes(
-                                        option.value as ProtectionMethodType,
+                                        option.value,
                                     );
                                     const isDisabled = option.disabled;
 
@@ -366,29 +343,29 @@ export function ProtectArtworkDialog({
                                     }
 
                                     return (
-                                        <div
-                                            key={option.value}
-                                            className={cn(
-                                                "flex items-start space-x-3 rounded-md border p-3 cursor-pointer transition-colors",
-                                                isSelected
-                                                    ? "border-primary/50 bg-primary/5"
-                                                    : "border-muted",
-                                            )}
-                                            onClick={() =>
-                                                toggleMethod(
-                                                    option.value as ProtectionMethodType,
-                                                )
-                                            }
-                                        >
-                                            <Checkbox
-                                                checked={isSelected}
-                                                onCheckedChange={() =>
+                                            <div
+                                                key={option.value}
+                                                className={cn(
+                                                    "flex items-start space-x-3 rounded-md border p-3 cursor-pointer transition-colors",
+                                                    isSelected
+                                                        ? "border-primary/50 bg-primary/5"
+                                                        : "border-muted",
+                                                )}
+                                                onClick={() =>
                                                     toggleMethod(
-                                                        option.value as ProtectionMethodType,
+                                                        option.value,
                                                     )
                                                 }
-                                                className="mt-1"
-                                            />
+                                            >
+                                                <Checkbox
+                                                    checked={isSelected}
+                                                    onCheckedChange={() =>
+                                                        toggleMethod(
+                                                            option.value,
+                                                        )
+                                                    }
+                                                    className="mt-1"
+                                                />
                                             <div className="flex-1 space-y-1">
                                                 <div className="flex items-center gap-2">
                                                     <Icon className="h-4 w-4 text-foreground/70" />
@@ -480,64 +457,8 @@ export function ProtectArtworkDialog({
                     {/* STEP 3: CONFIGURATION (Combined) */}
                     {step === 3 && (
                         <div className="space-y-6">
-                            {/* AI Poisoning Config */}
-                            {selectedMethods.includes(
-                                ProtectionMethod.MIST,
-                            ) && (
-                                <div className="space-y-3">
-                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">
-                                        AI Poisoning Strategy
-                                    </Label>
-                                    <div className="space-y-2">
-                                        <Label
-                                            htmlFor="model-select"
-                                            className="text-sm"
-                                        >
-                                            Select Model
-                                        </Label>
-                                        <Select
-                                            value={mistModel}
-                                            onValueChange={setMistModel}
-                                        >
-                                            <SelectTrigger id="model-select">
-                                                <SelectValue placeholder="Select a model" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="mist-v2">
-                                                    Mist V2 (High Performance)
-                                                </SelectItem>
-                                                <SelectItem
-                                                    value="glaze"
-                                                    disabled
-                                                >
-                                                    Glaze (Coming Soon)
-                                                </SelectItem>
-                                                <SelectItem
-                                                    value="nightshade"
-                                                    disabled
-                                                >
-                                                    Nightshade (Coming Soon)
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-xs text-muted-foreground">
-                                            Current active model: Mist V2
-                                            (Optimized for Style Transfer
-                                            protection).
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {selectedMethods.includes(ProtectionMethod.MIST) &&
-                                selectedMethods.includes(
-                                    ProtectionMethod.WATERMARK,
-                                ) && <div className="h-px bg-border" />}
-
                             {/* Watermark Config */}
-                            {selectedMethods.includes(
-                                ProtectionMethod.WATERMARK,
-                            ) && (
+                            {selectedMethods.includes("visual-watermark") && (
                                 <div className="space-y-3">
                                     <Label className="text-xs font-semibold uppercase text-muted-foreground">
                                         Watermark Settings
@@ -655,12 +576,6 @@ export function ProtectArtworkDialog({
                                                             ("{watermarkText}")
                                                         </span>
                                                     )}
-                                                    {method ===
-                                                        ProtectionMethod.MIST && (
-                                                        <span className="text-muted-foreground ml-1">
-                                                            ({mistModel})
-                                                        </span>
-                                                    )}
                                                 </span>
                                                 <span className="text-xs font-mono text-muted-foreground">
                                                     {PROTECTION_PRICING[method]?.cost.toFixed(2)} credits
@@ -756,7 +671,7 @@ export function ProtectArtworkDialog({
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
                                     <>
-                                        Start (${eligibility?.proposedCost.toFixed(2)} Credits)
+                                        {eligibility?.proposedCost === 0 ? "Start Free (0.00 Credits)" : `Start (${eligibility?.proposedCost.toFixed(2)} Credits)`}
                                         <Sparkles className="ml-2 h-4 w-4" />
                                     </>
                                 )}

@@ -15,34 +15,38 @@ export const PROTECTION_METHODS_CONFIG: Record<
     ProtectionMethodType,
     ProtectionConfig
 > = {
-    [ProtectionMethod.MIST]: {
-        urlEnvVar: "MODAL_MIST_API_URL", // Fallback to MODAL_API_URL if needed in logic
-        tokenEnvVar: "MODAL_AUTH_TOKEN", // Shared token for now
+    [ProtectionMethod.MIST]: { // Legacy placeholder
+        urlEnvVar: "MODAL_MIST_API_URL",
+        tokenEnvVar: "MODAL_AUTH_TOKEN", 
         statusUrlEnvVar: "MODAL_MIST_STATUS_URL",
         description: "Adversarial Mist v2 Protection",
-        defaultConfig: {
-            steps: 3,
-            epsilon: 0.0627,
-        },
-    },
-    [ProtectionMethod.GRAYSCALE]: {
-        urlEnvVar: "MODAL_GRAYSCALE_API_URL",
-        tokenEnvVar: "MODAL_AUTH_TOKEN", // Shared token
-        statusUrlEnvVar: "MODAL_GRAYSCALE_STATUS_URL",
-        description: "Grayscale (Black & White) Conversion",
         defaultConfig: {},
     },
-    [ProtectionMethod.WATERMARK]: {
-        urlEnvVar: "MODAL_WATERMARK_API_URL",
+    // Removed legacy methods (Grayscale, Watermark) as they are now consolidated or deprecated
+    [ProtectionMethod.POISONING]: {
+        urlEnvVar: "MODAL_POISONING_API_URL",
         tokenEnvVar: "MODAL_AUTH_TOKEN",
-        statusUrlEnvVar: "MODAL_WATERMARK_STATUS_URL",
-        description: "Visible Watermark",
+        statusUrlEnvVar: "MODAL_POISONING_STATUS_URL",
+        description: "AI Poisoning",
         defaultConfig: {
-            text: "DRIMIT",
-            opacity: 128,
-            font_ratio: 0.05,
+            epsilon: 0.04,
+            steps: 100,
+            alpha: 0.012,
+            max_res: 3840,
+            apply_poison: true,
+            apply_watermark: true,
+            apply_visual_watermark: false,
+            watermark_text: "DRIMIT SHIELD"
         },
     },
+    // Placeholder to satisfy ProtectionMethodType constraint
+    [ProtectionMethod.WATERMARK]: {
+        urlEnvVar: "MODAL_POISONING_API_URL", // Reuse or dummy
+        tokenEnvVar: "MODAL_AUTH_TOKEN",
+        statusUrlEnvVar: "",
+        description: "Deprecated Legacy Watermark",
+        defaultConfig: {},
+    }
 };
 
 export function getProtectionConfig(method: ProtectionMethodType) {

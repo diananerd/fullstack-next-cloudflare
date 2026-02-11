@@ -1,30 +1,38 @@
 
 import { ProtectionMethod, type ProtectionMethodType } from "@/modules/artworks/models/artwork.enum";
 
+// Use constants for clearer price management
+const PRICE_POISON = 0.5;
+const PRICE_AI_WATERMARK = 0.25;
+const PRICE_VISUAL_WATERMARK = 0;
+
 export const PROTECTION_PRICING: Record<
     ProtectionMethodType | string,
     { cost: number; estimatedDuration: number; label: string }
 > = {
-    [ProtectionMethod.MIST]: {
-        cost: 1.5,
-        estimatedDuration: 45, // seconds
-        label: "AI Poisoning (Mist)",
+    // Legacy / Group keys
+    [ProtectionMethod.POISONING]: {
+        cost: 0.0,
+        estimatedDuration: 60,
+        label: "Protection Job",
     },
-    [ProtectionMethod.GRAYSCALE]: {
-        cost: 0.2, // Cheaper
-        estimatedDuration: 5,
-        label: "B&W Conversion",
-    },
-    [ProtectionMethod.WATERMARK]: {
-        cost: 0.5,
-        estimatedDuration: 10,
-        label: "Visible Watermark",
+    // Specific UI keys
+    "poison-ivy": {
+        cost: PRICE_POISON, // 0.50
+        estimatedDuration: 60,
+        label: "AI Poisoning",
     },
     "ai-watermark": {
-        cost: 1.0,
-        estimatedDuration: 30,
+        cost: PRICE_AI_WATERMARK, // 0.25
+        estimatedDuration: 10,
         label: "AI Watermark",
     },
+    "visual-watermark": {
+        cost: PRICE_VISUAL_WATERMARK, // 0.00
+        estimatedDuration: 5,
+        label: "Visual Watermark",
+    }
 };
 
-export const DEFAULT_PROCESS_COST = 1.0;
+export const DEFAULT_PROCESS_COST = 0.5;
+

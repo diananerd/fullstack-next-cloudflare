@@ -120,9 +120,11 @@ async function getAuth() {
                         
                         // --- Stripe Customer Creation ---
                         try {
-                            if (env.STRIPE_SECRET_KEY && !user.stripeCustomerId) {
+                            // Cast env to any to avoid CloudflareEnv type errors if STRIPE_SECRET_KEY is missing from types
+                            const safeEnv = env as any;
+                            if (safeEnv.STRIPE_SECRET_KEY && !user.stripeCustomerId) {
                                 console.log(`[AuthHook] Creating Stripe Customer for ${user.email}`);
-                                const stripe = getStripe(env.STRIPE_SECRET_KEY);
+                                const stripe = getStripe(safeEnv.STRIPE_SECRET_KEY);
                                 const customer = await stripe.customers.create({
                                     email: user.email,
                                     name: user.name,
