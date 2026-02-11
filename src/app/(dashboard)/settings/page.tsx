@@ -71,18 +71,20 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-4 md:px-6 py-10 space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">
+        <div className="w-full max-w-5xl mx-auto">
+            <div className="px-4 pt-6 pb-4 md:px-6 md:pt-6">
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">
                     Account Settings
                 </h1>
-                <p className="text-muted-foreground mt-1">
-                    Manage your account preferences and data.
+                <p className="text-gray-600 text-sm md:text-base mt-1">
+                    Manage your account preferences and data
                 </p>
             </div>
 
-            <Card className="border-red-200 bg-red-50/10">
-                <CardHeader>
+            <div className="px-4 pb-6 md:px-6 space-y-6">
+                {/* Delete Account Zone */}
+                <Card className="border-red-100 bg-red-50/10">
+                    <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-red-600">
                         {feedback && (
                             <div
@@ -186,5 +188,6 @@ export default function SettingsPage() {
                 </CardFooter>
             </Card>
         </div>
+      </div>
     );
 }

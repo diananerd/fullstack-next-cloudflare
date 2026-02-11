@@ -28,7 +28,7 @@ export default async function ArtworksPage() {
                 text=""
                 className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-xl z-50 p-0 bg-black hover:bg-zinc-800 text-white hover:scale-105 transition-all"
                 size="lg"
-                iconClassName="h-8 w-8"
+                iconClassName="h-10 w-10 scale-125"
             />
         </div>
     );

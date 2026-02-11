@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, UploadCloud } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useTransition, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -189,7 +189,7 @@ export function UploadArtworkButton({
                 {isPending ? (
                     <Loader2 className={cn("h-5 w-5 animate-spin", iconClassName)} />
                 ) : (
-                    showIcon && <UploadCloud className={cn("h-5 w-5", iconClassName)} />
+                    showIcon && <Upload className={cn("h-5 w-5", iconClassName)} />
                 )}
                 {text !== undefined ? text : (
                     <>

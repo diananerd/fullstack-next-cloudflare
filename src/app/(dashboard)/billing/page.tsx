@@ -41,19 +41,18 @@ export default async function BillingPage({
     const totalPages = Math.ceil(totalCount / pageSize);
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-4 md:px-6 py-10 space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        Credits
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                        Manage your credits and view transaction history.
-                    </p>
-                </div>
+        <div className="w-full max-w-5xl mx-auto">
+            <div className="px-4 pt-6 pb-4 md:px-6 md:pt-6">
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                    Credits
+                </h1>
+                <p className="text-gray-600 text-sm md:text-base mt-1">
+                    Manage your credits and transaction history
+                </p>
             </div>
 
-            {/* Top Section: Credits Manager */}
+            <div className="px-4 pb-6 md:px-6 space-y-6">
+                {/* Credit Balance Card */}
             <CreditsManager balance={currentBalance} />
 
             {/* Transaction History */}
@@ -184,5 +183,6 @@ export default async function BillingPage({
                 )}
             </Card>
         </div>
+      </div>
     );
 }

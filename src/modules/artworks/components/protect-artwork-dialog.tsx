@@ -46,6 +46,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { PROTECTION_PRICING, DEFAULT_PROCESS_COST } from "@/constants/pricing.constant";
+import { checkArtworkProtectionEligibility } from "../actions/check-eligibility.action";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface ProtectArtworkDialogProps {
     artworkId: number;
@@ -91,6 +95,7 @@ export function ProtectArtworkDialog({
     open: controlledOpen,
     onOpenChange: controlledOnOpenChange,
 }: ProtectArtworkDialogProps) {
+    const router = useRouter();
     const [internalOpen, setInternalOpen] = useState(false);
     
     const isControlled = controlledOpen !== undefined;
@@ -117,6 +122,28 @@ export function ProtectArtworkDialog({
 
     // Session for pre-filling watermark
     const { data: session } = authClient.useSession();
+
+    const [eligibility, setEligibility] = useState<{
+        eligible: boolean;
+        missing: number;
+        balance: number;
+        proposedCost: number;
+    } | null>(null);
+
+    // Check eligibility when reaching summary step
+    useEffect(() => {
+        if (open && step === 4 && session?.user?.id) {
+            setEligibility(null);
+            startTransition(async () => {
+                const pipeline = selectedMethods.map((m) => ({ method: m }));
+                const result = await checkArtworkProtectionEligibility(
+                    session.user.id,
+                    pipeline,
+                );
+                setEligibility(result);
+            });
+        }
+    }, [open, step, session, selectedMethods]);
 
     useEffect(() => {
         if (open) {
@@ -539,18 +566,63 @@ export function ProtectArtworkDialog({
                     {/* STEP 4: CONFIRMATION */}
                     {step === 4 && (
                         <div className="space-y-6">
-                            <div className="space-y-1">
-                                <p className="text-sm font-medium">
-                                    Ready to protect?
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    This process runs in the background. It
-                                    takes about{" "}
-                                    <span className="font-semibold text-foreground">
-                                        15 minutes
-                                    </span>
-                                    . You can close this window safely.
-                                </p>
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-sm font-medium">
+                                        Ready to protect?
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        This process runs in the background. It
+                                        will take approximately{" "}
+                                        <span className="font-semibold text-foreground">
+                                            {selectedMethods.reduce((acc, m) => acc + (PROTECTION_PRICING[m]?.estimatedDuration || 0), 0) > 60 
+                                                ? `${Math.ceil(selectedMethods.reduce((acc, m) => acc + (PROTECTION_PRICING[m]?.estimatedDuration || 0), 0) / 60)} minutes`
+                                                : `${selectedMethods.reduce((acc, m) => acc + (PROTECTION_PRICING[m]?.estimatedDuration || 0), 0)} seconds`
+                                            }
+                                        </span>
+                                        .
+                                    </p>
+                                </div>
+                                
+                                {eligibility && !eligibility.eligible && (
+                                    <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-start gap-3">
+                                        <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-red-700">
+                                                Insufficient Credits
+                                            </p>
+                                            <p className="text-xs text-red-600 mt-1">
+                                                You need <b>{eligibility.proposedCost.toFixed(2)}</b> credits for this job, but you only have <b>{eligibility.balance.toFixed(2)}</b> available (after checking active jobs).
+                                            </p>
+                                            <p className="text-xs text-red-600 mt-1">
+                                                Please recharge <b>{eligibility.missing.toFixed(2)}</b> more credits to continue.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {eligibility && eligibility.eligible && (
+                                     <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
+                                                $
+                                            </div>
+                                            <div>
+                                                 <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide">
+                                                    Estimated Cost
+                                                </p>
+                                                <p className="text-lg font-bold text-blue-900 leading-none">
+                                                    {eligibility.proposedCost.toFixed(2)} Credits
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-blue-600">
+                                                Balance: {eligibility.balance.toFixed(2)}
+                                            </p>
+                                        </div>
+                                     </div>
+                                )}
                             </div>
 
                             <div className="space-y-2">
@@ -566,26 +638,31 @@ export function ProtectArtworkDialog({
                                             <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
                                                 {idx + 1}
                                             </div>
-                                            <span>
-                                                {
-                                                    PROTECTION_OPTIONS.find(
-                                                        (o) =>
-                                                            o.value === method,
-                                                    )?.label
-                                                }
-                                                {method ===
-                                                    ProtectionMethod.WATERMARK && (
-                                                    <span className="text-muted-foreground ml-1">
-                                                        ("{watermarkText}")
-                                                    </span>
-                                                )}
-                                                {method ===
-                                                    ProtectionMethod.MIST && (
-                                                    <span className="text-muted-foreground ml-1">
-                                                        ({mistModel})
-                                                    </span>
-                                                )}
-                                            </span>
+                                            <div className="flex-1 flex justify-between items-center">
+                                                <span>
+                                                    {
+                                                        PROTECTION_OPTIONS.find(
+                                                            (o) =>
+                                                                o.value === method,
+                                                        )?.label
+                                                    }
+                                                    {method ===
+                                                        ProtectionMethod.WATERMARK && (
+                                                        <span className="text-muted-foreground ml-1">
+                                                            ("{watermarkText}")
+                                                        </span>
+                                                    )}
+                                                    {method ===
+                                                        ProtectionMethod.MIST && (
+                                                        <span className="text-muted-foreground ml-1">
+                                                            ({mistModel})
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className="text-xs font-mono text-muted-foreground">
+                                                    {PROTECTION_PRICING[method]?.cost.toFixed(2)} credits
+                                                </span>
+                                            </div>
                                             {idx <
                                                 selectedMethods.length - 1 && (
                                                 <ArrowDown className="h-3 w-3 text-muted-foreground/50 mx-1" />
@@ -641,13 +718,26 @@ export function ProtectArtworkDialog({
                             Next <ArrowRight className="h-4 w-4 ml-2" />
                         </Button>
                     ) : step === 4 ? (
-                        <Button onClick={handleSubmit} disabled={isPending}>
-                            {isPending && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Start Protection
-                            <Sparkles className="ml-2 h-4 w-4" />
-                        </Button>
+                        eligibility && !eligibility.eligible ? (
+                             <Button 
+                                onClick={() => router.push("/billing")} 
+                                variant="destructive"
+                            >
+                                Recharge to Continue
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        ) : (
+                            <Button onClick={handleSubmit} disabled={isPending || !eligibility}>
+                                {isPending || !eligibility ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <>
+                                        Start (${eligibility?.proposedCost.toFixed(2)} Credits)
+                                        <Sparkles className="ml-2 h-4 w-4" />
+                                    </>
+                                )}
+                            </Button>
+                        )
                     ) : (
                         <Button onClick={handleClose} className="min-w-[100px]">
                             Close

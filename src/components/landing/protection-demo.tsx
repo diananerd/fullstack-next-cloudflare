@@ -261,7 +261,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                 {/* Messages Area - Clean & Minimal */}
                 <div
                     ref={scrollRef}
-                    className="flex-1 bg-white p-4 overflow-y-auto space-y-4 scroll-smooth"
+                    className="flex-1 bg-white p-4 overflow-hidden space-y-4 scroll-smooth"
                 >
                     {messages.map((msg) => (
                         <div
@@ -456,7 +456,7 @@ export function ProtectionDemo({ hasSession }: { hasSession?: boolean }) {
                 )}
             </div>
 
-            <div className="md:hidden text-center max-w-sm mx-auto">
+            <div className="md:hidden text-center max-w-sm mx-auto order-3 mt-4">
                 <p className="text-sm text-gray-500 italic">
                     * Interactive demo: We simulate an AI trying to copy a
                     protected image.

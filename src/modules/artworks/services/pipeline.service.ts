@@ -18,9 +18,7 @@ import { dispatchProtectionJob } from "../utils/dispatch-job";
 import { getProtectionConfig } from "@/lib/protection-config";
 import { deleteFromR2 } from "@/lib/r2";
 import { CreditService } from "@/modules/credits/services/credit.service";
-
-// Temporary constant, should share with action
-const PROCESS_COST = 1.0;
+import { PROTECTION_PRICING, DEFAULT_PROCESS_COST } from "@/constants/pricing.constant";
 
 export class PipelineService {
     /**
@@ -700,10 +698,16 @@ export class PipelineService {
 
                         // Charge Credits for successful processing
                         try {
+                            const steps = pipeline.steps as { method: ProtectionMethodType }[];
+                            const totalCost = steps.reduce((acc, step) => {
+                                const price = PROTECTION_PRICING[step.method] || { cost: DEFAULT_PROCESS_COST };
+                                return acc + price.cost;
+                            }, 0);
+
                             const refId = `protection_${artwork.id}_${lastJob.id}`;
                             await CreditService.chargeCredits(
                                 artwork.userId,
-                                PROCESS_COST,
+                                totalCost,
                                 "Image Protection Processing (Completed)",
                                 refId,
                                 {
@@ -713,10 +717,11 @@ export class PipelineService {
                                             (j) => j.artworkId === artwork.id,
                                         )
                                         .map((j) => j.id),
+                                    steps: steps.map(s => s.method),
                                 },
                             );
                             console.log(
-                                `[Pipeline] Charged ${PROCESS_COST} credits to user ${artwork.userId} (Ref: ${refId})`,
+                                `[Pipeline] Charged ${totalCost} credits to user ${artwork.userId} (Ref: ${refId})`,
                             );
                         } catch (error) {
                             console.error(

@@ -56,15 +56,17 @@ export default async function HomePage() {
             </header>
 
             <main className="relative z-10 max-w-7xl mx-auto px-6 pt-20 md:pt-24 pb-20 flex flex-col items-center text-center animate-in fade-in zoom-in duration-700 slide-in-from-bottom-4">
-                <div className="max-w-4xl mx-auto space-y-6 mb-10">
+                <div className="max-w-4xl mx-auto mb-10">
                     {/* Badge */}
-                    <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 shadow-sm">
+                    <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 shadow-sm mb-6 md:mb-8">
                         <ShieldCheck className="mr-2 h-4 w-4" />
-                        AI Shield
+                        <span className="text-xs md:text-sm">AI Shield</span>
                     </div>
 
                     {/* Protectioning */}
-                    <TypewriterTitle />
+                    <div className="mb-2 md:mb-6">
+                        <TypewriterTitle />
+                    </div>
 
                     {/* Subtitle - Shortened for impact */}
                     <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">

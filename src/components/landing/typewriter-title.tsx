@@ -51,7 +51,7 @@ export function TypewriterTitle() {
     }, [isFirstPartDone, secondPart]);
 
     return (
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.1] min-h-[3.3em] md:min-h-[2.2em]">
+        <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.1] min-h-[2.2em] md:min-h-[2.2em]">
             {firstPart}
             {!isFirstPartDone && (
                 <span className="inline-block w-[3px] h-[1em] bg-gray-900 ml-1 align-bottom animate-cursor-blink" />
