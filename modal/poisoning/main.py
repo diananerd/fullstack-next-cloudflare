@@ -368,7 +368,7 @@ class ModelService:
     @modal.method()
     def process_job(self, req: ProtectionRequest) -> ProtectionResult:
         import requests
-        from PIL import Image
+        from PIL import Image, ImageOps
         
         t0_total = time.time()
         print(f"[ModelService] STARTED job {req.artwork_id}")
@@ -407,6 +407,11 @@ class ModelService:
             
             # Helper to keep image as PIL in memory
             current_img = Image.open(io.BytesIO(r.content))
+            try:
+                current_img = ImageOps.exif_transpose(current_img)
+            except Exception as e:
+                print(f"[ModelService] Warning: Failed to apply EXIF orientation: {e}")
+
             icc_profile = current_img.info.get("icc_profile")
             
             # Handle alpha/metadata
@@ -418,9 +423,9 @@ class ModelService:
                 alpha = None
                 
             # Resize if needed (CPU)
-            max_res = req.config.get("max_res", 3840)
-            if max(current_img.size) > max_res:
-                 current_img.thumbnail((max_res, max_res), Image.Resampling.LANCZOS)
+            # max_res = req.config.get("max_res", 3840)
+            # if max(current_img.size) > max_res:
+            #      current_img.thumbnail((max_res, max_res), Image.Resampling.LANCZOS)
 
             # 2. Poison Ivy (GPU Remote Call)
             if req.config.get("apply_poison", True):
