@@ -700,11 +700,12 @@ export class PipelineService {
 
                         // Charge Credits for successful processing
                         try {
+                            const refId = `protection_${artwork.id}_${lastJob.id}`;
                             await CreditService.chargeCredits(
                                 artwork.userId,
                                 PROCESS_COST,
                                 "Image Protection Processing (Completed)",
-                                `artwork_${artwork.id}`,
+                                refId,
                                 {
                                     artworkId: artwork.id,
                                     jobIds: allJobs
@@ -715,7 +716,7 @@ export class PipelineService {
                                 },
                             );
                             console.log(
-                                `[Pipeline] Charged ${PROCESS_COST} credits to user ${artwork.userId}`,
+                                `[Pipeline] Charged ${PROCESS_COST} credits to user ${artwork.userId} (Ref: ${refId})`,
                             );
                         } catch (error) {
                             console.error(

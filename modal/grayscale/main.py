@@ -175,7 +175,7 @@ class GrayscaleApp:
             )
             
             # Use App Proxy URL instead of R2 Public URL to ensure access to private bucket
-            app_url = os.environ.get("APP_URL", "https://shield.drimit.io")
+            app_url = os.environ.get("APP_URL", "https://drimit.io")
             protected_url = f"{app_url}/api/assets/{output_key}"
             
             total_duration = time.time() - t0_total

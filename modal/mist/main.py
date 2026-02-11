@@ -145,7 +145,7 @@ class MistApp:
         try:
             # 1. Download Input Image
             # Logic: 
-            # - IF url matches shield.drimit.io/api/assets/ -> It's the proxy. Use HTTP + Auth Token.
+            # - IF url matches drimit.io/api/assets/ -> It's the proxy. Use HTTP + Auth Token.
             # - IF url contains R2 endpoint -> It is internal? (Likely not used now).
             
             print(f"[Modal] Downloading message from: {req.image_url}")
@@ -298,7 +298,7 @@ class MistApp:
             )
             
             # Use App Proxy URL
-            app_url = os.environ.get("APP_URL", "https://shield.drimit.io")
+            app_url = os.environ.get("APP_URL", "https://drimit.io")
             protected_url = f"{app_url}/api/assets/{output_key}"
             
             total_duration = time.time() - t0_total

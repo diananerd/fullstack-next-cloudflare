@@ -12,7 +12,7 @@ declare namespace Cloudflare {
         drimit_shield_queue: Queue;
         AI: Ai;
         ASSETS: Fetcher;
-        NEXT_PUBLIC_APP_URL: "https://shield.drimit.io";
+        NEXT_PUBLIC_APP_URL: "https://drimit.io";
         NEXTJS_ENV: string;
         CLOUDFLARE_ACCOUNT_ID: string;
         CLOUDFLARE_D1_TOKEN: string;

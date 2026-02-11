@@ -19,13 +19,26 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { CreditsManager } from "@/modules/credits/components/credits-manager";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default async function BillingPage() {
+export default async function BillingPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
     const user = await requireAuth();
+    const resolvedParams = await searchParams;
+    const page = Number(resolvedParams?.page) || 1;
+    const pageSize = 10;
+    const offset = (page - 1) * pageSize;
 
     // We re-fetch balance to be 100% sure it's up to date vs session
     const currentBalance = await CreditService.getBalance(user.id);
-    const transactions = await CreditService.getHistory(user.id, 50);
+    const transactions = await CreditService.getHistory(user.id, pageSize, offset);
+    const totalCount = await CreditService.getHistoryCount(user.id);
+    const totalPages = Math.ceil(totalCount / pageSize);
 
     return (
         <div className="w-full max-w-5xl mx-auto px-4 md:px-6 py-10 space-y-8">
@@ -120,6 +133,55 @@ export default async function BillingPage() {
                         </TableBody>
                     </Table>
                 </CardContent>
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-end space-x-2 py-4 px-4 text-sm text-muted-foreground border-t">
+                        <div className="mr-auto">
+                            Page {page} of {totalPages}
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            disabled={page <= 1}
+                        >
+                            <Link
+                                href={{
+                                    pathname: "/billing",
+                                    query: {
+                                        page: page > 1 ? page - 1 : 1,
+                                    },
+                                }}
+                                className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Previous
+                            </Link>
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            disabled={page >= totalPages}
+                        >
+                            <Link
+                                href={{
+                                    pathname: "/billing",
+                                    query: {
+                                        page: page < totalPages ? page + 1 : totalPages,
+                                    },
+                                }}
+                                className={
+                                    page >= totalPages
+                                        ? "pointer-events-none opacity-50"
+                                        : ""
+                                }
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </div>
+                )}
             </Card>
         </div>
     );

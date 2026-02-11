@@ -237,4 +237,17 @@ export class CreditService {
             .limit(limit)
             .offset(offset);
     }
+
+    /**
+     * Get total transaction count for a user
+     */
+    static async getHistoryCount(userId: string): Promise<number> {
+        const db = await getDb();
+        const result = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(creditTransactions)
+            .where(eq(creditTransactions.userId, userId));
+            
+        return Number(result[0]?.count) || 0;
+    }
 }

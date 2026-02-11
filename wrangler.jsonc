@@ -4,7 +4,7 @@
  */
 {
     "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "drimit-shield",
+    "name": "drimit",
     "main": "worker.ts",
     "compatibility_date": "2025-03-01",
     "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -50,8 +50,8 @@
         }
     ],
     "vars": {
-        "BETTER_AUTH_URL": "https://shield.drimit.io",
-        "NEXT_PUBLIC_APP_URL": "https://shield.drimit.io",
+        "BETTER_AUTH_URL": "https://drimit.io",
+        "NEXT_PUBLIC_APP_URL": "https://drimit.io",
         "MODAL_MIST_API_URL": "https://diananerdoficial--drimit-shield-demo-submit-protection-job.modal.run",
         "MODAL_GRAYSCALE_API_URL": "https://diananerdoficial--drimit-shield-grayscale-submit-protection-job.modal.run",
         "MODAL_WATERMARK_API_URL": "https://diananerdoficial--drimit-shield-watermark-submit-protection-job.modal.run",
@@ -61,7 +61,7 @@
     },
     "routes": [
         {
-            "pattern": "shield.drimit.io",
+            "pattern": "drimit.io",
             "custom_domain": true
         }
     ]
