@@ -39,7 +39,7 @@ export function ArtworkFullView({
         if (isOpen) {
             setImageError(false);
             setProtectedBroken(false);
-            // Reset to protected view on open if applicable
+            // Always try protected view first
             setViewMode("protected");
         }
     }, [isOpen]);
@@ -71,23 +71,18 @@ export function ArtworkFullView({
     const protectedUrl = getProtectedUrl();
     const originalUrl = artwork.url;
 
-    // Determine what to show
-    const displayUrl =
-        viewMode === "protected" &&
-        protectedUrl &&
-        optimisticStatus === ProtectionStatus.DONE &&
-        !protectedBroken
-            ? protectedUrl
-            : originalUrl;
+    // Determine what to show:
+    // If we have a protected URL and status is DONE and it's not broken, use it.
+    // Otherwise, use original.
+    const isProtectedReady = !!protectedUrl && optimisticStatus === ProtectionStatus.DONE && !protectedBroken;
+
+    // NOTE: User requested strict logic: If protected, show protected. No switching.
+    // However, we still fallback to originalUrl inside the <img> onError if protected fails loading.
+    const displayUrl = isProtectedReady ? protectedUrl : originalUrl;
 
     const fileSize = artwork.size
         ? `${(artwork.size / 1024 / 1024).toFixed(2)} MB`
         : "";
-
-    const hasProtectedVersion =
-        !!protectedUrl &&
-        optimisticStatus === ProtectionStatus.DONE &&
-        !protectedBroken;
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -108,12 +103,10 @@ export function ArtworkFullView({
                                 // isProcessing && "opacity-80", // No blur or opacity needed
                             )}
                             onError={() => {
-                                // If we are attempting to show protected, and it fails, fallback.
-                                if (
-                                    viewMode === "protected" &&
-                                    displayUrl === protectedUrl
-                                ) {
+                                // If we were showing protected and it failed, fallback to original
+                                if (displayUrl === protectedUrl) {
                                     setProtectedBroken(true);
+                                    // viewMode isn't really used anymore for switching, but state update triggers re-render
                                     setViewMode("original");
                                 } else {
                                     setImageError(true);
@@ -173,53 +166,9 @@ export function ArtworkFullView({
                         </div>
 
                         {/* Bottom Row */}
-                        <div className="flex justify-center items-end w-full relative">
-                            {/* Bottom-Center: Original/Protected Toggle */}
-                            {hasProtectedVersion && (
-                                <div className="absolute left-1/2 -translate-x-1/2 bottom-8 flex gap-1 pointer-events-auto bg-black/60 backdrop-blur-xl p-1 rounded-lg border border-white/10">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        title="View Protected"
-                                        className={cn(
-                                            "h-9 w-9 rounded-md transition-all",
-                                            viewMode === "protected"
-                                                ? "bg-indigo-500 text-white shadow-glow"
-                                                : "text-white/60 hover:text-white hover:bg-white/10",
-                                        )}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setViewMode("protected");
-                                        }}
-                                    >
-                                        <ShieldCheck className="h-5 w-5" />
-                                        <span className="sr-only">
-                                            Protected
-                                        </span>
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        title="View Original"
-                                        className={cn(
-                                            "h-9 w-9 rounded-md transition-all",
-                                            viewMode === "original"
-                                                ? "bg-white text-black shadow-lg"
-                                                : "text-white/60 hover:text-white hover:bg-white/10",
-                                        )}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setViewMode("original");
-                                        }}
-                                    >
-                                        <ImageIcon className="h-5 w-5" />
-                                        <span className="sr-only">
-                                            Original
-                                        </span>
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
+                        {/* <div className="flex justify-center items-end w-full relative">
+                           
+                        </div> */}
                     </div>
                 </div>
             </DialogContent>
