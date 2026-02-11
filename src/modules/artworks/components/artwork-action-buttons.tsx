@@ -30,6 +30,7 @@ export function ArtworkActionButtons({
         deleteOpen,
         setDeleteOpen,
         executeDelete,
+        handleDownload,
         artworkId,
         artwork,
     } = actions;
@@ -44,35 +45,6 @@ export function ArtworkActionButtons({
     // Check for protected status
     const canDownload = isProtected;
 
-    const handleDownload = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!artwork.r2Key) return;
-        
-        let url = "";
-        let hash = "image";
-
-        const lastSlashIndex = artwork.r2Key.lastIndexOf("/");
-        if (lastSlashIndex !== -1) {
-            const prefix = artwork.r2Key.substring(0, lastSlashIndex);
-            url = `/api/assets/${prefix}/protected.png`;
-            
-            // Extract hash for filename
-            const parts = artwork.r2Key.split("/");
-            hash = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
-        } else {
-             // Fallback
-             hash = artwork.r2Key.split("/")[0];
-             url = `/api/assets/${hash}/protected.png`;
-        }
-
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `drimit-ai-shield-${hash}-protected.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
     const handleDeleteConfirm = (e: React.MouseEvent) => {
         e.stopPropagation();
         executeDelete();
@@ -86,30 +58,8 @@ export function ArtworkActionButtons({
                 className="flex gap-1.5 pointer-events-auto items-center"
                 onClick={stopProp}
             >
-                {/* Protect Button - Always visible unless busy */}
-                <ProtectArtworkDialog artworkId={artworkId}>
-                    <Button
-                        variant="secondary"
-                        size="icon"
-                        className={cn(
-                            "h-7 w-7 text-white rounded-full border-0 shadow-sm",
-                            "bg-black/60 hover:bg-indigo-500/80",
-                            isProcessing && "opacity-50 cursor-not-allowed",
-                        )}
-                        onClick={stopProp}
-                        disabled={isPending || isProcessing}
-                        title={isProcessing ? "Processing..." : "Protect"}
-                    >
-                        {isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                            <Shield className="h-3.5 w-3.5" />
-                        )}
-                    </Button>
-                </ProtectArtworkDialog>
-
-                {/* Download Button */}
-                {canDownload && (
+                {/* Primary Action: Protect OR Download */}
+                {canDownload ? (
                     <Button
                         variant="secondary"
                         size="icon"
@@ -120,6 +70,27 @@ export function ArtworkActionButtons({
                     >
                         <Download className="h-3.5 w-3.5" />
                     </Button>
+                ) : (
+                    <ProtectArtworkDialog artworkId={artworkId}>
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className={cn(
+                                "h-7 w-7 text-white rounded-full border-0 shadow-sm",
+                                "bg-black/60 hover:bg-indigo-500/80",
+                                isProcessing && "opacity-50 cursor-not-allowed",
+                            )}
+                            onClick={stopProp}
+                            disabled={isPending || isProcessing}
+                            title={isProcessing ? "Processing..." : "Protect"}
+                        >
+                            {isPending ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <Shield className="h-3.5 w-3.5" />
+                            )}
+                        </Button>
+                    </ProtectArtworkDialog>
                 )}
 
                 {/* Delete Button */}

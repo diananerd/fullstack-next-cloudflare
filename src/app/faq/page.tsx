@@ -20,7 +20,7 @@ export default function FAQPage() {
                     >
                         <img
                             src="/icon.png"
-                            alt="Drimit AI Shield"
+                            alt="Drimit"
                             className="h-8 w-8"
                         />
                         <span className="flex items-center gap-2 text-xl">
@@ -58,7 +58,7 @@ export default function FAQPage() {
                     {/* Q1 */}
                     <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                         <h3 className="text-xl font-bold text-gray-900 mb-3">
-                            What exactly does Drimit Shield do to my art?
+                            What exactly does Drimit do to my art?
                         </h3>
                         <p className="text-gray-600 leading-relaxed">
                             Think of it as adding an invisible &quot;digital
@@ -93,7 +93,7 @@ export default function FAQPage() {
                         </h3>
                         <p className="text-gray-600 leading-relaxed">
                             Honesty is our policy: No digital security measure
-                            is unbreakable forever. However, Drimit Shield makes
+                            is unbreakable forever. However, Drimit makes
                             it{" "}
                             <strong>
                                 significantly harder, costlier, and more

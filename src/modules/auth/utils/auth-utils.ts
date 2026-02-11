@@ -60,7 +60,7 @@ async function getAuth() {
                 const { sendEmail } = await import("@/lib/email");
                 await sendEmail({
                     to: user.email,
-                    subject: "Reset your Drimit Shield password",
+                    subject: "Reset your Drimit password",
                     html: `
                         <h1>Reset Password</h1>
                         <p>Hello ${user.name || "User"},</p>
@@ -79,7 +79,7 @@ async function getAuth() {
                 const { sendEmail } = await import("@/lib/email");
                 await sendEmail({
                     to: user.email,
-                    subject: "Verify your Drimit Shield email",
+                    subject: "Verify your Drimit email",
                     html: `
                         <h1>Verify Email</h1>
                         <p>Hello ${user.name || "User"},</p>

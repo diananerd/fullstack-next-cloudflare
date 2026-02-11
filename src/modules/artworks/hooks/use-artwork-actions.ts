@@ -100,10 +100,10 @@ export function useArtworkActions(artwork: Artwork) {
     };
 
     const isAnyDone = artwork.protectionStatus === ProtectionStatus.DONE;
-    // Protected = DONE and has a jobId (means it went through the process)
-    const isProtected = isAnyDone && !!artwork.jobId;
-    // Ready = DONE and NO jobId (means freshly uploaded)
-    const isReady = isAnyDone && !artwork.jobId;
+    // Protected = DONE (aligns with UI Badge)
+    const isProtected = isAnyDone;
+    // Ready = IDLE (Ready to protect)
+    const isReady = artwork.protectionStatus === ProtectionStatus.IDLE;
 
     const isActuallyProcessing =
         artwork.protectionStatus === ProtectionStatus.PROCESSING ||

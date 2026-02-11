@@ -60,7 +60,7 @@ export default async function HomePage() {
                     {/* Badge */}
                     <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 shadow-sm mb-6 md:mb-8">
                         <ShieldCheck className="mr-2 h-4 w-4" />
-                        <span className="text-xs md:text-sm">AI Shield</span>
+                        <span className="text-xs md:text-sm">AI Protection</span>
                     </div>
 
                     {/* Protectioning */}

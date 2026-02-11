@@ -16,6 +16,7 @@ import {
     Check,
     Fingerprint,
     Sparkles,
+    Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/modules/auth/utils/auth-client";
@@ -50,6 +51,7 @@ import { PROTECTION_PRICING, DEFAULT_PROCESS_COST } from "@/constants/pricing.co
 import { checkArtworkProtectionEligibility } from "../actions/check-eligibility.action";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { usePWA } from "@/providers/pwa-provider";
 
 interface ProtectArtworkDialogProps {
     artworkId: number;
@@ -97,6 +99,7 @@ export function ProtectArtworkDialog({
 }: ProtectArtworkDialogProps) {
     const router = useRouter();
     const [internalOpen, setInternalOpen] = useState(false);
+    const { isInstalled, canInstall, promptInstall } = usePWA();
     
     const isControlled = controlledOpen !== undefined;
     const open = isControlled ? controlledOpen : internalOpen;
@@ -682,11 +685,32 @@ export function ProtectArtworkDialog({
                                 <h3 className="text-lg font-semibold">
                                     Protection Started!
                                 </h3>
-                                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                                <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-4">
                                     Your artwork is now being processed by our
-                                    secure pipeline. You can safely close this
-                                    window.
+                                    secure pipeline.
                                 </p>
+                                
+                                {canInstall && !isInstalled && (
+                                    <div className="pt-4 border-t border-border w-full animate-in slide-in-from-bottom-2 fade-in duration-500 delay-300">
+                                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-2">
+                                            <p className="text-sm font-medium text-blue-900 mb-2">
+                                                Install Drimit App
+                                            </p>
+                                            <p className="text-xs text-blue-700 mb-3 leading-relaxed">
+                                                Install our app for faster access, notifications, and easier uploads.
+                                            </p>
+                                            <Button 
+                                                onClick={promptInstall} 
+                                                variant="default" 
+                                                size="sm"
+                                                className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2"
+                                            >
+                                                <Smartphone className="h-4 w-4" />
+                                                Install App
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -739,8 +763,8 @@ export function ProtectArtworkDialog({
                             </Button>
                         )
                     ) : (
-                        <Button onClick={handleClose} className="min-w-[100px]">
-                            Close
+                        <Button onClick={handleClose} variant={canInstall && !isInstalled ? "ghost" : "default"} className="min-w-[100px]">
+                            {canInstall && !isInstalled ? "Maybe Later" : "Close"}
                         </Button>
                     )}
                 </DialogFooter>

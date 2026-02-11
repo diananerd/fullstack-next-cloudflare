@@ -38,7 +38,7 @@ export const PROTECTION_METHODS_CONFIG: Record<
         statusUrlEnvVar: "MODAL_WATERMARK_STATUS_URL",
         description: "Visible Watermark",
         defaultConfig: {
-            text: "DRIMIT AI SHIELD",
+            text: "DRIMIT",
             opacity: 128,
             font_ratio: 0.05,
         },

@@ -26,7 +26,7 @@ export async function sendEmail({
     const resend = new Resend(env.RESEND_API_KEY);
     // Default to a safe sender or use env var
     const from =
-        env.RESEND_FROM_EMAIL || "Drimit Shield <onboarding@resend.dev>";
+        env.RESEND_FROM_EMAIL || "Drimit <onboarding@resend.dev>";
 
     try {
         const { data, error } = await resend.emails.send({
