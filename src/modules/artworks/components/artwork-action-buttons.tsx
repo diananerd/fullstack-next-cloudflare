@@ -47,8 +47,23 @@ export function ArtworkActionButtons({
     const handleDownload = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!artwork.r2Key) return;
-        const hash = artwork.r2Key.split("/")[0];
-        const url = `/api/assets/${hash}/protected.png`;
+        
+        let url = "";
+        let hash = "image";
+
+        const lastSlashIndex = artwork.r2Key.lastIndexOf("/");
+        if (lastSlashIndex !== -1) {
+            const prefix = artwork.r2Key.substring(0, lastSlashIndex);
+            url = `/api/assets/${prefix}/protected.png`;
+            
+            // Extract hash for filename
+            const parts = artwork.r2Key.split("/");
+            hash = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+        } else {
+             // Fallback
+             hash = artwork.r2Key.split("/")[0];
+             url = `/api/assets/${hash}/protected.png`;
+        }
 
         const link = document.createElement("a");
         link.href = url;

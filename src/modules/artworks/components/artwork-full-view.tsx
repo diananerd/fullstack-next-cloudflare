@@ -48,10 +48,20 @@ export function ArtworkFullView({
     const getProtectedUrl = () => {
         if (artwork.r2Key) {
             try {
+                // Support both legacy {hash}/original vs new {userId}/{hash}/original structures
+                // We strip the filename and replace it with protected.png
+                const lastSlashIndex = artwork.r2Key.lastIndexOf("/");
+                if (lastSlashIndex !== -1) {
+                    const prefix = artwork.r2Key.substring(0, lastSlashIndex);
+                    return `/api/assets/${prefix}/protected.png`;
+                }
+                // Fallback: if no slash, it's just a file (unlikely), but let's just use the parts
                 const parts = artwork.r2Key.split("/");
                 if (parts.length > 0) {
-                    const hash = parts[0];
-                    return `/api/assets/${hash}/protected.png`;
+                     // Legacy fallback - keeping original logic as last resort but it was buggy for deep paths
+                     // The safer bet is the prefix logic above.
+                     // If no slash, assume it's just a filename?
+                     return ""; 
                 }
             } catch (e) {}
         }
