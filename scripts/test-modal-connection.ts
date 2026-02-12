@@ -48,7 +48,12 @@ async function main() {
                 "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
             artwork_id: "test-artwork-123",
             user_id: "test-user-456",
-            method: "mist",
+            method: "poisoning",
+            verify_protection: true, // Explicitly request verification
+            config: {
+                intensity: "Medium",
+                apply_poison: true
+            }
         };
 
         const jsonResponse = await fetch(modalUrl, {

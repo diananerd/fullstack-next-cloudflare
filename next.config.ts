@@ -2,11 +2,9 @@ import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 /** @type {import("next").NextConfig} */
 const nextConfig = {
+    output: "standalone",
     typescript: {
         ignoreBuildErrors: true,
-    },
-    eslint: {
-        ignoreDuringBuilds: true,
     },
     serverExternalPackages: ["better-sqlite3"],
     experimental: {

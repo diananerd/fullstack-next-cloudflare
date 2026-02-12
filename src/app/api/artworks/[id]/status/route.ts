@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { PipelineService } from "@/modules/artworks/services/pipeline.service";
 
 // export const runtime = "edge"; // Removed to fix import issues
 
@@ -19,6 +20,17 @@ export async function GET(
         if (Number.isNaN(artworkId)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
+
+        // --- NEW: Trigger explicit sync for this artwork ---
+        // This ensures that when the UI checks status, we actually go verify it 
+        // with the provider (Modal) instead of waiting for a cron job.
+        // We use catch to prevent sync errors from blocking the status read.
+        try {
+            await PipelineService.syncRunningJobs(artworkId);
+        } catch (syncError) {
+            console.error("[StatusAPI] Sync failed:", syncError);
+        }
+        // ---------------------------------------------------
 
         const db = await getDb();
 

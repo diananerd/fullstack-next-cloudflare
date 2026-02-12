@@ -16,7 +16,7 @@ import {
 } from "../models/artwork.enum";
 import { dispatchProtectionJob } from "../utils/dispatch-job";
 import { getProtectionConfig } from "@/lib/protection-config";
-import { deleteFromR2 } from "@/lib/r2";
+import { deleteFromR2, cleanDirectoryExcept } from "@/lib/r2";
 import { CreditService } from "@/modules/credits/services/credit.service";
 import { PROTECTION_PRICING, DEFAULT_PROCESS_COST } from "@/constants/pricing.constant";
 
@@ -53,22 +53,34 @@ export class PipelineService {
                 `[Pipeline] Hard Reset: Cleaning up ${allPreviousJobs.length} previous jobs for artwork ${artworkId}.`,
             );
 
-            // A. Delete R2 Artifacts (Sequential to ensure simple error handling, or parallel if many)
-            const keysToDelete = allPreviousJobs
-                .map((j) => j.outputKey)
-                .filter((k): k is string => !!k);
+            // A. Directory Cleanup (Force Clean)
+            // Instead of just deleting known job outputs, we purge the directory except the original file
+            // to catch any legacy artifacts.
+            if (artwork.r2Key) {
+                const lastSlash = artwork.r2Key.lastIndexOf("/");
+                if (lastSlash !== -1) {
+                    const prefix = artwork.r2Key.substring(0, lastSlash + 1); // e.g. "userId/hash/" or "hash/"
+                    // We only run this if the prefix looks safe (contains a hash or user ID)
+                    // Avoid root deletion.
+                    if (prefix.length > 10) { 
+                        await cleanDirectoryExcept(prefix, [artwork.r2Key]).catch(e => console.error(e));
+                    }
+                }
+            } else {
+                 // Fallback for artworks without r2Key (should be rare)
+                const keysToDelete = allPreviousJobs
+                    .map((j) => j.outputKey)
+                    .filter((k): k is string => !!k);
 
-            if (keysToDelete.length > 0) {
-                // We don't await strictly for all deletes to finish to avoid blocking UI too long,
-                // but for a "Hard Reset" it is safer to ensure they are gone.
-                // Let's use Promise.allsettled to not throw on single fail
-                await Promise.allSettled(
-                    keysToDelete.map((key) =>
-                        deleteFromR2(key).catch((e) =>
-                            console.error(`Failed to delete ${key}`, e),
+                if (keysToDelete.length > 0) {
+                    await Promise.allSettled(
+                        keysToDelete.map((key) =>
+                            deleteFromR2(key).catch((e) =>
+                                console.error(`Failed to delete ${key}`, e),
+                            ),
                         ),
-                    ),
-                );
+                    );
+                }
             }
 
             // B. Invalidate DB Rows
@@ -92,9 +104,15 @@ export class PipelineService {
             `[Pipeline] Starting pipeline for Artwork ${artworkId}. Steps: ${pipeline.length}`,
         );
 
-        // 2. Prepare Metadata
+        // 2. Prepare Metadata - CLEAR OLD REPORTS
+        // We must remove previous verification reports and errors since we are starting fresh.
+        // Otherwise, the UI might show "old" variant buttons pointing to deleted files.
+        const baseMetadata = (artwork.metadata as Record<string, any>) || {};
+        const { verificationReport, error, ...keptMetadata } = baseMetadata; // Destructure to remove keys
+
         const metadata = {
-            ...(artwork.metadata || {}),
+            ...keptMetadata,
+            // Reset pipeline state
             pipeline: {
                 steps: pipeline,
                 currentStep: 0,
@@ -384,20 +402,28 @@ export class PipelineService {
     /**
      * Main Orchestration Loop part 1: Sync Statuses
      * Queries external providers for status of running jobs.
+     * @param targetArtworkId - Optional: If provided, only syncs jobs for this specific artwork ID (e.g. for on-demand polling)
      */
-    static async syncRunningJobs() {
+    static async syncRunningJobs(targetArtworkId?: number) {
         const db = await getDb();
+
+        // Base where clause
+        const conditions = [
+             inArray(artworkJobs.status, [
+                JobStatus.QUEUED,
+                JobStatus.PROCESSING,
+            ])
+        ];
+        
+        if (targetArtworkId) {
+            conditions.push(eq(artworkJobs.artworkId, targetArtworkId));
+        }
 
         // Find jobs that are QUEUED or PROCESSING
         const activeJobs = await db
             .select()
             .from(artworkJobs)
-            .where(
-                inArray(artworkJobs.status, [
-                    JobStatus.QUEUED,
-                    JobStatus.PROCESSING,
-                ]),
-            )
+            .where(and(...conditions))
             .limit(100); // Batching: Only process 100 jobs per cycle to prevent OOM
 
         if (activeJobs.length === 0) return { synced: 0 };
@@ -539,7 +565,10 @@ export class PipelineService {
                                     outputKey:
                                         state.result.protected_image_key ||
                                         state.result.file_key,
-                                    meta: state.result.file_metadata,
+                                    meta: {
+                                        ...state.result.file_metadata,
+                                        verification_report: state.result.verification_report,
+                                    },
                                     updatedAt: new Date().toISOString(),
                                 })
                                 .where(eq(artworkJobs.id, job.id)),
@@ -779,6 +808,10 @@ export class PipelineService {
                             // TODO: Add to debt ledger or retry queue
                         }
 
+                        // Capture verification report if available (from last step's metadata)
+                        const lastJobMeta = lastJob.meta as any;
+                        const verificationReport = lastJobMeta?.verification_report;
+
                         await db
                             .update(artworks)
                             .set({
@@ -786,6 +819,7 @@ export class PipelineService {
                                 updatedAt: new Date().toISOString(),
                                 metadata: {
                                     ...metadata,
+                                    verificationReport, // Propagate to artwork metadata
                                     pipeline: {
                                         ...pipeline,
                                         pending: false,

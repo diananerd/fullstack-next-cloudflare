@@ -168,3 +168,56 @@ export async function deleteFolderFromR2(
         return false;
     }
 }
+
+export async function cleanDirectoryExcept(
+    prefix: string,
+    keepKeys: string[],
+    envOverride?: Cloudflare.Env,
+): Promise<boolean> {
+    try {
+        let env: Cloudflare.Env;
+        if (envOverride) {
+            env = envOverride;
+        } else {
+            const context = await getCloudflareContext();
+            env = context.env as unknown as Cloudflare.Env;
+        }
+
+        let truncated = true;
+        let cursor: string | undefined;
+        let deletedCount = 0;
+
+        console.log(`[R2] Cleaning directory '${prefix}' except keys:`, keepKeys);
+
+        while (truncated) {
+            const list = await env.drimit_shield_bucket.list({
+                prefix,
+                cursor,
+            });
+
+            if (list.objects.length > 0) {
+                const keysToDelete = list.objects
+                    .map((o) => o.key)
+                    // Filter out keys that exact match OR ensure we carefully handle folder logic
+                    // If keepKey is "a/b/c.png", strictly keep that.
+                    .filter((k) => !keepKeys.includes(k));
+
+                if (keysToDelete.length > 0) {
+                    await env.drimit_shield_bucket.delete(keysToDelete);
+                    deletedCount += keysToDelete.length;
+                }
+            }
+
+            truncated = list.truncated;
+            cursor = list.truncated ? list.cursor : undefined;
+        }
+
+        if (deletedCount > 0) {
+             console.log(`[R2] Cleaned ${deletedCount} files from ${prefix}`);
+        }
+        return true;
+    } catch (error) {
+        console.error("Clean directory from R2 error:", error);
+        return false;
+    }
+}

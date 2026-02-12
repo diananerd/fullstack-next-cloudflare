@@ -12,9 +12,13 @@ export type ProtectionStatusType =
     (typeof ProtectionStatus)[keyof typeof ProtectionStatus];
 
 export const ProtectionMethod = {
-    MIST: "mist", // Keep for backward compatibility if needed, otherwise remove
+    MIST: "mist", // Keep for backward compatibility
     WATERMARK: "watermark", 
     POISONING: "poisoning",
+    // New methods
+    POISON_IVY: "poison-ivy",
+    CONCEPT_CLOAK: "concept-cloak",
+    VISUAL_WATERMARK: "visual-watermark",
 } as const;
 
 export type ProtectionMethodType =

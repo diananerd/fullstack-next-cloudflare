@@ -46,7 +46,40 @@ export const PROTECTION_METHODS_CONFIG: Record<
         statusUrlEnvVar: "",
         description: "Deprecated Legacy Watermark",
         defaultConfig: {},
-    }
+    },
+    [ProtectionMethod.POISON_IVY]: {
+        urlEnvVar: "MODAL_POISONING_API_URL",
+        tokenEnvVar: "MODAL_AUTH_TOKEN",
+        statusUrlEnvVar: "MODAL_POISONING_STATUS_URL",
+        description: "Drimit Pixel Cloak",
+        defaultConfig: {
+            apply_poison: true,
+            apply_concept_poison: false,
+            apply_visual_watermark: false,
+        },
+    },
+    [ProtectionMethod.CONCEPT_CLOAK]: {
+        urlEnvVar: "MODAL_POISONING_API_URL",
+        tokenEnvVar: "MODAL_AUTH_TOKEN",
+        statusUrlEnvVar: "MODAL_POISONING_STATUS_URL",
+        description: "Drimit Concept Cloak",
+        defaultConfig: {
+            apply_poison: false,
+            apply_concept_poison: true,
+            apply_visual_watermark: false,
+        },
+    },
+    [ProtectionMethod.VISUAL_WATERMARK]: {
+        urlEnvVar: "MODAL_POISONING_API_URL",
+        tokenEnvVar: "MODAL_AUTH_TOKEN",
+        statusUrlEnvVar: "MODAL_POISONING_STATUS_URL",
+        description: "Drimit Visual Watermark",
+        defaultConfig: {
+            apply_poison: false,
+            apply_concept_poison: false,
+            apply_visual_watermark: true,
+        },
+    },
 };
 
 export function getProtectionConfig(method: ProtectionMethodType) {

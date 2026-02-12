@@ -85,7 +85,7 @@ export function ArtworkStatusBadge({
     return (
         <div
             className={cn(
-                "flex items-center justify-center gap-1.5 h-7 px-3 bg-black/60 backdrop-blur-md rounded-full text-xs font-medium text-white shadow-sm pointer-events-auto select-none",
+                "flex items-center justify-center gap-1.5 h-7 px-2 bg-black/60 backdrop-blur-md rounded-full text-xs font-medium text-white shadow-sm pointer-events-auto select-none",
                 config.bg, // Optional bg override
                 className,
             )}

@@ -38,6 +38,11 @@ export async function checkArtworkProtectionEligibility(
                 if (!p) throw new Error("Pricing config missing for visual-watermark");
                 cost += p.cost;
             }
+            if (config.apply_verification === true) {
+                const p = PROTECTION_PRICING["verification"];
+                if (!p) throw new Error("Pricing config missing for verification");
+                cost += p.cost;
+            }
             
             console.log(`[Eligibility] Calculated Step Cost: ${cost}`);
             return acc + cost;

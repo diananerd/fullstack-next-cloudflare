@@ -83,7 +83,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
             {/* biome-ignore lint/a11y/useKeyWithClickEvents: Card click interaction */}
             {/* biome-ignore lint/a11y/noStaticElementInteractions: Card click interaction */}
             <div
-                className="group relative overflow-hidden rounded-lg w-full bg-gray-100/50 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="group relative @container overflow-hidden rounded-lg w-full bg-gray-100/50 hover:bg-gray-100 transition-colors cursor-pointer"
                 onClick={handleOpen}
             >
                 {/* Image (Main Content) */}
@@ -131,7 +131,10 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                         {/* Top Row: Status & Actions */}
                         <div className="flex items-start w-full gap-2">
                             <div className="mr-auto">
-                                <ArtworkStatusBadge status={optimisticStatus} />
+                                <ArtworkStatusBadge 
+                                    status={optimisticStatus} 
+                                    className="[&>span]:hidden @[240px]:[&>span]:inline"
+                                />
                             </div>
                             <ArtworkActionButtons actions={actions} />
                         </div>

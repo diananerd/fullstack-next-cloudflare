@@ -59,8 +59,8 @@ export function ArtworkActionButtons(props: ArtworkActionButtonsProps) {
                 className="flex gap-1.5 pointer-events-auto items-center"
                 onClick={stopProp}
             >
-                {/* Primary Action: Protect OR Download */}
-                {canDownload ? (
+                {/* Download Action (If Protected) */}
+                {canDownload && (
                     <Button
                         variant="secondary"
                         size="icon"
@@ -71,28 +71,29 @@ export function ArtworkActionButtons(props: ArtworkActionButtonsProps) {
                     >
                         <Download className="h-3.5 w-3.5" />
                     </Button>
-                ) : (
-                    <ProtectArtworkDialog artworkId={artworkId}>
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className={cn(
-                                "h-7 w-7 text-white rounded-full border-0 shadow-sm",
-                                "bg-black/60 hover:bg-indigo-500/80",
-                                isProcessing && "opacity-50 cursor-not-allowed",
-                            )}
-                            onClick={stopProp}
-                            disabled={isPending || isProcessing}
-                            title={isProcessing ? "Processing..." : "Protect"}
-                        >
-                            {isPending ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                                <Shield className="h-3.5 w-3.5" />
-                            )}
-                        </Button>
-                    </ProtectArtworkDialog>
                 )}
+
+                {/* Protect Action (Always available to allow Reprocess) */}
+                <ProtectArtworkDialog artworkId={artworkId}>
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        className={cn(
+                            "h-7 w-7 text-white rounded-full border-0 shadow-sm",
+                            "bg-black/60 hover:bg-indigo-500/80",
+                            isProcessing && "opacity-50 cursor-not-allowed",
+                        )}
+                        onClick={stopProp}
+                        disabled={isPending || isProcessing}
+                        title={isProcessing ? "Processing..." : (canDownload ? "Reprocess" : "Protect")}
+                    >
+                        {isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <Shield className="h-3.5 w-3.5" />
+                        )}
+                    </Button>
+                </ProtectArtworkDialog>
 
                 {/* Cancel Button (While Processing) */}
                 {isProcessing && !hideCancel && (

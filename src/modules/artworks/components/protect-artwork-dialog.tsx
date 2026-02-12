@@ -17,6 +17,7 @@ import {
     Fingerprint,
     Sparkles,
     Smartphone,
+    Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/modules/auth/utils/auth-client";
@@ -63,25 +64,38 @@ interface ProtectArtworkDialogProps {
 const PROTECTION_OPTIONS = [
     {
         value: "poison-ivy",
-        label: "AI Poisoning",
-        description: "Applies subtle perturbations to disrupt AI recognition (Poison Ivy).",
+        label: "Drimit Pixel Cloak (Anti-Mimicry)",
+        description: "Prevents style mimicry by shifting feature space. Effective against SDXL & Flux. (Glaze-equivalent)",
         icon: ShieldCheck,
+        disabled: false,
+    },
+    {
+        value: "concept-cloak",
+        label: "Drimit Concept Cloak (Anti-Training)",
+        description: "Poisons training data by misaligning text-image pairs. (Nightshade-equivalent)",
+        icon: Sparkles,
         disabled: false,
     },
     {
         value: "ai-watermark",
         label: "AI Watermark (Invisible)",
-        description: "Adds an invisible signature to prove ownership.",
+        description: "Adds an invisible signature to prove ownership and track leaks.",
         icon: Fingerprint,
         disabled: false,
     },
     {
         value: "visual-watermark",
         label: "Visual Watermark",
-        description: "Overlays visible text on the image.",
+        description: "Overlays visible text on the image for deterrence.",
         icon: Droplets,
         disabled: false,
     },
+];
+
+const INTENSITY_OPTIONS = [
+    { value: "Low", label: "Low (Better Quality)" },
+    { value: "Medium", label: "Medium (Balanced)" },
+    { value: "High", label: "High (Stronger Protection)" }
 ];
 
 export function ProtectArtworkDialog({
@@ -107,10 +121,13 @@ export function ProtectArtworkDialog({
 
     const [step, setStep] = useState(1);
     const [selectedMethods, setSelectedMethods] = useState<string[]>([]);
-
+    
     // Config States
     // Watermark text is the only user input needed for these options
     const [watermarkText, setWatermarkText] = useState("DRIMIT SHIELD");
+    // Intensity for poisoning
+    const [intensity, setIntensity] = useState("Medium");
+    
     const [isPending, startTransition] = useTransition();
 
     // Session for pre-filling watermark
@@ -132,8 +149,10 @@ export function ProtectArtworkDialog({
                     method: ProtectionMethod.POISONING,
                     config: {
                         apply_poison: selectedMethods.includes("poison-ivy"),
+                        apply_concept_poison: selectedMethods.includes("concept-cloak"),
                         apply_watermark: selectedMethods.includes("ai-watermark"),
                         apply_visual_watermark: selectedMethods.includes("visual-watermark"),
+                        apply_verification: true, // Always apply verification
                     }
                 }];
                 const result = await checkArtworkProtectionEligibility(
@@ -152,6 +171,7 @@ export function ProtectArtworkDialog({
             setSelectedMethods([]);
             // Resetting to default string triggers the session auto-fill effect below
             setWatermarkText("DRIMIT SHIELD");
+            setIntensity("Medium");
         }
     }, [open]);
 
@@ -245,8 +265,9 @@ export function ProtectArtworkDialog({
             const hasPoison = selectedMethods.includes("poison-ivy");
             const hasAiWatermark = selectedMethods.includes("ai-watermark");
             const hasVisualWatermark = selectedMethods.includes("visual-watermark");
+            const hasConceptPoison = selectedMethods.includes("concept-cloak");
             
-            if (!hasPoison && !hasAiWatermark && !hasVisualWatermark) {
+            if (!hasPoison && !hasConceptPoison && !hasAiWatermark && !hasVisualWatermark) {
                 toast.error("Please select at least one protection method.");
                 return;
             }
@@ -255,9 +276,12 @@ export function ProtectArtworkDialog({
                 method: ProtectionMethod.POISONING,
                 config: {
                     apply_poison: hasPoison,
+                    apply_concept_poison: hasConceptPoison,
                     apply_watermark: hasAiWatermark,
                     apply_visual_watermark: hasVisualWatermark,
-                    watermark_text: watermarkText.trim()
+                    apply_verification: true, // Always apply verification
+                    watermark_text: watermarkText.trim(),
+                    intensity: intensity
                 }
             }];
 
@@ -457,6 +481,33 @@ export function ProtectArtworkDialog({
                     {/* STEP 3: CONFIGURATION (Combined) */}
                     {step === 3 && (
                         <div className="space-y-6">
+                            {/* Intensity Config */}
+                            {(selectedMethods.includes("poison-ivy") || selectedMethods.includes("concept-cloak")) && (
+                                <div className="space-y-3">
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                                        Protection Intensity
+                                    </Label>
+                                    <div className="space-y-2">
+                                        <Label>Strength Level</Label>
+                                         <Select value={intensity} onValueChange={setIntensity}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select intensity" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {INTENSITY_OPTIONS.map((opt) => (
+                                                    <SelectItem key={opt.value} value={opt.value}>
+                                                        {opt.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground">
+                                            Higher intensity offers stronger protection against fine-tuning but may introduce perceptible artifacts.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Watermark Config */}
                             {selectedMethods.includes("visual-watermark") && (
                                 <div className="space-y-3">

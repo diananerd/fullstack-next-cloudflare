@@ -44,6 +44,20 @@ export async function protectArtworkAction(input: ProtectArtworkInput) {
             input.pipeline,
         );
 
+        // --- NEW: Force Queue Processing ---
+        // In the decoupled architecture, 'startPipeline' only queues the job.
+        // The background cron usually picks it up.
+        // To ensure immediate feedback for the user (and to work in dev environments without active crons),
+        // we manually trigger the queue processor here.
+        // We use catch to ensure the UI doesn't crash if the queue is busy/fails, 
+        // as the cron will pick it up later anyway.
+        try {
+            console.log("[ProtectArtworkAction] Triggering immediate queue processing...");
+            await PipelineService.processQueue();
+        } catch (queueError) {
+            console.warn("[ProtectArtworkAction] Immediate queue processing failed (Cron will handle it):", queueError);
+        }
+
         revalidatePath(DASHBOARD_ROUTE);
         return { success: true };
     } catch (error: unknown) {
