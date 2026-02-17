@@ -11,7 +11,7 @@ async function main() {
         const content = fs.readFileSync(devVarsPath, "utf-8");
         const lines = content.split("\n");
         for (const line of lines) {
-            if (line.startsWith("MODAL_API_URL=")) {
+            if (line.startsWith("MODAL_KERNEL_API_URL=")) {
                 modalUrl = line.split("=")[1].trim();
             }
             if (line.startsWith("MODAL_AUTH_TOKEN=")) {
@@ -26,7 +26,7 @@ async function main() {
     if (!modalUrl) {
         // Updated URL after deployment
         modalUrl =
-            "https://diananerdoficial--drimit-shield-demo-submit-protection-job.modal.run";
+            "https://diananerdoficial--drimit-shield-kernel-fastapi-app.modal.run/protect";
     }
 
     // Fallback token if not found (from earlier turns)

@@ -11,6 +11,11 @@ export const PROTECTION_PRICING: Record<
     ProtectionMethodType | string,
     { cost: number; estimatedDuration: number; label: string }
 > = {
+    [ProtectionMethod.SHIELD]: {
+        cost: 1.0,
+        estimatedDuration: 90,
+        label: "Drimit Shield V2",
+    },
     // Legacy / Group keys
     [ProtectionMethod.POISONING]: {
         cost: 0.0,
@@ -42,7 +47,7 @@ export const PROTECTION_PRICING: Record<
         cost: 0.0, // Free
         estimatedDuration: 15,
         label: "Moondream Verification",
-    }
+    },
 };
 
 export const DEFAULT_PROCESS_COST = 0.5;

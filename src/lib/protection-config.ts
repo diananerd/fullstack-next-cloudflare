@@ -12,15 +12,26 @@ export interface ProtectionConfig {
 }
 
 export const PROTECTION_METHODS_CONFIG: Record<
-    ProtectionMethodType,
+    string,
     ProtectionConfig
 > = {
-    [ProtectionMethod.MIST]: { // Legacy placeholder
-        urlEnvVar: "MODAL_MIST_API_URL",
+    [ProtectionMethod.SHIELD]: {
+        urlEnvVar: "MODAL_KERNEL_API_URL",
         tokenEnvVar: "MODAL_AUTH_TOKEN", 
-        statusUrlEnvVar: "MODAL_MIST_STATUS_URL",
-        description: "Adversarial Mist v2 Protection",
-        defaultConfig: {},
+        statusUrlEnvVar: "MODAL_KERNEL_STATUS_URL",
+        description: "V2 Atomic Shield Pipeline",
+        defaultConfig: {
+            mode: "fast",
+        },
+    },
+    [ProtectionMethod.MIST]: { // Legacy placeholder - Redirects to Shield V2
+        urlEnvVar: "MODAL_KERNEL_API_URL", 
+        tokenEnvVar: "MODAL_AUTH_TOKEN", 
+        statusUrlEnvVar: "MODAL_KERNEL_STATUS_URL",
+        description: "Adversarial Mist v2 Protection (Unified)",
+        defaultConfig: {
+             method: "mist_legacy" 
+        },
     },
     // Removed legacy methods (Grayscale, Watermark) as they are now consolidated or deprecated
     [ProtectionMethod.POISONING]: {
@@ -41,11 +52,13 @@ export const PROTECTION_METHODS_CONFIG: Record<
     },
     // Placeholder to satisfy ProtectionMethodType constraint
     [ProtectionMethod.WATERMARK]: {
-        urlEnvVar: "MODAL_POISONING_API_URL", // Reuse or dummy
+        urlEnvVar: "MODAL_KERNEL_API_URL", // Reuse Shield Kernel
         tokenEnvVar: "MODAL_AUTH_TOKEN",
-        statusUrlEnvVar: "",
-        description: "Deprecated Legacy Watermark",
-        defaultConfig: {},
+        statusUrlEnvVar: "MODAL_KERNEL_STATUS_URL",
+        description: "Deprecated Legacy Watermark (Redirect to Shield)",
+        defaultConfig: {
+            method: "watermark_legacy"
+        },
     },
     [ProtectionMethod.POISON_IVY]: {
         urlEnvVar: "MODAL_POISONING_API_URL",

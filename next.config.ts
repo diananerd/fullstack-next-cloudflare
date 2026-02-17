@@ -2,16 +2,15 @@ import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 /** @type {import("next").NextConfig} */
 const nextConfig = {
-    output: "standalone",
     typescript: {
-        ignoreBuildErrors: true,
+        ignoreBuildErrors: false,
     },
-    serverExternalPackages: ["better-sqlite3"],
     experimental: {
         serverActions: {
             bodySizeLimit: "50mb",
         },
     },
+    serverExternalPackages: [],
 };
 
 if (process.env.NODE_ENV === "development") {

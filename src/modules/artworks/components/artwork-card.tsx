@@ -19,11 +19,13 @@ interface ArtworkCardProps {
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
     // Live status updates via SSE (replaces polling)
     const liveStatus = useArtworkStatus(artwork.id, artwork.protectionStatus);
+    // Destructure new V2 hook return
+    const { status, progress } = typeof liveStatus === 'object' ? liveStatus : { status: liveStatus, progress: null };
 
     // Memoize the live artwork object to prevent unnecessary re-renders of hooks
     const liveArtwork = {
         ...artwork,
-        protectionStatus: liveStatus,
+        protectionStatus: status,
     };
 
     const actions = useArtworkActions(liveArtwork);

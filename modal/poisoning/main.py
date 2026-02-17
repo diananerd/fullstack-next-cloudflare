@@ -170,9 +170,17 @@ auth_scheme = HTTPBearer()
 
 def get_r2_client():
     import boto3
+    # Try to get endpoint from various sources
+    endpoint = os.environ.get("R2_ENDPOINT")
+    if not endpoint and os.environ.get("CLOUDFLARE_ACCOUNT_ID"):
+            endpoint = f"https://{os.environ['CLOUDFLARE_ACCOUNT_ID']}.r2.cloudflarestorage.com"
+            
+    if not endpoint:
+        print("[Warning] R2 Endpoint not found, using default construction based on Account ID if available")
+
     return boto3.client(
         "s3",
-        endpoint_url=os.environ["R2_ENDPOINT"],
+        endpoint_url=endpoint,
         aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
     )

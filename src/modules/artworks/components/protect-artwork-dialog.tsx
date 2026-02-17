@@ -63,33 +63,12 @@ interface ProtectArtworkDialogProps {
 
 const PROTECTION_OPTIONS = [
     {
-        value: "poison-ivy",
-        label: "Drimit Pixel Cloak (Anti-Mimicry)",
-        description: "Prevents style mimicry by shifting feature space. Effective against SDXL & Flux. (Glaze-equivalent)",
+        value: "shield",
+        label: "Drimit Shield V2 (Unified)",
+        description: "Complete protection suite: Identity Cloaking, Style Poisoning, Edit Immunity, and Watermarking.",
         icon: ShieldCheck,
         disabled: false,
-    },
-    {
-        value: "concept-cloak",
-        label: "Drimit Concept Cloak (Anti-Training)",
-        description: "Poisons training data by misaligning text-image pairs. (Nightshade-equivalent)",
-        icon: Sparkles,
-        disabled: false,
-    },
-    {
-        value: "ai-watermark",
-        label: "AI Watermark (Invisible)",
-        description: "Adds an invisible signature to prove ownership and track leaks.",
-        icon: Fingerprint,
-        disabled: false,
-    },
-    {
-        value: "visual-watermark",
-        label: "Visual Watermark",
-        description: "Overlays visible text on the image for deterrence.",
-        icon: Droplets,
-        disabled: false,
-    },
+    }
 ];
 
 const INTENSITY_OPTIONS = [
@@ -119,11 +98,11 @@ export function ProtectArtworkDialog({
         }
     };
 
-    const [step, setStep] = useState(1);
-    const [selectedMethods, setSelectedMethods] = useState<string[]>([]);
+    const [step, setStep] = useState(1); // 1: Config (Combined), 2: Confirm, 3: Success
+    const [selectedMethods, setSelectedMethods] = useState<string[]>(["shield"]);
     
     // Config States
-    // Watermark text is the only user input needed for these options
+    // Watermark text defaults to user name or fallback
     const [watermarkText, setWatermarkText] = useState("DRIMIT SHIELD");
     // Intensity for poisoning
     const [intensity, setIntensity] = useState("Medium");
@@ -141,18 +120,17 @@ export function ProtectArtworkDialog({
     } | null>(null);
 
     useEffect(() => {
-        if (open && step === 4 && session?.user?.id) {
+        if (open && step === 2 && session?.user?.id) {
             setEligibility(null);
             startTransition(async () => {
-                // Construct pipeline for eligibility check with correct flags
+                // Construct pipeline for eligibility check with correct V2 flags
                  const pipeline = [{
-                    method: ProtectionMethod.POISONING,
+                    method: ProtectionMethod.SHIELD, // Use unified method
                     config: {
-                        apply_poison: selectedMethods.includes("poison-ivy"),
-                        apply_concept_poison: selectedMethods.includes("concept-cloak"),
-                        apply_watermark: selectedMethods.includes("ai-watermark"),
-                        apply_visual_watermark: selectedMethods.includes("visual-watermark"),
-                        apply_verification: true, // Always apply verification
+                        intensity, 
+                        watermark_text: watermarkText,
+                        // Explicitly request all layers for cost calc (if relevant)
+                        layers: ["identity", "mimicry", "editing", "watermark"]
                     }
                 }];
                 const result = await checkArtworkProtectionEligibility(
@@ -162,13 +140,13 @@ export function ProtectArtworkDialog({
                 setEligibility(result);
             });
         }
-    }, [open, step, session, selectedMethods]);
+    }, [open, step, session, selectedMethods, intensity, watermarkText]);
 
     useEffect(() => {
         if (open) {
-            // Reset state on open to avoid pollution from previous runs
+            // Reset state on open
             setStep(1);
-            setSelectedMethods([]);
+            setSelectedMethods(["shield"]); // Auto-select Shield V2
             // Resetting to default string triggers the session auto-fill effect below
             setWatermarkText("DRIMIT SHIELD");
             setIntensity("Medium");
@@ -197,91 +175,32 @@ export function ProtectArtworkDialog({
             message: "Invalid characters detected.",
         });
 
-    const toggleMethod = (method: string) => {
-        if (selectedMethods.includes(method)) {
-            setSelectedMethods(selectedMethods.filter((m) => m !== method));
-        } else {
-            // Respect default order when adding
-            const newSelection = [...selectedMethods, method];
-            // Sort based on PROTECTION_OPTIONS index so order is consistent
-            newSelection.sort((a, b) => {
-                const idxA = PROTECTION_OPTIONS.findIndex((o) => o.value === a);
-                const idxB = PROTECTION_OPTIONS.findIndex((o) => o.value === b);
-                return idxA - idxB;
-            });
-            setSelectedMethods(newSelection);
-        }
-    };
-
-    const moveMethod = (index: number, direction: "up" | "down") => {
-        // No longer needed with flat list
-    };
-
-    const hasConfigStep =
-        selectedMethods.includes("visual-watermark"); // Only visual watermark needs text input for now
-
     const handleNext = () => {
         if (step === 1) {
-            if (selectedMethods.length === 0) {
-                toast.error("Please select at least one method.");
+            // Validate Config immediately since Step 1 is Config
+            const result = watermarkSchema.safeParse(watermarkText);
+            if (!result.success) {
+                toast.error(result.error.issues[0].message);
                 return;
             }
-            
-            // SKIP Step 2 (Ordering) completely as requested
-            if (hasConfigStep) {
-                setStep(3);
-            } else {
-                setStep(4);
-            }
-        } else if (step === 3) {
-            // Validate config if needed
-            if (selectedMethods.includes("visual-watermark")) {
-                const result = watermarkSchema.safeParse(watermarkText);
-                if (!result.success) {
-                    toast.error(result.error.issues[0].message);
-                    return;
-                }
-            }
-            setStep(4);
+            setStep(2); // Go to Confirmation (Skip ordering)
         }
     };
 
     const handleBack = () => {
-        // Step 2 is skipped, so back from 3 goes to 1
-        if (step === 3) {
+        if (step === 2) {
             setStep(1);
-        } else if (step === 4) {
-            if (hasConfigStep) {
-                setStep(3);
-            } else {
-                setStep(1);
-            }
         }
     };
 
     const handleSubmit = () => {
         startTransition(async () => {
-             // Construct single pipeline step: POISONING with flags
-            const hasPoison = selectedMethods.includes("poison-ivy");
-            const hasAiWatermark = selectedMethods.includes("ai-watermark");
-            const hasVisualWatermark = selectedMethods.includes("visual-watermark");
-            const hasConceptPoison = selectedMethods.includes("concept-cloak");
-            
-            if (!hasPoison && !hasConceptPoison && !hasAiWatermark && !hasVisualWatermark) {
-                toast.error("Please select at least one protection method.");
-                return;
-            }
-
             const pipeline = [{
-                method: ProtectionMethod.POISONING,
+                method: ProtectionMethod.SHIELD,
                 config: {
-                    apply_poison: hasPoison,
-                    apply_concept_poison: hasConceptPoison,
-                    apply_watermark: hasAiWatermark,
-                    apply_visual_watermark: hasVisualWatermark,
-                    apply_verification: true, // Always apply verification
+                    intensity,
                     watermark_text: watermarkText.trim(),
-                    intensity: intensity
+                    layers: ["identity", "mimicry", "editing", "watermark"]
                 }
             }];
 
@@ -291,8 +210,10 @@ export function ProtectArtworkDialog({
             });
 
             if (result.success) {
-                // Show success step instead of closing immediately
-                setStep(5);
+                // Show success step
+                setStep(3);
+                // Ideally refresh page or invalidate cache here
+                router.refresh();
             } else {
                 toast.error(result.error || "Failed to start protection");
             }
@@ -321,225 +242,83 @@ export function ProtectArtworkDialog({
                 )}
 
                 <div className="py-2">
-                    {/* STEP 1: SELECTION */}
+                    {/* STEP 1: CONFIGURATION */}
                     {step === 1 && (
-                        <div className="space-y-4">
-                            <h3 className="font-semibold text-sm text-foreground/80">
-                                Select Methods
-                            </h3>
-                            <div className="grid gap-3">
-                                {PROTECTION_OPTIONS.map((option) => {
-                                    const Icon = option.icon;
-                                    const isSelected = selectedMethods.includes(
-                                        option.value,
-                                    );
-                                    const isDisabled = option.disabled;
-
-                                    if (isDisabled) {
-                                        return (
-                                            <div
-                                                key={option.value}
-                                                className="flex items-start space-x-3 rounded-md border border-muted/60 p-3 opacity-60 cursor-not-allowed bg-muted/10 grayscale-[0.5]"
-                                            >
-                                                <Checkbox
-                                                    disabled
-                                                    className="mt-1"
-                                                />
-                                                <div className="flex-1 space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <Icon className="h-4 w-4 text-foreground/70" />
-                                                        <p className="font-medium text-sm leading-none flex items-center gap-2">
-                                                            {option.label}
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="text-[10px] h-4 px-1 py-0 border-muted-foreground/40 text-muted-foreground font-normal"
-                                                            >
-                                                                Coming Soon
-                                                            </Badge>
-                                                        </p>
-                                                    </div>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {option.description}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                            <div
-                                                key={option.value}
-                                                className={cn(
-                                                    "flex items-start space-x-3 rounded-md border p-3 cursor-pointer transition-colors",
-                                                    isSelected
-                                                        ? "border-primary/50 bg-primary/5"
-                                                        : "border-muted",
-                                                )}
-                                                onClick={() =>
-                                                    toggleMethod(
-                                                        option.value,
-                                                    )
-                                                }
-                                            >
-                                                <Checkbox
-                                                    checked={isSelected}
-                                                    onCheckedChange={() =>
-                                                        toggleMethod(
-                                                            option.value,
-                                                        )
-                                                    }
-                                                    className="mt-1"
-                                                />
-                                            <div className="flex-1 space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <Icon className="h-4 w-4 text-foreground/70" />
-                                                    <p className="font-medium text-sm leading-none">
-                                                        {option.label}
-                                                    </p>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {option.description}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STEP 2: ORDERING */}
-                    {step === 2 && (
-                        <div className="space-y-4">
-                            <h3 className="font-semibold text-sm text-foreground/80">
-                                Pipeline Execution Order
-                            </h3>
-                            <p className="text-xs text-muted-foreground">
-                                Reorder steps if necessary. The output of one
-                                step feeds into the next.
-                            </p>
-
-                            <div className="space-y-2">
-                                {selectedMethods.map((method, index) => {
-                                    const details = PROTECTION_OPTIONS.find(
-                                        (o) => o.value === method,
-                                    );
-                                    return (
-                                        <div
-                                            key={method}
-                                            className="flex items-center justify-between rounded-md border p-2 bg-muted/30"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <Badge
-                                                    variant="outline"
-                                                    className="h-5 w-5 rounded-full flex items-center justify-center p-0 text-[10px] bg-background"
-                                                >
-                                                    {index + 1}
-                                                </Badge>
-                                                <span className="text-sm font-medium leading-none">
-                                                    {details?.label || method}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7"
-                                                    disabled={index === 0}
-                                                    onClick={() =>
-                                                        moveMethod(index, "up")
-                                                    }
-                                                >
-                                                    <ArrowUp className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7"
-                                                    disabled={
-                                                        index ===
-                                                        selectedMethods.length -
-                                                            1
-                                                    }
-                                                    onClick={() =>
-                                                        moveMethod(
-                                                            index,
-                                                            "down",
-                                                        )
-                                                    }
-                                                >
-                                                    <ArrowDown className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STEP 3: CONFIGURATION (Combined) */}
-                    {step === 3 && (
                         <div className="space-y-6">
-                            {/* Intensity Config */}
-                            {(selectedMethods.includes("poison-ivy") || selectedMethods.includes("concept-cloak")) && (
-                                <div className="space-y-3">
-                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">
-                                        Protection Intensity
-                                    </Label>
-                                    <div className="space-y-2">
-                                        <Label>Strength Level</Label>
-                                         <Select value={intensity} onValueChange={setIntensity}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select intensity" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {INTENSITY_OPTIONS.map((opt) => (
-                                                    <SelectItem key={opt.value} value={opt.value}>
-                                                        {opt.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-xs text-muted-foreground">
-                                            Higher intensity offers stronger protection against fine-tuning but may introduce perceptible artifacts.
+                            
+                            {/* Method Selection (Static for now) */}
+                            <div className="rounded-md border border-primary/20 bg-primary/5 p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                                        <ShieldCheck className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-sm">Drimit Shield V2 (Unified)</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Includes Identity Cloaking, Style Poisoning, Edit Immunity, and Watermarking.
                                         </p>
                                     </div>
                                 </div>
-                            )}
+                            </div>
+
+                            {/* Intensity Config */}
+                            <div className="space-y-3">
+                                <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                                    Protection Intensity
+                                </Label>
+                                <div className="space-y-2">
+                                     <Select value={intensity} onValueChange={setIntensity}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select intensity" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {INTENSITY_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Controls the strength of the adversarial noise. Higher intensity protects better against fine-tuning but may be more visible.
+                                    </p>
+                                </div>
+                            </div>
 
                             {/* Watermark Config */}
-                            {selectedMethods.includes("visual-watermark") && (
-                                <div className="space-y-3">
-                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">
-                                        Watermark Settings
+                            <div className="space-y-3">
+                                <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                                    Invisible Watermark
+                                </Label>
+                                <div className="space-y-2">
+                                    <Label htmlFor="watermark" className="sr-only">
+                                        Text Content
                                     </Label>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="watermark">
-                                            Text Content
-                                        </Label>
-                                        <Input
-                                            id="watermark"
-                                            value={watermarkText}
-                                            onChange={(e) =>
-                                                setWatermarkText(e.target.value)
-                                            }
-                                            placeholder="Enter custom watermark text"
-                                            maxLength={25}
-                                        />
-                                        <p className="text-xs text-muted-foreground">
-                                            This text will be tiled diagonally
-                                            across the protected image. Max 25
-                                            characters.
-                                        </p>
-                                    </div>
+                                    <Input
+                                        id="watermark"
+                                        value={watermarkText}
+                                        onChange={(e) =>
+                                            setWatermarkText(e.target.value)
+                                        }
+                                        placeholder="Enter custom watermark text"
+                                        maxLength={25}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        This text will be embedded into the image frequency domain. 
+                                        (Max 25 chars)
+                                    </p>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     )}
 
-                    {/* STEP 4: CONFIRMATION */}
-                    {step === 4 && (
+
+
+                    {/* (Steps 2 and 3 removed) */}
+
+
+                    {/* STEP 2: CONFIRMATION */}
+                    {step === 2 && (
                         <div className="space-y-6">
                             <div className="space-y-4">
                                 <div>
@@ -550,10 +329,7 @@ export function ProtectArtworkDialog({
                                         This process runs in the background. It
                                         will take approximately{" "}
                                         <span className="font-semibold text-foreground">
-                                            {selectedMethods.reduce((acc, m) => acc + (PROTECTION_PRICING[m]?.estimatedDuration || 0), 0) > 60 
-                                                ? `${Math.ceil(selectedMethods.reduce((acc, m) => acc + (PROTECTION_PRICING[m]?.estimatedDuration || 0), 0) / 60)} minutes`
-                                                : `${selectedMethods.reduce((acc, m) => acc + (PROTECTION_PRICING[m]?.estimatedDuration || 0), 0)} seconds`
-                                            }
+                                            60-90 seconds
                                         </span>
                                         .
                                     </p>
@@ -567,10 +343,7 @@ export function ProtectArtworkDialog({
                                                 Insufficient Credits
                                             </p>
                                             <p className="text-xs text-red-600 mt-1">
-                                                You need <b>{eligibility.proposedCost.toFixed(2)}</b> credits for this job, but you only have <b>{eligibility.balance.toFixed(2)}</b> available (after checking active jobs).
-                                            </p>
-                                            <p className="text-xs text-red-600 mt-1">
-                                                Please recharge <b>{eligibility.missing.toFixed(2)}</b> more credits to continue.
+                                                You need <b>{eligibility.proposedCost.toFixed(2)}</b> credits for this job, but you only have <b>{eligibility.balance.toFixed(2)}</b> available.
                                             </p>
                                         </div>
                                     </div>
@@ -602,47 +375,26 @@ export function ProtectArtworkDialog({
 
                             <div className="space-y-2">
                                 <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
-                                    Final Pipeline
+                                    Summary
                                 </h4>
-                                <div className="space-y-2">
-                                    {selectedMethods.map((method, idx) => (
-                                        <div
-                                            key={method}
-                                            className="flex items-center gap-2 text-sm"
-                                        >
-                                            <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                                                {idx + 1}
-                                            </div>
-                                            <div className="flex-1 flex justify-between items-center">
-                                                <span>
-                                                    {
-                                                        PROTECTION_OPTIONS.find(
-                                                            (o) =>
-                                                                o.value === method,
-                                                        )?.label
-                                                    }
-                                                    {method ===
-                                                        ProtectionMethod.WATERMARK && (
-                                                        <span className="text-muted-foreground ml-1">
-                                                            ("{watermarkText}")
-                                                        </span>
-                                                    )}
-                                                </span>
-                                                <span className="text-xs font-mono text-muted-foreground">
-                                                    {PROTECTION_PRICING[method]?.cost.toFixed(2)} credits
-                                                </span>
-                                            </div>
-                                            {idx <
-                                                selectedMethods.length - 1 && (
-                                                <ArrowDown className="h-3 w-3 text-muted-foreground/50 mx-1" />
-                                            )}
-                                        </div>
-                                    ))}
+                                <div className="rounded-md border p-3 flex flex-col gap-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Method</span>
+                                        <span className="font-medium">Shield V2 (Unified)</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Intensity</span>
+                                        <span className="font-medium">{intensity}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Watermark</span>
+                                        <span className="font-medium">{watermarkText || "Default"}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
-                    {step === 5 && (
+                    {step === 3 && (
                         <div className="flex flex-col items-center justify-center py-6 text-center space-y-4 animate-in fade-in zoom-in duration-300">
                             <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
                                 <Check className="h-8 w-8" />
@@ -685,12 +437,12 @@ export function ProtectArtworkDialog({
                 <DialogFooter
                     className={cn(
                         "flex flex-row items-center gap-2 sm:justify-end",
-                        step === 5
+                        step === 3
                             ? "justify-center sm:justify-center"
                             : "justify-end",
                     )}
                 >
-                    {step > 1 && step < 5 && (
+                    {step === 2 && (
                         <Button
                             variant="ghost"
                             onClick={handleBack}
@@ -700,14 +452,13 @@ export function ProtectArtworkDialog({
                         </Button>
                     )}
 
-                    {step < 4 ? (
+                    {step === 1 ? (
                         <Button
                             onClick={handleNext}
-                            disabled={selectedMethods.length === 0}
                         >
                             Next <ArrowRight className="h-4 w-4 ml-2" />
                         </Button>
-                    ) : step === 4 ? (
+                    ) : step === 2 ? (
                         eligibility && !eligibility.eligible ? (
                              <Button 
                                 onClick={() => router.push("/billing")} 

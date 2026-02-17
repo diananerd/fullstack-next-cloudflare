@@ -5,11 +5,21 @@ import {
     type ProtectionStatusType,
 } from "../models/artwork.enum";
 
+export type ProgressData = {
+    status: string;
+    currentStep?: string;
+    steps?: any[];
+    error?: string;
+    shieldScore?: number;
+    total_duration_ms?: number;
+};
+
 export function useArtworkStatus(
     artworkId: number,
     initialStatus: ProtectionStatusType,
 ) {
     const [status, setStatus] = useState<ProtectionStatusType>(initialStatus);
+    const [progress, setProgress] = useState<ProgressData | null>(null);
     const router = useRouter();
     const [_, startTransition] = useTransition();
 
@@ -19,19 +29,14 @@ export function useArtworkStatus(
     }, [initialStatus]);
 
     useEffect(() => {
-        const isProcessing =
-            status === ProtectionStatus.QUEUED ||
-            status === ProtectionStatus.PROCESSING ||
-            status === ProtectionStatus.UPLOADING;
-
-        if (!isProcessing) return;
-
-        console.log(
-            `[Polling V2] Starting polling for artwork ${artworkId} (Status: ${status})`,
-        );
-
+        // V2: Always fetch status on mount to get the detailed job result (steps, logs) even if completed.
+        // Then only poll if processing.
+        
+        let isActive = true;
         const checkStatus = async () => {
-            try {
+             if (!isActive) return;
+
+             try {
                 // Polling the local API which syncs with Modal on-demand
                 const res = await fetch(`/api/artworks/${artworkId}/status`);
                 if (!res.ok) {
@@ -42,30 +47,30 @@ export function useArtworkStatus(
                 }
                 const data = (await res.json()) as {
                     status?: ProtectionStatusType | "ERROR";
+                    progress?: ProgressData;
                 };
+                
+                if (!isActive) return;
 
-                // Only log if interesting or debug
-                // console.log(`[Polling] Received status: ${data.status}`);
+                if (data.progress) {
+                    setProgress(data.progress);
+                }
 
                 if (data.status && data.status !== "ERROR") {
-                    // Only update if changed
                     setStatus((prev) => {
                         if (prev !== data.status)
                             return data.status as ProtectionStatusType;
                         return prev;
                     });
-
-                    // Check for completion
+                     
                     const isFinal =
                         data.status === ProtectionStatus.DONE ||
                         data.status === ProtectionStatus.FAILED ||
                         data.status === ProtectionStatus.CANCELED;
 
-                    if (isFinal) {
-                        console.log(
-                            `[Polling] Job finished: ${data.status}. Refreshing...`,
-                        );
-                        startTransition(() => {
+                    // If status CHANGED to final, refresh router
+                    if (isFinal && (status !== data.status)) {
+                         startTransition(() => {
                             router.refresh();
                         });
                     }
@@ -75,19 +80,24 @@ export function useArtworkStatus(
             }
         };
 
-        // Initial check on mount/status change
+        // Initial fetch
         checkStatus();
 
-        // Relaxed Polling Strategy:
-        // The processing happens asynchronously in the cloud (Modal).
-        // We don't need real-time updates. The user can leave and come back.
-        // We verify status once per minute to keep the UI eventually consistent if the user stays.
-        const intervalId = setInterval(checkStatus, 60000); // 60 seconds
+        const isProcessing =
+            status === ProtectionStatus.QUEUED ||
+            status === ProtectionStatus.PROCESSING ||
+            status === ProtectionStatus.UPLOADING;
+
+        let intervalId: NodeJS.Timeout;
+        if (isProcessing) {
+             intervalId = setInterval(checkStatus, 3000); 
+        }
 
         return () => {
-            clearInterval(intervalId);
+            isActive = false;
+            if (intervalId) clearInterval(intervalId);
         };
-    }, [artworkId, status, router.refresh]);
+    }, [artworkId, status]); // Removed dependency on router to avoid loops
 
-    return status;
+    return { status, progress };
 }

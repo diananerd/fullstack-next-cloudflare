@@ -29,22 +29,7 @@ export const artworks = sqliteTable(
             .notNull()
             .default(ProtectionStatus.IDLE),
         jobId: text("job_id"),
-        metadata: text("metadata", { mode: "json" }).$type<{
-            inputSha256?: string;
-            outputSha256?: string;
-            mistTimeSeconds?: number;
-            processingTime?: number;
-            error?: string;
-            syncedAt?: string;
-            pipeline?: {
-                steps: {
-                    method: ProtectionMethodType;
-                    config?: Record<string, any>;
-                }[];
-                currentStep: number;
-                pending?: boolean;
-            };
-        }>(),
+        metadata: text("metadata", { mode: "json" }).$type<Record<string, any>>(),
         width: integer("width"),
         height: integer("height"),
         size: integer("size"),

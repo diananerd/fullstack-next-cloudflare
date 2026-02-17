@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { artworkJobs } from "@/modules/artworks/schemas/artwork-job.schema";
 import { PipelineService } from "@/modules/artworks/services/pipeline.service";
 
 // export const runtime = "edge"; // Removed to fix import issues
@@ -22,10 +23,8 @@ export async function GET(
         }
 
         // --- NEW: Trigger explicit sync for this artwork ---
-        // This ensures that when the UI checks status, we actually go verify it 
-        // with the provider (Modal) instead of waiting for a cron job.
-        // We use catch to prevent sync errors from blocking the status read.
         try {
+            // Only sync if likely active? Or always? Always is safer for "on demand" check.
             await PipelineService.syncRunningJobs(artworkId);
         } catch (syncError) {
             console.error("[StatusAPI] Sync failed:", syncError);
@@ -40,15 +39,35 @@ export async function GET(
         });
 
         if (!artwork) {
-            // console.log(`[StatusAPI] Artwork ${id} not found`);
             return NextResponse.json(
                 { error: "Artwork not found" },
                 { status: 404 },
             );
         }
+        
+        // 2. Get Active/Latest Job for Granular Progress
+        const latestJob = await db.query.artworkJobs.findFirst({
+            where: eq(artworkJobs.artworkId, artworkId),
+            orderBy: [desc(artworkJobs.createdAt)],
+        });
+
+        // Parse V2 Result if available
+        let progress = null;
+        if (latestJob) {
+             const result = (latestJob.result as any) || {};
+             progress = {
+                 status: latestJob.status,
+                 currentStep: latestJob.currentStep,
+                 steps: result.steps || [], 
+                 shieldScore: result.shieldScore, // Pass score to frontend
+                 total_duration_ms: result.total_duration_ms,
+                 error: latestJob.errorMessage
+             };
+        }
 
         return NextResponse.json({
             status: artwork.protectionStatus,
+            progress: progress || null
         });
     } catch (error) {
         console.error("[StatusAPI] Critical Error:", error);

@@ -13,21 +13,24 @@ import {
 import {
     ProtectionStatus,
     type ProtectionMethodType,
+    ProtectionMethod,
 } from "../models/artwork.enum";
 import { dispatchProtectionJob } from "../utils/dispatch-job";
 import { getProtectionConfig } from "@/lib/protection-config";
 import { deleteFromR2, cleanDirectoryExcept } from "@/lib/r2";
 import { CreditService } from "@/modules/credits/services/credit.service";
-import { PROTECTION_PRICING, DEFAULT_PROCESS_COST } from "@/constants/pricing.constant";
+import { PROTECTION_PRICING } from "@/constants/pricing.constant";
 
 export class PipelineService {
     /**
      * Initializes a new protection pipeline for an artwork.
-     * Creates the first job but does not necessarily dispatch it immediately (optional).
+     * V2 Refactor: Always starts a Unified Shield Pipeline.
      */
     static async startPipeline(
         artworkId: number,
         userId: string,
+        // Config is passed, but method is implied as SHIELD for V2,
+        // though we support passing it for future proofing.
         pipeline: { method: ProtectionMethodType; config?: any }[],
     ) {
         const db = await getDb();
@@ -39,10 +42,7 @@ export class PipelineService {
 
         if (!artwork) throw new Error("Artwork not found");
 
-        // 1. Hard Reset / Cleanup Logic
-        // We force a clean slate for the NEW pipeline request.
-        // We must fetch ALL previous jobs, delete their artifacts from R2 (to avoid stale content),
-        // and mark them as superseded.
+        // 2. Hard Reset / Cleanup Logic
         const allPreviousJobs = await db
             .select()
             .from(artworkJobs)
@@ -54,32 +54,17 @@ export class PipelineService {
             );
 
             // A. Directory Cleanup (Force Clean)
-            // Instead of just deleting known job outputs, we purge the directory except the original file
-            // to catch any legacy artifacts.
             if (artwork.r2Key) {
                 const lastSlash = artwork.r2Key.lastIndexOf("/");
                 if (lastSlash !== -1) {
-                    const prefix = artwork.r2Key.substring(0, lastSlash + 1); // e.g. "userId/hash/" or "hash/"
-                    // We only run this if the prefix looks safe (contains a hash or user ID)
-                    // Avoid root deletion.
-                    if (prefix.length > 10) { 
-                        await cleanDirectoryExcept(prefix, [artwork.r2Key]).catch(e => console.error(e));
+                    const prefix = artwork.r2Key.substring(0, lastSlash + 1);
+                    if (prefix.length > 10) {
+                        try {
+                            await cleanDirectoryExcept(prefix, [artwork.r2Key]);
+                        } catch (e) {
+                            console.error("[Pipeline] Cleanup error:", e);
+                        }
                     }
-                }
-            } else {
-                 // Fallback for artworks without r2Key (should be rare)
-                const keysToDelete = allPreviousJobs
-                    .map((j) => j.outputKey)
-                    .filter((k): k is string => !!k);
-
-                if (keysToDelete.length > 0) {
-                    await Promise.allSettled(
-                        keysToDelete.map((key) =>
-                            deleteFromR2(key).catch((e) =>
-                                console.error(`Failed to delete ${key}`, e),
-                            ),
-                        ),
-                    );
                 }
             }
 
@@ -88,8 +73,7 @@ export class PipelineService {
                 .update(artworkJobs)
                 .set({
                     status: JobStatus.FAILED,
-                    errorMessage:
-                        "Hard Reset: Superseded by new protection request.",
+                    errorMessage: "Superseded by new request.",
                     updatedAt: new Date().toISOString(),
                 })
                 .where(
@@ -100,51 +84,41 @@ export class PipelineService {
                 );
         }
 
-        console.log(
-            `[Pipeline] Starting pipeline for Artwork ${artworkId}. Steps: ${pipeline.length}`,
-        );
-
-        // 2. Prepare Metadata - CLEAR OLD REPORTS
-        // We must remove previous verification reports and errors since we are starting fresh.
-        // Otherwise, the UI might show "old" variant buttons pointing to deleted files.
+        // 3. Prepare Metadata
+        // Clear old reports
         const baseMetadata = (artwork.metadata as Record<string, any>) || {};
-        const { verificationReport, error, ...keptMetadata } = baseMetadata; // Destructure to remove keys
+        const { verificationReport, error, ...keptMetadata } = baseMetadata;
 
         const metadata = {
             ...keptMetadata,
-            // Reset pipeline state
             pipeline: {
-                steps: pipeline,
-                currentStep: 0,
-                pending: true,
+                method: ProtectionMethod.SHIELD,
+                config: pipeline[0]?.config || {},
+                startedAt: new Date().toISOString(),
             },
         };
 
-        // 3. Create First Job Record (Step 0)
-        const firstStep = pipeline[0];
+        // 4. Create Single Shield Job
+        // V2 Unified Pipeline = 1 Job Record
         const now = new Date().toISOString();
-
-        // Used for rollback if dispatch fails
-        let jobId: number | undefined;
+        const mainConfig = pipeline[0]?.config || {};
 
         try {
             const [insertedJob] = await db
                 .insert(artworkJobs)
                 .values({
                     artworkId: artworkId,
-                    method: firstStep.method,
-                    config: firstStep.config || {},
+                    method: ProtectionMethod.SHIELD, // Enforce Shield
+                    config: mainConfig,
                     stepOrder: 0,
-                    inputUrl: artwork.url, // Initial input is the original image
+                    inputUrl: artwork.url,
                     status: JobStatus.PENDING,
                     createdAt: now,
                     updatedAt: now,
                 })
                 .returning();
 
-            jobId = insertedJob.id;
-
-            // 4. Update Artwork Status
+            // 5. Update Artwork Status
             await db
                 .update(artworks)
                 .set({
@@ -154,28 +128,14 @@ export class PipelineService {
                 })
                 .where(eq(artworks.id, artworkId));
 
-            // 5. Queue Job (No immediate dispatch)
-            // We rely on the unified Queue System (processQueue) to pick this up
-            // respecting concurrency limits.
             console.log(
-                `[Pipeline] Job ${insertedJob.id} queued (pending dispatch).`,
+                `[Pipeline] Job ${insertedJob.id} queued (SHIELD V2).`,
             );
 
-            // await this.dispatchJob(insertedJob.id, userId);
+            // 6. Trigger Process Queue (Optional immediate attempt)
+            // await this.processQueue(); 
         } catch (error) {
             console.error("[Pipeline] Start failed:", error);
-            // If job was created but dispatch failed, mark as failed
-            if (jobId) {
-                await db
-                    .update(artworkJobs)
-                    .set({
-                        status: JobStatus.FAILED,
-                        errorMessage: String(error),
-                        updatedAt: new Date().toISOString(),
-                    })
-                    .where(eq(artworkJobs.id, jobId));
-            }
-            // Mark artwork as failed
             await db
                 .update(artworks)
                 .set({
@@ -184,163 +144,48 @@ export class PipelineService {
                     updatedAt: new Date().toISOString(),
                 })
                 .where(eq(artworks.id, artworkId));
-
             throw error;
         }
     }
 
     /**
-     * Resumes or Restarts a pipeline for a given artwork.
-     * Useful for retrying failed jobs or ensuring consistency.
+     * Resumes or Restarts a pipeline.
      */
     static async resumePipeline(
         artworkId: number,
         userId: string,
     ): Promise<void> {
+        // Simplified Resume: Just restart the last job if failed/stuck
         const db = await getDb();
-
-        const artwork = await db.query.artworks.findFirst({
-            where: eq(artworks.id, artworkId),
-        });
-
-        if (!artwork) throw new Error("Artwork not found");
-
-        // 1. Check existing state
         const jobs = await db
             .select()
             .from(artworkJobs)
             .where(eq(artworkJobs.artworkId, artworkId))
-            .orderBy(desc(artworkJobs.stepOrder)); // Latest first
+            .orderBy(desc(artworkJobs.createdAt))
+            .limit(1);
 
-        const metadata = artwork.metadata as any;
-        const pipeline = metadata?.pipeline;
-
-        if (!pipeline || !pipeline.steps || pipeline.steps.length === 0) {
-            // Legacy Fallback: Create a single-step pipeline based on the main 'method' field
-            console.warn(
-                `[Pipeline] Converting legacy/simple artwork ${artworkId} to pipeline.`,
-            );
-            const method = artwork.method || "mist";
-            const newPipeline = [
-                { method: method as ProtectionMethodType, config: {} },
-            ];
-
-            // Clean slate
-            await this.startPipeline(artworkId, userId, newPipeline);
-            return;
-        }
-
-        // 2. Identify fail point
-        const totalSteps = pipeline.steps.length;
-        let jobToRestart = jobs.find(
-            (j) =>
-                j.status === JobStatus.FAILED || j.status === JobStatus.PENDING,
-        );
-
-        if (!jobToRestart) {
-            // No obvious failed job. Maybe stuck in PROCESSING?
-            // Or maybe currentStep in metadata is desynced?
-            const currentStepIdx = pipeline.currentStep || 0;
-            console.log(
-                `[Pipeline] Resume: Checking state for Step ${currentStepIdx}/${totalSteps}`,
-            );
-
-            const existingJobAtStep = jobs.find(
-                (j) => j.stepOrder === currentStepIdx,
-            );
-
-            if (
-                existingJobAtStep &&
-                existingJobAtStep.status !== JobStatus.COMPLETED
-            ) {
-                console.log(
-                    `[Pipeline] Resume: Found stuck job at step ${currentStepIdx} (Status: ${existingJobAtStep.status})`,
-                );
-                jobToRestart = existingJobAtStep;
-            } else if (!existingJobAtStep && currentStepIdx < totalSteps) {
-                console.log(
-                    `[Pipeline] Resume: Job for step ${currentStepIdx} missing. Attempting advancement.`,
-                );
-                // Next step hasn't been created yet. We can start it.
-                // We let advancePipelines handle creation, IF the previous one is completed.
-                // But if we are here manually, maybe we force creation.
-                // For simplicity, if everything looks OK, advance.
-                const advanceRes = await this.advancePipelines();
-                if (advanceRes.advancements > 0) return;
-
-                // If advance didn't work, maybe we need to create the step.
-                // But advance only works if prev is COMPLETED.
-                if (currentStepIdx > 0) {
-                    const prevJob = jobs.find(
-                        (j) => j.stepOrder === currentStepIdx - 1,
-                    );
-                    if (prevJob?.status === JobStatus.COMPLETED) {
-                        // We can retry creating next step by 'waking up' the artwork logic
-                        // Actually advancePipelines should have caught it.
-                        console.warn(
-                            "[Pipeline] Resume: advancePipelines failed despite previous job completion.",
-                        );
-                    }
-                }
-            }
-        }
-
-        // 3. Restart the specific job
-        if (jobToRestart) {
-            console.log(
-                `[Pipeline] Retrying Job ${jobToRestart.id} (Step ${jobToRestart.stepOrder})`,
-            );
-
-            // Generate new ID if needed? No, we update the existing row to PENDING usually,
-            // or create a NEW row for history.
-            // Better to update to keep history clean for now, or use a new row.
-            // Let's reset the status of existing job to PENDING so it gets picked up.
-
-            await db
-                .update(artworkJobs)
-                .set({
-                    status: JobStatus.PENDING,
-                    externalId: null, // Reset external tracking
-                    errorMessage: null,
-                    updatedAt: new Date().toISOString(),
-                })
-                .where(eq(artworkJobs.id, jobToRestart.id));
-
-            // Update Artwork status
-            await db
-                .update(artworks)
-                .set({
-                    protectionStatus: ProtectionStatus.QUEUED,
-                    updatedAt: new Date().toISOString(),
-                })
-                .where(eq(artworks.id, artworkId));
-
-            // Queue for dispatch
-            console.log(
-                `[Pipeline] Job ${jobToRestart.id} marked as PENDING (Queued for dispatch).`,
-            );
-            // await this.dispatchJob(jobToRestart.id, userId);
-        } else {
-            // Fallback: If no jobs exist but pipeline does, start from scratch?
-            if (jobs.length === 0) {
-                await this.startPipeline(artworkId, userId, pipeline.steps);
-            } else {
-                console.log(
-                    "[Pipeline] Nothing to resume. Artwork might be done or inconsistent.",
-                );
-                // If DONE, ensure status is DONE
+        if (jobs.length > 0) {
+            const job = jobs[0];
+            if (job.status !== JobStatus.COMPLETED) {
+                console.log(`[Pipeline] Resuming Job ${job.id}`);
+                await db
+                    .update(artworkJobs)
+                    .set({
+                        status: JobStatus.PENDING,
+                        updatedAt: new Date().toISOString(),
+                    })
+                    .where(eq(artworkJobs.id, job.id));
+                    
                 await db
                     .update(artworks)
-                    .set({
-                        protectionStatus: ProtectionStatus.DONE,
-                    })
+                    .set({ protectionStatus: ProtectionStatus.QUEUED })
                     .where(eq(artworks.id, artworkId));
             }
         }
     }
 
     /**
-     * Dispatches a specific Job to the external provider (Modal).
+     * Dispatches a specific Job to Modal.
      */
     static async dispatchJob(jobId: number, userId: string) {
         const db = await getDb();
@@ -348,24 +193,17 @@ export class PipelineService {
             where: eq(artworkJobs.id, jobId),
         });
 
-        if (!job) throw new Error(`Job ${jobId} not found`);
-        if (job.status !== JobStatus.PENDING) {
-            console.warn(
-                `[Pipeline] Job ${jobId} is not PENDING (is ${job.status}). Skipping dispatch.`,
-            );
-            return;
-        }
+        if (!job || job.status !== JobStatus.PENDING) return;
 
-        console.log(`[Pipeline] Dispatching Job ${jobId} (${job.method})`);
+        console.log(`[Pipeline] Dispatching Job ${jobId} (SHIELD)`);
 
         try {
             const externalId = await dispatchProtectionJob({
-                artworkId: job.artworkId, // Keep for logging/compatibility
+                artworkId: job.artworkId,
                 userId: userId,
                 imageUrl: job.inputUrl,
-                method: job.method,
+                method: job.method as ProtectionMethodType,
                 config: job.config,
-                // We could pass job.id to Modal if it supported a generic correlation ID
             });
 
             await db
@@ -377,7 +215,6 @@ export class PipelineService {
                 })
                 .where(eq(artworkJobs.id, jobId));
 
-            // Update Artwork processing status
             await db
                 .update(artworks)
                 .set({
@@ -395,655 +232,249 @@ export class PipelineService {
                     updatedAt: new Date().toISOString(),
                 })
                 .where(eq(artworkJobs.id, jobId));
-            throw error;
         }
     }
 
     /**
-     * Main Orchestration Loop part 1: Sync Statuses
-     * Queries external providers for status of running jobs.
-     * @param targetArtworkId - Optional: If provided, only syncs jobs for this specific artwork ID (e.g. for on-demand polling)
+     * Main Orchestration: Sync Statuses
+     * V2 Refactor: Optimized for multiple artworks in one batch.
      */
     static async syncRunningJobs(targetArtworkId?: number) {
         const db = await getDb();
 
-        // Base where clause
         const conditions = [
-             inArray(artworkJobs.status, [
+            inArray(artworkJobs.status, [
                 JobStatus.QUEUED,
                 JobStatus.PROCESSING,
-            ])
+            ]),
         ];
-        
+
         if (targetArtworkId) {
             conditions.push(eq(artworkJobs.artworkId, targetArtworkId));
         }
 
-        // Find jobs that are QUEUED or PROCESSING
         const activeJobs = await db
             .select()
             .from(artworkJobs)
             .where(and(...conditions))
-            .limit(100); // Batching: Only process 100 jobs per cycle to prevent OOM
+            .limit(100);
 
         if (activeJobs.length === 0) return { synced: 0 };
 
         console.log(`[Pipeline] Syncing ${activeJobs.length} active jobs`);
 
-        const jobsByMethod: Record<string, typeof activeJobs> = {};
+        // Filter Zombies
+        const validJobs = [];
         for (const j of activeJobs) {
-            // ZOMBIE CHECK:
-            // 1. PROCESSING Timeout: If processing for > 30 mins, it's likely dead (Modal timeout is 10m).
-            // 2. QUEUED Timeout: If queued for > 6 hours, it's a system failure or extreme backlog.
             const lastUpdate = new Date(j.updatedAt).getTime();
-            const now = Date.now();
-            const elapsedHours = (now - lastUpdate) / (1000 * 60 * 60);
-            const elapsedMinutes = (now - lastUpdate) / (1000 * 60);
+            const elapsedMinutes = (Date.now() - lastUpdate) / (1000 * 60);
 
-            let isZombie = false;
-            let zombieReason = "";
-
-            if (
-                j.status === JobStatus.PROCESSING &&
-                elapsedMinutes > JOB_TIMEOUT_MINUTES
-            ) {
-                isZombie = true;
-                zombieReason = `Processing Timeout: Exceeded ${JOB_TIMEOUT_MINUTES}m limit.`;
-            } else if (j.status === JobStatus.QUEUED && elapsedHours > 6) {
-                isZombie = true;
-                zombieReason = "Queue Timeout: Stuck in queue for > 6h";
-            }
-
-            if (isZombie) {
-                console.warn(
-                    `[Pipeline] Job ${j.id} timed out (${zombieReason}). Marking as failed.`,
-                );
+            if (elapsedMinutes > JOB_TIMEOUT_MINUTES) {
+                console.warn(`[Pipeline] Job ${j.id} Timed Out.`);
                 await db
                     .update(artworkJobs)
                     .set({
                         status: JobStatus.FAILED,
-                        errorMessage: zombieReason,
+                        errorMessage: "Timeout",
                         updatedAt: new Date().toISOString(),
                     })
                     .where(eq(artworkJobs.id, j.id));
-                continue; // Skip sync for this job
-            }
-
-            // --- LEGACY/DEPRECATED CLEANUP ---
-            // If method is 'mist' or 'watermark' (legacy standalone), fail it to stop 401 errors
-            // caused by targeting old Modal apps with old secrets.
-            // But 'poisoning' uses internally 'watermark', so only fail if method string is explicitly the legacy one.
-            if (j.method === "mist" || j.method === "grayscale" || j.method === "watermark") {
-                 console.warn(`[Pipeline] Deprecating legacy job ${j.id} (Method: ${j.method}).`);
-                 await db
-                    .update(artworkJobs)
-                    .set({
-                        status: JobStatus.FAILED,
-                        errorMessage: "Method deprecated. Please restart protection with Shield v2.",
-                        updatedAt: new Date().toISOString(),
-                    })
-                    .where(eq(artworkJobs.id, j.id));
-                 continue;
-            }
-
-            if (!jobsByMethod[j.method]) jobsByMethod[j.method] = [];
-            jobsByMethod[j.method].push(j);
-        }
-
-        const updates = [];
-        const pendingAcks: Record<string, string[]> = {};
-
-        for (const [method, jobs] of Object.entries(jobsByMethod)) {
-            try {
-                const config = getProtectionConfig(
-                    method as ProtectionMethodType,
-                );
-
-                console.log(`[Pipeline] Syncing ${method}: URL=${config.statusUrl} (Token=${config.token ? 'Yes' : 'No'})`);
-
-                if (!config.statusUrl) {
-                     console.warn(`[Pipeline] No Status URL for method ${method}. Skipping sync.`);
-                     continue;
-                }
-
-                // Map by External ID (Modal Job ID) because that's what we have
-                // Note: The previous implementation mapped by Artwork ID.
-                // We need to check carefully about what Modal expects.
-                // Assuming we use Artwork ID for bulk query? No, usually Job ID is better.
-                // However, based on reading `cron/sync-modal-status/route.ts`, it was sending `artwork_ids`.
-                // In this new schema, we should check if we can switch to `job_ids` or check mapping.
-                // Let's assume for now we must use `artwork_ids` to support existing Modal code
-                // OR we refactor the python side later.
-                // CRITICAL: We pass `artworkId` to dispatch, so Modal knows Artwork ID.
-                // But one Artwork might have multiple jobs? Not concurrently for SAME method usually?
-                // Actually they definitely could in a retrying scenario.
-                // Ideally, we should query by Job ID.
-                // But to be safe with existing backend, let's use Artwork ID.
-
-                const jobMap = new Map<string, (typeof activeJobs)[0]>();
-                jobs.forEach((j) => jobMap.set(String(j.artworkId), j));
-
-                const artworkIds = Array.from(jobMap.keys());
                 
-                const maskedToken = config.token ? `${config.token.substring(0, 4)}...` : "None";
-                console.log(`[Pipeline] Requesting status for ${artworkIds.length} jobs from ${method} (${config.statusUrl}) [Token: ${maskedToken}]`);
-
-                const headers: Record<string, string> = { "Content-Type": "application/json" };
-                if (config.token) headers["Authorization"] = `Bearer ${config.token}`;
-
-                const response = await fetch(config.statusUrl, {
-                    method: "POST",
-                    headers,
-                    body: JSON.stringify({ artwork_ids: artworkIds }),
-                });
-
-                if (!response.ok) {
-                    const errText = await response.text();
-                    console.error(
-                        `[Pipeline] Status check failed for ${method}: ${response.status} - ${errText}`,
-                    );
-                    continue;
-                }
-
-                const results = (await response.json()) as Record<string, any>;
-                const finishedIds: string[] = [];
-
-                for (const [artId, state] of Object.entries(results)) {
-                    const job = jobMap.get(artId);
-                    if (!job) continue;
-
-                    if (state.status === "completed" && state.result) {
-                        console.log(
-                            `[Pipeline] Job ${job.id} COMPLETED. Output: ${state.result.protected_image_key}`,
-                        );
-                        updates.push(
-                            db
-                                .update(artworkJobs)
-                                .set({
-                                    status: JobStatus.COMPLETED,
-                                    outputUrl: state.result.protected_image_url,
-                                    outputKey:
-                                        state.result.protected_image_key ||
-                                        state.result.file_key,
-                                    meta: {
-                                        ...state.result.file_metadata,
-                                        verification_report: state.result.verification_report,
-                                    },
-                                    updatedAt: new Date().toISOString(),
-                                })
-                                .where(eq(artworkJobs.id, job.id)),
-                        );
-                        finishedIds.push(artId);
-                    } else if (state.status === "failed") {
-                        console.warn(
-                            `[Pipeline] Job ${job.id} FAILED (External). Reason: ${state.error}`,
-                        );
-                        updates.push(
-                            db
-                                .update(artworkJobs)
-                                .set({
-                                    status: JobStatus.FAILED,
-                                    errorMessage:
-                                        state.error || "Unknown external error",
-                                    updatedAt: new Date().toISOString(),
-                                })
-                                .where(eq(artworkJobs.id, job.id)),
-                        );
-                        finishedIds.push(artId);
-                    } else if (
-                        state.status === "running" ||
-                        state.status === "processing"
-                    ) {
-                        // Heartbeat / Status Promotion
-                        // If job moves from QUEUED -> PROCESSING
-                        if (job.status !== JobStatus.PROCESSING) {
-                            console.log(
-                                `[Pipeline] Job ${job.id} promoted QUEUED -> PROCESSING`,
-                            );
-                            updates.push(
-                                db
-                                    .update(artworkJobs)
-                                    .set({
-                                        status: JobStatus.PROCESSING,
-                                        updatedAt: new Date().toISOString(),
-                                    })
-                                    .where(eq(artworkJobs.id, job.id)),
-                            );
-                        }
-                    }
-                }
-
-                if (finishedIds.length > 0) {
-                    pendingAcks[method] = finishedIds;
-                }
-            } catch (err) {
-                console.error(
-                    `[Pipeline] Error syncing method ${method}:`,
-                    err,
-                );
+                await db.update(artworks)
+                    .set({ protectionStatus: ProtectionStatus.FAILED })
+                    .where(eq(artworks.id, j.artworkId));
+                continue;
             }
+            validJobs.push(j);
         }
 
-        await Promise.all(updates);
+        if (validJobs.length === 0) return { synced: 0 };
 
-        // Process ACKs only after successful DB updates
-        for (const [method, ids] of Object.entries(pendingAcks)) {
-            try {
-                console.log(
-                    `[Pipeline] Sending ACK to ${method} for ${ids.length} jobs`,
-                );
+        // Group by Artworks for Modal Query
+        // We assume all are SHIELD method for V2.
+        const artworkIds = validJobs.map(j => String(j.artworkId));
+        const jobMap = new Map(validJobs.map(j => [String(j.artworkId), j]));
 
-                const config = getProtectionConfig(
-                    method as ProtectionMethodType,
-                );
-                if (config.statusUrl) {
-                    await fetch(config.statusUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ artwork_ids: [], ack_ids: ids }),
-                    });
-                }
-            } catch (err) {
-                console.warn(
-                    `[Pipeline] Failed to ACK jobs for ${method}:`,
-                    err,
-                );
-            }
-        }
+        const config = getProtectionConfig(ProtectionMethod.SHIELD);
+        if (!config.statusUrl) return { synced: 0 };
 
-        return { synced: updates.length };
-    }
+        try {
+            const response = await fetch(config.statusUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}),
+                },
+                body: JSON.stringify({ artwork_ids: artworkIds }),
+            });
 
-    /**
-     * Main Orchestration Loop part 2: Advance Pipelines
-     * Checks for completed jobs and queues the next step.
-     * Uses optimized batching to avoid N+1 queries.
-     */
-    static async advancePipelines() {
-        const db = await getDb();
+            if (!response.ok) throw new Error(`Status Check Failed: ${response.status}`);
 
-        // 1. Fetch Artworks that need advancing (Processing/Queued)
-        // Optimized: Fetch recent jobs for these artworks in parallel or via smarter query?
-        // Drizzle doesn't support easy "Last Job per Group" in one obscure line without raw SQL.
-        // But we can optimize by fetching ALL relevant jobs for these artworks in one go if the set is smallish (batch size).
+            const results = await response.json();
+            const updates = [];
 
-        // A. Get Candidates (Batch Limit 50)
-        const activeArtworks = await db.query.artworks.findMany({
-            where: inArray(artworks.protectionStatus, [
-                ProtectionStatus.PROCESSING,
-                ProtectionStatus.QUEUED,
-            ]),
-            limit: 50, // Batch size for advancing
-            with: {
-                // Efficiently fetch only the latest job?
-                // Drizzle `with` doesn't support limit/orderBy on relations easily in SQLite driver sometimes.
-                // Fallback: Fetch IDs, then fetch jobs.
-            },
-        });
+            for (const [artId, state] of Object.entries(results as Record<string, any>)) {
+                const job = jobMap.get(artId);
+                if (!job) continue;
 
-        if (activeArtworks.length === 0) return { advancements: 0 };
+                const status = (state.status || "").toLowerCase();
+                const result = state.result || {};
 
-        const artworkIds = activeArtworks.map((a) => a.id);
-
-        // B. Fetch Latest Jobs for these IDs using Window Function equivalent or just raw list and filtering in memory (for 50 items it's fast)
-        // We fetch ALL jobs for these 50 artworks. It's safe because usually < 5 jobs per artwork.
-        const allJobs = await db
-            .select()
-            .from(artworkJobs)
-            .where(inArray(artworkJobs.artworkId, artworkIds))
-            .orderBy(desc(artworkJobs.stepOrder), desc(artworkJobs.id));
-
-        // Group in memory
-        const jobsByArtwork = new Map<number, (typeof allJobs)[0]>();
-        for (const job of allJobs) {
-            if (!jobsByArtwork.has(job.artworkId)) {
-                jobsByArtwork.set(job.artworkId, job); // First one is latest due to orderBy desc
-            }
-        }
-
-        let advancements = 0;
-
-        for (const artwork of activeArtworks) {
-            try {
-                const lastJob = jobsByArtwork.get(artwork.id);
-                if (!lastJob) continue;
-
-                // RECOVERY: handled by processQueue automatically.
-                // if (lastJob.status === JobStatus.PENDING) ...
-
-                // If last job is PENDING/QUEUED/PROCESSING/FAILED, we wait (or stop).
-                if (lastJob.status !== JobStatus.COMPLETED) {
-                    if (lastJob.status === JobStatus.FAILED) {
-                        await db
-                            .update(artworks)
-                            .set({
-                                protectionStatus: ProtectionStatus.FAILED,
-                                metadata: {
-                                    ...(artwork.metadata as any),
-                                    error: `Job Failed: ${lastJob.errorMessage}`,
-                                },
-                            })
-                            .where(eq(artworks.id, artwork.id));
-                    }
-                    continue;
-                }
-
-                // Job is COMPLETED. Check if there is next step.
-                const metadata = artwork.metadata as any;
-                const pipeline = metadata.pipeline;
-                if (!pipeline) continue; // Should not happen
-
-                const currentStepIdx = lastJob.stepOrder;
-                const totalSteps = pipeline.steps.length;
-
-                if (currentStepIdx >= totalSteps - 1) {
-                    // Pipeline Finished
-                    if (artwork.protectionStatus !== ProtectionStatus.DONE) {
-                        console.log(
-                            `[Pipeline] Artwork ${artwork.id} FINISHED.`,
-                        );
-
-                        // Charge Credits for successful processing
-                        try {
-                            const steps = pipeline.steps as { method: ProtectionMethodType; config?: any }[];
-                            const totalCost = steps.reduce((acc, step) => {
-                                // Smart calculation for consolidated Poisoning method
-                                if (step.method === "poisoning") {
-                                    let cost = 0;
-                                    const config = step.config || {};
-                                    // Use 'process.env' or hardcoded values? Better to use constants if imported.
-                                    // Assuming PROTECTION_PRICING is imported.
-                                    
-                                    if (config.apply_poison === true) {
-                                        const p = PROTECTION_PRICING["poison-ivy"];
-                                        if (!p) throw new Error("Pricing configuration missing for poison-ivy");
-                                        cost += p.cost;
-                                    }
-                                    if (config.apply_watermark === true) {
-                                        const p = PROTECTION_PRICING["ai-watermark"];
-                                        if (!p) throw new Error("Pricing configuration missing for ai-watermark");
-                                        cost += p.cost;
-                                    }
-                                    if (config.apply_visual_watermark === true) {
-                                        const p = PROTECTION_PRICING["visual-watermark"];
-                                        if (!p) throw new Error("Pricing configuration missing for visual-watermark");
-                                        cost += p.cost;
-                                    }
-                                    
-                                    // Make sure we charge at least something if it ran successfully?
-                                    // If everything false (shouldn't happen), explicit cost is 0.
-                                    return acc + cost;
-                                }
-
-                                const price = PROTECTION_PRICING[step.method];
-                                if (!price) throw new Error(`Pricing configuration missing for method ${step.method}`);
-                                return acc + price.cost;
-                            }, 0);
-
-                            const refId = `protection_${artwork.id}_${lastJob.id}`;
-                            await CreditService.chargeCredits(
-                                artwork.userId,
-                                totalCost,
-                                "Image Protection Processing (Completed)",
-                                refId,
-                                {
-                                    artworkId: artwork.id,
-                                    jobIds: allJobs
-                                        .filter(
-                                            (j) => j.artworkId === artwork.id,
-                                        )
-                                        .map((j) => j.id),
-                                    steps: steps.map(s => s.method),
-                                },
-                            );
-                            console.log(
-                                `[Pipeline] Charged ${totalCost} credits to user ${artwork.userId} (Ref: ${refId})`,
-                            );
-                        } catch (error) {
-                            console.error(
-                                `[Pipeline] Failed to charge user ${artwork.userId} for artwork ${artwork.id}:`,
-                                error,
-                            );
-                            // We do NOT stop the status update. The service was rendered.
-                            // TODO: Add to debt ledger or retry queue
-                        }
-
-                        // Capture verification report if available (from last step's metadata)
-                        const lastJobMeta = lastJob.meta as any;
-                        const verificationReport = lastJobMeta?.verification_report;
-
-                        await db
-                            .update(artworks)
-                            .set({
-                                protectionStatus: ProtectionStatus.DONE,
-                                updatedAt: new Date().toISOString(),
-                                metadata: {
-                                    ...metadata,
-                                    verificationReport, // Propagate to artwork metadata
-                                    pipeline: {
-                                        ...pipeline,
-                                        pending: false,
-                                        currentStep: currentStepIdx,
-                                    },
-                                },
-                            })
-                            .where(eq(artworks.id, artwork.id));
-                    }
-                } else {
-                    // Trigger Next Step
-                    const nextStepIdx = currentStepIdx + 1;
-
-                    // Double check we haven't already created the next job (race condition check)
-                    // We check if ANY job exists for this step, regardless of status
-                    const existingNext = await db
-                        .select()
-                        .from(artworkJobs)
-                        .where(
-                            and(
-                                eq(artworkJobs.artworkId, artwork.id),
-                                eq(artworkJobs.stepOrder, nextStepIdx),
-                            ),
-                        )
-                        .limit(1);
-
-                    if (existingNext.length > 0) continue; // Already created
-
-                    // Validate Input for Next Step
-                    const inputUrl = lastJob.outputUrl;
-                    if (!inputUrl) {
-                        console.error(
-                            `[Pipeline] Job ${lastJob.id} completed but has no outputURL. Cannot proceed.`,
-                        );
-                        // Mark as failed? Or just log?
-                        // If we don't mark as failed, it will loop forever here.
-                        await db
-                            .update(artworkJobs)
-                            .set({
-                                status: JobStatus.FAILED,
-                                errorMessage:
-                                    "Output URL missing from previous step",
-                                updatedAt: new Date().toISOString(),
-                            })
-                            .where(eq(artworkJobs.id, lastJob.id));
-                        await db
-                            .update(artworks)
-                            .set({
-                                protectionStatus: ProtectionStatus.FAILED,
-                                metadata: {
-                                    ...metadata,
-                                    error: "Pipeline Error: Previous step produced no output.",
-                                },
-                            })
-                            .where(eq(artworks.id, artwork.id));
-                        continue;
-                    }
-
-                    console.log(
-                        `[Pipeline] Advancing Artwork ${artwork.id} to step ${nextStepIdx}. Input: ${inputUrl}`,
-                    );
-
-                    const nextStepConfig = pipeline.steps[nextStepIdx];
-
-                    // Create and Dispatch
-                    const [newJob] = await db
-                        .insert(artworkJobs)
-                        .values({
-                            artworkId: artwork.id,
-                            method: nextStepConfig.method,
-                            config: nextStepConfig.config || {},
-                            stepOrder: nextStepIdx,
-                            inputUrl: inputUrl,
-                            status: JobStatus.PENDING,
-                            createdAt: new Date().toISOString(),
+                if (status === "completed") {
+                    console.log(`[Pipeline] Job ${job.id} COMPLETED.`);
+                    
+                    const steps = result.steps || [];
+                    const finalUrl = result.final_url;
+                    const shieldScore = result.shield_score || 0; // Capture aggregated score
+                    
+                    // 1. Update Job
+                    updates.push(
+                        db.update(artworkJobs).set({
+                            status: JobStatus.COMPLETED,
+                            outputUrl: finalUrl,
+                            result: { steps, shieldScore }, // Store rich result json
+                            currentStep: "COMPLETED",
                             updatedAt: new Date().toISOString(),
-                        })
-                        .returning();
+                        }).where(eq(artworkJobs.id, job.id))
+                    );
 
-                    // Dispatch (Queue)
+                    // 2. Finalize Artwork & Charge
+                    const cost = PROTECTION_PRICING[ProtectionMethod.SHIELD]?.cost || 1.0;
+                    
                     try {
-                        // We do NOT dispatch immediately. We let processQueue handle it.
-                        // await this.dispatchJob(newJob.id, artwork.userId);
-                        console.log(
-                            `[Pipeline] Job ${newJob.id} (Step ${nextStepIdx}) created and queued.`,
-                        );
-                        advancements++;
+                        const artwork = await db.query.artworks.findFirst({
+                             where: eq(artworks.id, job.artworkId) 
+                        });
+                        
+                        // Merge result into artwork metadata for easy frontend access
+                        const updatedMetadata = {
+                            ...(artwork?.metadata as any || {}),
+                            shieldScore: shieldScore,
+                            steps_summary: steps.map((s: any) => ({ name: s.step_name, status: s.status })),
+                            completedAt: new Date().toISOString()
+                        };
+                        
+                        if (artwork) {
+                             // Update Metadata on Artwork
+                             await db.update(artworks).set({
+                                 metadata: updatedMetadata,
+                                 protectionStatus: ProtectionStatus.DONE,
+                                 updatedAt: new Date().toISOString()
+                             }).where(eq(artworks.id, job.artworkId));
 
-                        // Update Metadata current step
-                        await db
-                            .update(artworks)
-                            .set({
-                                metadata: {
-                                    ...metadata,
-                                    pipeline: {
-                                        ...pipeline,
-                                        currentStep: nextStepIdx,
-                                    },
-                                },
-                            })
-                            .where(eq(artworks.id, artwork.id));
+                             await CreditService.chargeCredits(
+                                artwork.userId,
+                                cost,
+                                "Drimit Shield Protection",
+                                `shield_${job.id}`,
+                                { artworkId: job.artworkId }
+                            );
+                        }
                     } catch (e) {
-                        console.error(
-                            `[Pipeline] Failed to dispatch next step for ${artwork.id}`,
-                            e,
+                        console.error(`[Pipeline] Charge failed for ${job.artworkId}:`, e);
+                    }
+
+                    updates.push(
+                        db.update(artworks).set({
+                            protectionStatus: ProtectionStatus.DONE,
+                            updatedAt: new Date().toISOString(),
+                            metadata: {
+                                ...(await db.query.artworks.findFirst({ where: eq(artworks.id, job.artworkId) }))?.metadata as any,
+                                verificationReport: steps, // Verify report is the steps log
+                            }
+                        }).where(eq(artworks.id, job.artworkId))
+                    );
+
+                } else if (status === "failed" || status === "error") {
+                     console.warn(`[Pipeline] Job ${job.id} FAILED: ${state.error}`);
+                     updates.push(
+                        db.update(artworkJobs).set({
+                            status: JobStatus.FAILED,
+                            errorMessage: state.error || "Unknown Error",
+                            updatedAt: new Date().toISOString(),
+                        }).where(eq(artworkJobs.id, job.id))
+                    );
+                    updates.push(
+                         db.update(artworks).set({
+                            protectionStatus: ProtectionStatus.FAILED,
+                            metadata: {
+                                ...(await db.query.artworks.findFirst({ where: eq(artworks.id, job.artworkId) }))?.metadata as any,
+                                error: state.error
+                            }
+                        }).where(eq(artworks.id, job.artworkId))
+                    );
+                } else {
+                    // Running / Processing
+                    // Update progress (steps)
+                    const steps = state.result?.steps || state.steps;
+                    if (steps) {
+                         updates.push(
+                            db.update(artworkJobs).set({
+                                result: steps,
+                                updatedAt: new Date().toISOString(),
+                                ...(status === "processing" ? { status: JobStatus.PROCESSING } : {})
+                            }).where(eq(artworkJobs.id, job.id))
                         );
-                        // Job marked as failed in dispatchJob
                     }
                 }
-            } catch (err) {
-                console.error(
-                    `[Pipeline] Error processing artwork ${artwork.id}`,
-                    err,
-                );
-                // Continue to next artwork
             }
+            
+            await Promise.all(updates);
+
+        } catch (e) {
+            console.error("[Pipeline] Sync Error:", e);
         }
-        return { advancements };
+
+        return { synced: validJobs.length };
     }
 
     /**
-     * Main Orchestration Loop part 3: Queue Processor
-     * Manages flow control and concurrency limits.
+     * V2 Refactor: Queue Processor
+     * Simple scheduler for pending jobs.
      */
     static async processQueue() {
         const db = await getDb();
 
-        // 1. Check Capacity
-        const activeJobsResult = await db
+        const activeCount = (await db
             .select({ count: count() })
             .from(artworkJobs)
-            .where(
-                inArray(artworkJobs.status, [
-                    JobStatus.QUEUED,
-                    JobStatus.PROCESSING,
-                ]),
-            );
+            .where(inArray(artworkJobs.status, [JobStatus.QUEUED, JobStatus.PROCESSING])))[0].count;
 
-        const activeCount = activeJobsResult[0]?.count || 0;
-        const slotsAvailable = MAX_CONCURRENT_JOBS - activeCount;
+        const slots = MAX_CONCURRENT_JOBS - activeCount;
+        if (slots <= 0) return { dispatched: 0, active: activeCount };
 
-        if (slotsAvailable <= 0) {
-            console.log(
-                `[Queue] Full capacity (${activeCount}/${MAX_CONCURRENT_JOBS}). Waiting.`,
-            );
-            return { dispatched: 0, active: activeCount };
-        }
-
-        console.log(
-            `[Queue] Slots available: ${slotsAvailable} (Active: ${activeCount})`,
-        );
-
-        // 2. Fetch High Priority (Continuing Pipelines)
-        const highPriorityJobs = await db
+        const pendingJobs = await db
             .select()
             .from(artworkJobs)
-            .where(
-                and(
-                    eq(artworkJobs.status, JobStatus.PENDING),
-                    sql`${artworkJobs.stepOrder} > 0`,
-                ),
-            )
+            .where(eq(artworkJobs.status, JobStatus.PENDING))
             .orderBy(asc(artworkJobs.createdAt))
-            .limit(slotsAvailable);
+            .limit(slots);
 
-        let jobsToDispatch = [...highPriorityJobs];
+        if (pendingJobs.length === 0) return { dispatched: 0 };
 
-        // 3. Fetch Normal Priority (New Pipelines)
-        if (jobsToDispatch.length < slotsAvailable) {
-            const remaining = slotsAvailable - jobsToDispatch.length;
-            const normalPriorityJobs = await db
-                .select()
-                .from(artworkJobs)
-                .where(
-                    and(
-                        eq(artworkJobs.status, JobStatus.PENDING),
-                        eq(artworkJobs.stepOrder, 0),
-                    ),
-                )
-                .orderBy(asc(artworkJobs.createdAt))
-                .limit(remaining);
+        console.log(`[Queue] Dispatching ${pendingJobs.length} jobs.`);
 
-            jobsToDispatch = [...jobsToDispatch, ...normalPriorityJobs];
-        }
-
-        if (jobsToDispatch.length === 0) {
-            console.log(`[Queue] No pending jobs.`);
-            return { dispatched: 0, active: activeCount };
-        }
-
-        console.log(`[Queue] Dispatching ${jobsToDispatch.length} jobs.`);
-
-        // 4. Dispatch
-        for (const job of jobsToDispatch) {
+        for (const job of pendingJobs) {
             try {
+                // Fetch userId from artwork relation for dispatch
+                // Optimized: We could join in the select, but for now simple query is fine
                 const artwork = await db.query.artworks.findFirst({
                     where: eq(artworks.id, job.artworkId),
-                    columns: { userId: true },
+                    columns: { userId: true }
                 });
-
+                
                 if (artwork) {
                     await this.dispatchJob(job.id, artwork.userId);
-                } else {
-                    console.error(
-                        `[Queue] Artwork not found for Job ${job.id}`,
-                    );
-                    await db
-                        .update(artworkJobs)
-                        .set({
-                            status: JobStatus.FAILED,
-                            errorMessage:
-                                "Artwork not found during queue processing",
-                            updatedAt: new Date().toISOString(),
-                        })
-                        .where(eq(artworkJobs.id, job.id));
                 }
-            } catch (err) {
-                console.error(`[Queue] Error dispatching job ${job.id}`, err);
+            } catch (e) {
+                console.error(`[Queue] Failed to dispatch job ${job.id}`, e);
             }
         }
 
-        return {
-            dispatched: jobsToDispatch.length,
-            active: activeCount + jobsToDispatch.length,
-        };
+        return { dispatched: pendingJobs.length, active: activeCount + pendingJobs.length };
     }
+
+    // Deprecated methods
+    static async advancePipelines() { return { advancements: 0 }; }
 }
+

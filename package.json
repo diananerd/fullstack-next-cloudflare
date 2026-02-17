@@ -42,6 +42,7 @@
         "@radix-ui/react-select": "^2.2.6",
         "@radix-ui/react-separator": "^1.1.8",
         "@radix-ui/react-slot": "^1.2.4",
+        "@radix-ui/react-tooltip": "^1.2.8",
         "@stripe/react-stripe-js": "^5.6.0",
         "@stripe/stripe-js": "^8.7.0",
         "better-auth": "^1.3.9",
@@ -74,7 +75,7 @@
         "drizzle-kit": "^0.31.4",
         "tailwindcss": "^4",
         "tw-animate-css": "^1.3.8",
-        "typescript": "^5",
+        "typescript": "^5.6.3",
         "wrangler": "^4.64.0"
     },
     "pnpm": {

@@ -4,7 +4,7 @@
 import { eq, inArray, and } from "drizzle-orm";
 import { getDb } from "@/db";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
-import { ProtectionStatus, type ProtectionMethodType } from "@/modules/artworks/models/artwork.enum";
+import { ProtectionStatus, type ProtectionMethodType, ProtectionMethod } from "@/modules/artworks/models/artwork.enum";
 import { PROTECTION_PRICING, DEFAULT_PROCESS_COST } from "@/constants/pricing.constant";
 import { CreditService } from "@/modules/credits/services/credit.service";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
@@ -13,43 +13,22 @@ export async function checkArtworkProtectionEligibility(
     userId: string,
     proposedPipeline: { method: ProtectionMethodType; config?: any }[]
 ) {
-    // 1. Calculate cost of the proposed pipeline
+    // 1. Calculate cost of the Shield V2 Pipeline
+    // The unified pipeline has a fixed cost per execution, regardless of intensity config.
     const proposedCost = proposedPipeline.reduce((acc, step) => {
-        if (step.method === "poisoning") {
-            // Calculate dynamic cost based on enabled features
-            let cost = 0;
-            const config = step.config || {};
-            
-            console.log(`[Eligibility] Checking pipeline step: poisoning with config:`, config);
-
-            // Explicitly check for true to avoid implicit costs
-            if (config.apply_poison === true) {
-                const p = PROTECTION_PRICING["poison-ivy"];
-                if (!p) throw new Error("Pricing config missing for poison-ivy");
-                cost += p.cost;
-            }
-            if (config.apply_watermark === true) {
-                const p = PROTECTION_PRICING["ai-watermark"];
-                if (!p) throw new Error("Pricing config missing for ai-watermark");
-                cost += p.cost;
-            }
-            if (config.apply_visual_watermark === true) {
-                const p = PROTECTION_PRICING["visual-watermark"];
-                if (!p) throw new Error("Pricing config missing for visual-watermark");
-                cost += p.cost;
-            }
-            if (config.apply_verification === true) {
-                const p = PROTECTION_PRICING["verification"];
-                if (!p) throw new Error("Pricing config missing for verification");
-                cost += p.cost;
-            }
-            
-            console.log(`[Eligibility] Calculated Step Cost: ${cost}`);
-            return acc + cost;
+        // Handle V2 Shield Method
+        if (step.method === ProtectionMethod.SHIELD) {
+            const price = PROTECTION_PRICING[ProtectionMethod.SHIELD];
+             if (!price) {
+                 // Fallback if constant is missing
+                 console.warn("Pricing missing for SHIELD method, using default 1.0");
+                 return acc + 1.0;
+             }
+             return acc + price.cost;
         }
 
-        const price = PROTECTION_PRICING[step.method];
-        if (!price) throw new Error(`Pricing config missing for method: ${step.method}`);
+        // Legacy Fallback (should be unused)
+        const price = PROTECTION_PRICING[step.method] || { cost: DEFAULT_PROCESS_COST };
         return acc + price.cost;
     }, 0);
 

@@ -42,6 +42,10 @@ export const artworkJobs = sqliteTable(
         outputUrl: text("output_url"), // Result URL
         outputKey: text("output_key"), // R2 Key of result
 
+        // V2: Atomic Pipeline Tracking
+        currentStep: text("current_step"), // E.g., 'LAYER_1_IDENTITY', 'VERIFY_2_MIMICRY'
+        result: text("result", { mode: "json" }).$type<any>(), // The detailed "Atomic Trail" array
+
         status: text("status")
             .$type<JobStatusType>()
             .notNull()

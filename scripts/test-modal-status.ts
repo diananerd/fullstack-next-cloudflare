@@ -10,7 +10,7 @@ async function main() {
         const content = fs.readFileSync(devVarsPath, "utf-8");
         const lines = content.split("\n");
         for (const line of lines) {
-            if (line.startsWith("MODAL_STATUS_URL=")) {
+            if (line.startsWith("MODAL_KERNEL_STATUS_URL=")) {
                 modalUrl = line.split("=")[1].trim();
             }
         }
@@ -21,7 +21,7 @@ async function main() {
     // Hardcoded fallback based on what we know in wrangler.jsonc
     if (!modalUrl) {
         modalUrl =
-            "https://diananerdoficial--drimit-shield-demo-check-status.modal.run";
+            "https://diananerdoficial--drimit-shield-kernel-fastapi-app.modal.run/status";
     }
 
     // Remove quotes if present
