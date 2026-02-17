@@ -24,10 +24,12 @@ def download_verifier_models():
 
 verifier_image = (
     modal.Image.debian_slim(python_version="3.10")
+    .apt_install("libgl1", "libglib2.0-0", "libsm6", "libxext6")
     .pip_install(
         "torch>=2.4.0", "torchvision>=0.19.0", "facenet-pytorch",
         "transformers", "pillow", "numpy", "scipy",
-        "scikit-image", "requests"
+        "scikit-image", "requests",
+        "invisible-watermark==0.2.0", "opencv-python"
     )
     .run_function(download_verifier_models)
 )
@@ -167,22 +169,65 @@ class SimulationEngine:
     @modal.method()
     def verify_watermark(self, image_url: str, expected_uuid: str = None) -> Dict[str, Any]:
         """
-        Simulates Watermark Extraction.
-        In a real scenario, this runs DCT decode.
+        Simulates Watermark Extraction (The Proof of Ownership).
+        Run a real decode using invisible-watermark (DWT/DCT).
+        We also simulate a mild 'attack' (compression) to prove robustness.
         """
         print(f"[Simulation] Verifying Watermark for {image_url}")
+        import cv2
+        import numpy as np
+        from imwatermark import WatermarkDecoder
         
-        # Simulating a successful decode for the demo
-        decoded = expected_uuid if expected_uuid else str(uuid.uuid4())
-        
-        # PSNR > 30 is good quality. BER < 10% is good detection.
-        # Protection score: 1.0 if detected perfectly.
-        
-        return {
-            "status": "PASS", 
-            "watermark_detected": True,
-            "decoded_uuid": decoded,
-            "match": True,
-            "psnr": 35.5,
-            "protection_score": 1.0
-        }
+        try:
+            # 1. Download
+            img = self._download_image(image_url)
+            img_np = np.array(img)
+            img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
+            # 2. Simulate Attack: JPEG Compression (Quality 80)
+            # PROOF: Even if Facebook compresses it, is it still yours?
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+            _, img_encoded = cv2.imencode('.jpg', img_bgr, encode_param)
+            img_attacked = cv2.imdecode(img_encoded, 1)
+
+            # 3. Decode
+            decoder = WatermarkDecoder('bytes', 32) # length must match encoder
+            watermark = decoder.decode(img_attacked, 'dwtDct')
+            
+            decoded_text = ""
+            try:
+                if watermark:
+                    decoded_text = watermark.decode('utf-8')
+            except:
+                pass
+                
+            print(f"Decoded: {decoded_text} vs Expected: {expected_uuid}")
+
+            # 4. Verify
+            # Note: DWT/DCT is robust but not perfect. It might lose chars.
+            # We check if the expected UUID is IN the decoded string or close enough.
+            # For this implementation, we check exact prefix match or full match.
+            
+            match = False
+            if expected_uuid:
+                 # Check if significant part of UUID is recovered
+                target = expected_uuid[:32] # Max payload we encoded
+                if target in decoded_text or decoded_text in target:
+                     if len(decoded_text) > 5: # Avoid empty match
+                        match = True
+            
+            status = "PASS" if match else "FAIL"
+            
+            return {
+                "status": status, 
+                "watermark_detected": bool(watermark),
+                "decoded_payload": decoded_text,
+                "expected_payload": expected_uuid,
+                "match": match,
+                "protection_score": 1.0 if match else 0.0,
+                "simulation_attack": "JPEG-80"
+            }
+            
+        except Exception as e:
+            print(f"Error in verify_watermark: {e}")
+            return {"status": "ERROR", "error": str(e)}

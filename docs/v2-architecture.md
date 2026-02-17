@@ -1,29 +1,21 @@
-# Drimit Shield v2: Unified Pipeline Architecture
+# Drimit Shield v2: Architecture & Granular Pipeline
 
-**Status:** Draft
-**Date:** February 15, 2026
-**Version:** 2.4.0 (Granular 4-Layer Pipeline)
+**Status:** Living Document
+**Date:** February 17, 2026
+**Version:** 2.5.0
 
 ---
 
-## 1. System Overview: The Atomic Pipeline
+## 1. System Overview
 
-This architecture upgrades the "Unified Pipeline" to an **Atomic Save-Verify** model. A critical change in v2.3 is that verification *never* runs on in-memory tensors. It runs on the **stored artifact** (what the user will eventually get) to ensure the verification result matches real-world utility.
+The Drimit Shield architecture is a **Conditional, Atomic Pipeline**. Unlike a rigid assembly line, the protection kernel dynamically adapts to the user's security requirements.
 
-The system is built on **3 Pillars**:
+### Key Constraints & Requirements
+*   **User Control:** User provides specific flags (`use_identity`, `use_style`, etc.) at job creation.
+*   **Conditional Execution:** Steps are skipped entirely (0 cost, 0 latency) if not requested.
+*   **Atomic Validation:** A protection layer is never marked "Complete" until it has been saved to storage (R2) and successfully passed its specific adversarial validation module.
 
-1.  **The Orchestrator (Next.js / Cloudflare Edge):**
-    The brain. Manages state, authenticates, and maintains the definitive record in D1.
-
-2.  **The Protection Kernel (Modal GPU):**
-    The factory floor. Executes the protection layers in a strict sequence: `Identity -> Mimicry -> Editing -> Watermark`.
-
-3.  **The Simulation Modules (Modal GPU):**
-    The verifiers. Specific attack vectors (e.g., "Deepfake Attempt", "Style Clone", "Inpainting") that are invoked *after* a layer is saved.
-
-## 2. The Lifecycle (Save-Verify Loop)
-
-The pipeline is cyclical. We strictly save the output of a protection step to R2 *before* verifying it.
+## 2. Updated Lifecycle (The "Select-Protect-Verify" Loop)
 
 ```mermaid
 graph TD
@@ -34,73 +26,88 @@ graph TD
 
     subgraph "Modal GPU Cloud"
         kernel[Protection Kernel]
-        subgraph "Simulation / Verify Modules"
-            v_id[Verify: Face Detect]
-            v_style[Verify: Style Clone]
-            v_edit[Verify: Inpainting]
-            v_wm[Verify: Robustness]
+        
+        subgraph "Attacker Simulation (Validation)"
+            v_id[Attacker: Face Recognition]
+            v_style[Attacker: Style Cloner]
+            v_edit[Attacker: Inpainter]
+            v_wm[Attacker: Meta Stripper]
         end
     end
 
     %% Flow
-    User --> |1. Upload| orchestrator
-    orchestrator --> |2. Create Job| D1
-    orchestrator --> |3. Dispatch| kernel
+    User --> |1. Upload + Select Flags| orchestrator
+    orchestrator --> |2. Create Job w/ Config| D1
+    orchestrator --> |3. Dispatch Request| kernel
 
-    %% Atomic Loop: Layer 1 (Identity)
-    kernel --> |4. Apply Identity (Bio-Shield)| kernel
-    kernel --> |5a. Save L1 Artifact| R2
-    kernel -.-> |5b. Verify L1 (Face Detect)| v_id
-    v_id -.-> |5c. Result + Update Job| kernel
+    %% Logic: Conditional Checks
+    kernel --> |"Check: use_identity?"| check_id{Flag?}
     
-    %% Atomic Loop: Layer 2 (Mimicry)
-    kernel --> |6. Apply Mimicry (Anti-Style)| kernel
-    kernel --> |7a. Save L2 Artifact| R2
-    kernel -.-> |7b. Verify L2 (Style Clone)| v_style
-    v_style -.-> |7c. Result + Update Job| kernel
+    %% Layer 1
+    check_id -- Yes --> apply_id[Apply Identity Shield]
+    apply_id --> save_id[Save L1 Artifact]
+    save_id -.-> verify_id[Verify vs FaceNet]
+    verify_id -.-> log_id[Log Pass/Fail]
+    
+    %% Layer 2
+    log_id --> check_style{Flag?}
+    check_id -- No --> check_style
 
-    %% Atomic Loop: Layer 3 (Editing)
-    kernel --> |8. Apply Editing (Anti-Inpaint)| kernel
-    kernel --> |9a. Save L3 Artifact| R2
-    kernel -.-> |9b. Verify L3 (Inpainting)| v_edit
-    v_edit -.-> |9c. Result + Update Job| kernel
+    check_style -- Yes --> apply_style[Apply Style Poison]
+    apply_style --> save_style[Save L2 Artifact]
+    save_style -.-> verify_style[Verify vs CLIP]
+    verify_style -.-> log_style[Log Pass/Fail]
     
-    %% Atomic Loop: Layer 4 (Watermark)
-    kernel --> |10. Apply Watermark| kernel
-    kernel --> |11a. Save Final Artifact| R2
-    kernel -.-> |11b. Verify L4 (Robustness)| v_wm
-    v_wm -.-> |11c. Result + Update Job| kernel
+    %% Layer 3
+    log_style --> check_edit{Flag?}
+    check_style -- No --> check_edit
     
-    kernel --> |12. Final Report| orchestrator
-    orchestrator --> |13. Update Status| D1
-    orchestrator --> |14. Notify User| User
+    check_edit -- Yes --> apply_edit[Apply Edit Immunity]
+    apply_edit --> save_edit[Save L3 Artifact]
+    save_edit -.-> verify_edit[Verify vs Inpainter]
+    verify_edit -.-> log_edit[Log Pass/Fail]
+    
+    %% Layer 4
+    log_edit --> check_wm{Flag?}
+    check_edit -- No --> check_wm
+    
+    check_wm -- Yes --> apply_wm[Apply Watermark]
+    apply_wm --> save_wm[Save Final Artifact]
+    save_wm -.-> verify_wm[Verify vs Compression]
+    verify_wm -.-> log_wm[Log Pass/Fail]
+    check_wm -- No --> report[Generate Full Report]
+    
+    %% Final
+    log_wm --> report
+    report --> |Final Update| D1
 ```
 
-## 3. Component Breakdown
+## 3. Data Schema Implications
 
-### A. Next.js Orchestrator
-*   **Role:** State Manager & API Gateway.
-*   **Responsibilities:**
-    *   **Dashboard:** Displays the "Protection Trail" (4 Stages).
-    *   **Dispatch:** Triggers the atomic kernel execution.
+The `config` JSON column in `artwork_jobs` and the request payload to Modal is the source of truth for the granular flags.
 
-### B. Protection Kernel (`modal/protection`)
-*   **Role:** Asset hardening & Flow Control.
-*   **Logic:**
-    *   **Order of Operations:**
-        1.  **Layer 1 (Identity):** Biometric Disruption (Anti-FaceNet).
-        2.  **Layer 2 (Mimicry):** Style Poisoning (Anti-LoRA).
-        3.  **Layer 3 (Editing):** Diffusion Immunization (Anti-Inpainting).
-        4.  **Layer 4 (The Identity):** Invisible Watermarking.
-    *   **Save-Then-Verify:** The kernel writes to R2 immediately after processing.
+```typescript
+// Modal Request Payload
+{
+  "image_url": "...",
+  "config": {
+    "intensity": "High"
+  },
+  // Granular Flags
+  "use_identity_shield": true, // Vector C (Deepfakes)
+  "use_style_poison": false,   // Vector B (Style Theft) - User disabled
+  "use_edit_immunity": true,   // Vector A (Unauthorized Editing)
+  "use_watermark": true        // Vector D (Attribution)
+}
+```
 
-### C. Simulation Modules (`modal/simulation`)
-*   **Role:** Targeted Verification.
-*   **Change:** Verification modules correspond strictly to the layer they test.
-    *   `verify_identity(image)`: Checks if face is detectable (Anti-FaceNet).
-    *   `verify_mimicry(image)`: Checks if style can be cloned (Anti-LoRA).
-    *   `verify_editing(image)`: Checks if inpainting succeeds (Anti-Inpaint).
-    *   `verify_watermark(image)`: Checks if watermark survives compression/cropping.
+## 4. Validation Engine (Open Source Proxies)
 
-## 4. Data Consistency
-Verification results are appended to the main Job record in D1 after each successful verify step. If a layer fails verification, the job can either abort (Fail-Fast) or continue with a warning (depending on strictness settings), but the failure is definitely logged.
+We use high-performance Open Source models to approximate the capabilities of closed adversarial models.
+
+| Risk Vector | Validation Proxy | Why this proxy? |
+| :--- | :--- | :--- |
+| **Identity Theft** | `FaceNet` / `MTCNN` | Standard for academic benchmarking of facial recognition. |
+| **Style Theft** | `CLIP-ViT-Large` | Foundation metric for semantic similarity in Generative AI. |
+| **Editing** | `Stable Diffusion Inpainting` | The most widely used open source editing engine. |
+| **Attribution** | `DWT-DCT` + `JPEG-80` | Simulates standard social media compression algorithms. |

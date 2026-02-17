@@ -1,64 +1,63 @@
 # Drimit Shield v2: Master Plan
 
-**Status:** Draft
-**Date:** February 12, 2026
-**Author:** Technical Lead AI
-**Version:** 2.0.0
+**Status:** Living Document
+**Date:** February 17, 2026
+**Version:** 2.1.0
 
 ---
 
 ## 1. Executive Summary
 
-Drimit Shield v2 represents a paradigm shift in digital asset protection. We are moving beyond passive "poisoning" or simple watermarking to a **"Military Grade Defense"** system. The core philosophy of v2 is **"Trial by Fire"**. Use of protection tools is no longer a matter of faith; it is a matter of proof.
+Drimit Shield is a comprehensive protection suite for visual assets, designed to safeguard copyrighted works against unauthorized AI utilization. Unlike passive tagging systems, Drimit Shield employs active adversarial perturbations and invisible watermarking to technically enforce usage rights.
 
-Shield v2 does not just apply protection; it immediately attacks the protected asset using state-of-the-art adversarial models to verify the defense holds. Only when a defense survives the simulation is it certified.
+The system empowers artists to upload original works, apply granular protections against specific threats, and receive a rigorous "Protection Report" verifying the resilience of their assets against real-world unauthorized usage vectors.
 
-## 2. The "Trial by Fire" Philosophy
+## 2. Core Philosophy: "Verified Resistance"
 
-Current protection systems fail because they are opaque. Users apply a filter and hope it works.
-Drimit Shield v2 changes this contract:
-1.  **Protect**: Apply multi-layered adversarial perturbations.
-2.  **Attack**: Immediately subject the result to the very AI models we are protecting against (Identity theft, Style mimicry, Deepfakes).
-3.  **Prove**: Generate a "Shield Score" based on the *Delta* between the attack success on the original vs. the protected image.
+We operature under the principle of **Verified Resistance**. It is insufficient to merely apply a filter; the system must prove that the protected asset withstands the specific unauthorized actions it claims to prevent.
 
-We do not sell "safety". We sell **evidence of resistance**.
+1.  **Granular Selection:** Users choose exactly which risks they want to mitigate (e.g., specific flags for Style Theft, Deepfakes).
+2.  **Conditional Processing:** The pipeline dynamically constructs a chain of defense layers based on user selection.
+3.  **Adversarial Validation:** Each applied protection is immediately validated by mimicking a real unauthorized actor (e.g., attempting to clone a style or inpaint an image) using state-of-the-art Open Source models that approximate leading closed models.
 
-## 3. Key Pillars
+## 3. Threat Model & Defense Layers
 
-### Pillar A: Multi-Layered Protection (The Shield)
-A serialized pipeline of 4 distinct defense mechanisms, applied in a specific order to maximize robustness without destroying perceptual quality.
-1.  **Layer 1 (The Shield - Identity):** Biometric Disruption (Anti-FaceNet).
-2.  **Layer 2 (The Shield - Mimicry):** Style/Concept Poisoning (Anti-LoRA).
-3.  **Layer 3 (The Shield - Editing):** Diffusion Immunization (Anti-Inpainting).
-4.  **Layer 4 (The Identity - Watermark):** Invisible DCT-based Watermarking.
+Drimit Shield addresses four primary unauthorized usage vectors. Each vector corresponds to a specific protection layer and validation module.
 
-### Pillar B: Comparative Simulation (The Fire)
-A rigorous testing engine that runs parallel inference jobs.
-*   **Control Run:** Attack the *Original* image.
-*   **Challenge Run:** Attack the *Protected* image.
-*   **Delta Analysis:** The difference in attack success is the "Protection Score".
+### Vector A: Unauthorized Image Editing (Inpainting)
+*   **Risk:** Third parties modifying the artwork (e.g., removing objects, changing context, Nudifying) without consent.
+*   **Defense (Layer 3):** **Diffusion Immunization.** Injects high-frequency adversarial noise targeting the latent space of diffusion models (SDXL, SD 1.5, Flux) to disrupt inpainting attempts.
+*   **Validation:** attempts to inpaint a masked region of the protected image. Success is defined by the generation of noise or incoherent artifacts instead of the requested edit.
 
-### Pillar C: Auditable Reporting (The Truth)
-The UI serves as a forensic auditing tool.
-*   **Visual Evidence:** Side-by-side comparison of reconstruction attempts.
-*   **Job Transparency:** Full logs of the protection and simulation steps.
+### Vector B: Style Theft (Mimicry)
+*   **Risk:** unauthorized training of LoRAs or Fine-tunes to mimic the artist's unique visual style.
+*   **Defense (Layer 2):** **Style Poisoning.** Perturbs the semantic feature maps (CLIP/SigLIP) to disassociate the image's visual style from its text embedding, confusing training objectives.
+*   **Validation:** Measures the semantic distance (CLIP Score) between the protected image and its visual concept, ensuring they are technically dissimilar to AI models while visually identical to humans.
 
-## 4. Roadmap & Timeline
+### Vector C: Unauthorized Deepfakes (Identity Theft)
+*   **Risk:** Using character or subject likeness for unauthorized generations (Deepfakes).
+*   **Defense (Layer 1):** **Identity Shield.** Micro-shifts facial landmarks and textures to disrupt facial recognition (FaceNet) and identity preservation during generation.
+*   **Validation:** Runs industry-standard face detection (MTCNN/RetinaFace). Passing requires the system to fail at detecting or recognizing the face in the protected image.
 
-### Phase 1: Foundation (Current)
-*   Deploy DB Schema v2 (D1).
-*   Implement Modal Orchestrator pattern.
-*   Finalize Layer 1 & 2 integration in `modal/protection`.
+### Vector D: Attribution Denial (Provenancing)
+*   **Risk:** Large providers or unauthorized users stripping metadata and denying usage of the copyrighted material.
+*   **Defense (Layer 4):** **Invisible Watermarking.** Embeds a robust, invisible identifier (UUID/Hash) into the frequency domain (DCT/DWT) of the image.
+*   **Validation:** Simulates an "Attack" scenario (Compression/Social Media Upload) and attempts to blindly decode the watermark. Success is defined by the recovery of the unique Artwork ID.
 
-### Phase 2: The Engine
-*   Implement Layer 3 (Ensemble Poisoning).
-*   Implement Comparative Simulation Engine (Identity & Deepfake modules).
-*   Connect Next.js Polling (Cron Sync).
+## 4. Model Capabilities & Infrastructure
 
-### Phase 3: The Interface
-*   Build the "Audit Report" Dashboard.
-*   End-to-end testing ("Trial by Fire" loops).
+*   **Model Agnostic Defense:** Designed to resist both Legacy models (Stable Diffusion 1.5, SDXL) and Next-Gen models (Grok 3, GPT-5+, VAX, Nano Banana).
+*   **Open Source Validation:** Validation mimics top-tier closed models using the best available Open Source proxies running on **Modal**.
+*   **Architecture:** Optimized for "Build-time" generation. High-latency protection jobs run asynchronously, delivering static, verified assets to the user.
 
-### Phase 4: Launch
-*   Public Beta access.
-*   API documentation for enterprise integration.
+## 5. Roadmap
+
+### Phase 1: Core Protection Engine (Current Focus)
+*   Start/Stop Granular Control (Implemented).
+*   Layer 4: Watermarking & Provenance (Implemented).
+*   Layer 1: Identity Shield (Implemented).
+*   Layer 3: Edit Immunity (Next Priority).
+
+### Phase 2: Advanced Validation
+*   Refine "Attacker" simulation profiles to better approximate next-gen models.
+*   Dashboard reporting integration.

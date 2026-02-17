@@ -18,6 +18,11 @@ class ProtectionRequest(BaseModel):
     user_id: str
     config: Dict[str, Any] = {}
     is_preview: bool = False
+    # Granular Protection Flags
+    use_identity_shield: bool = True
+    use_style_poison: bool = True
+    use_edit_immunity: bool = True
+    use_watermark: bool = True
 
 class StepResult(BaseModel):
     step_name: str
@@ -82,7 +87,8 @@ kernel_image = (
         "accelerate==0.25.0", "huggingface-hub==0.19.4",
         "numpy<2", "scipy", "safetensors", "opencv-python",
         "pynvml", "ftfy", "tqdm", "fire", "mediapipe",
-        "fastapi[standard]", "requests", "Pillow", "boto3", "sentencepiece"
+        "fastapi[standard]", "requests", "Pillow", "boto3", "sentencepiece",
+        "invisible-watermark==0.2.0" # Added for Layer 4
     )
     .run_function(download_models, gpu="any")
 )
@@ -206,12 +212,41 @@ class ProtectionKernel:
         return img # Reduced complexity for MVP
 
     def _apply_layer_watermark(self, img: Image.Image, text: str) -> Image.Image:
-        """Layer 4: Invisible Watermark"""
+        """Layer 4: Invisible Watermark (Provenance)"""
         print(f"[Layer 4] Embedding Watermark: {text}")
-        # Ideally use `invisible-watermark` library (DCT).
-        # Since not installed, we assume the previous layers' noise acts as a signature 
-        # or we just pretend for the MVP demo.
-        return img
+        
+        try:
+            import numpy as np
+            from imwatermark import WatermarkEncoder
+            import cv2
+            
+            # 1. Convert PIL to OpenCV (BGR)
+            img_np = np.array(img)
+            img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+            
+            # 2. Configure Encoder (DWTDct is robust)
+            encoder = WatermarkEncoder()
+            
+            # 3. Payload: Using first 32 chars of text (UUID) or hash
+            # invisible-watermark bytes limits exist. Hex string is safe.
+            payload_bytes = text.encode('utf-8')[:32]
+            
+            encoder.set_watermark('bytes', payload_bytes)
+            
+            # 4. Embed
+            img_encoded_bgr = encoder.encode(img_bgr, 'dwtDct')
+            
+            # 5. Convert back to RGB
+            img_encoded_rgb = cv2.cvtColor(img_encoded_bgr, cv2.COLOR_BGR2RGB)
+            
+            return Image.fromarray(img_encoded_rgb)
+            
+        except ImportError:
+            print("Warning: invisible-watermark not installed, skipping.")
+            return img
+        except Exception as e:
+            print(f"Watermark Error: {e}")
+            return img
 
     @modal.method()
     def run_shield_pipeline(self, request: ProtectionRequest) -> ProtectionJobResult:
@@ -275,29 +310,142 @@ class ProtectionKernel:
             # We put everything under 'protected/' to separate from 'uploads/'
             path_prefix = f"protected/{request.user_id}/{folder_hash}"
 
+
             # --- LAYER 1: IDENTITY ---
-            t0 = time.time()
-            try:
-                current_img = self._apply_layer_identity(current_img, intensity)
-                
-                # Verification / Step Artifacts
-                step1_key = f"{path_prefix}/verification/layer_1_identity.png"
-                self._upload_to_r2(self._img_to_bytes(current_img), step1_key, is_preview=request.is_preview)
-                step1_url = f"https://assets.drimit.ai/{step1_key}"
-                
-                verify_res = simulation_engine.verify_identity.remote(step1_url)
-                
-                log_step(StepResult(
+            if request.use_identity_shield:
+                t0 = time.time()
+                try:
+                    current_img = self._apply_layer_identity(current_img, intensity)
+                    
+                    # Verification / Step Artifacts
+                    step1_key = f"{path_prefix}/verification/layer_1_identity.png"
+                    self._upload_to_r2(self._img_to_bytes(current_img), step1_key, is_preview=request.is_preview)
+                    step1_url = f"https://assets.drimit.ai/{step1_key}"
+                    
+                    verify_res = simulation_engine.verify_identity.remote(step1_url)
+                    
+                    log_step(StepResult(
+                        step_name="layer_1_identity",
+                        status=verify_res.get("status", "FAIL"),
+                        r2_key=step1_key,
+                        verification_meta=verify_res,
+                        duration_ms=(time.time() - t0) * 1000
+                    ))
+                except Exception as e:
+                    print(f"Layer 1 Failed: {e}")
+                    log_step(StepResult(
+                        step_name="layer_1_identity",
+                        status="FAIL",
+                        error=str(e)
+                    ))
+            else:
+                 log_step(StepResult(
                     step_name="layer_1_identity",
-                    status=verify_res.get("status", "FAIL"),
-                    r2_key=step1_key,
-                    verification_meta=verify_res,
-                    duration_ms=(time.time() - t0) * 1000
+                    status="SKIPPED",
+                    duration_ms=0
                 ))
-            except Exception as e:
-                print(f"Layer 1 Failed: {e}")
-                log_step(StepResult(
-                    step_name="layer_1_identity",
+
+            # --- LAYER 2: MIMICRY (Style Poison) ---
+            # Needs to run if selected, uses layer 1 output
+            if request.use_style_poison:
+                t0 = time.time()
+                try:
+                    current_img = self._apply_layer_mimicry(current_img, intensity)
+                    
+                    step2_key = f"{path_prefix}/verification/layer_2_mimicry.png"
+                    self._upload_to_r2(self._img_to_bytes(current_img), step2_key, is_preview=request.is_preview)
+                    step2_url = f"https://assets.drimit.ai/{step2_key}"
+                    
+                    # Pass original URL for comparison
+                    verify_res = simulation_engine.verify_style.remote(step2_url, request.image_url)
+                    
+                    log_step(StepResult(
+                        step_name="layer_2_mimicry",
+                        status=verify_res.get("status", "FAIL"),
+                        r2_key=step2_key,
+                        verification_meta=verify_res,
+                        duration_ms=(time.time() - t0) * 1000
+                    ))
+                except Exception as e:
+                    print(f"Layer 2 Failed: {e}")
+                    log_step(StepResult(
+                        step_name="layer_2_mimicry",
+                        status="FAIL",
+                        error=str(e)
+                    ))
+            else:
+                 log_step(StepResult(
+                    step_name="layer_2_mimicry",
+                    status="SKIPPED",
+                    duration_ms=0
+                ))
+
+            # --- LAYER 3: EDITING (Immunization) ---
+            if request.use_edit_immunity:
+                t0 = time.time()
+                try:
+                    current_img = self._apply_layer_editing(current_img)
+                    
+                    step3_key = f"{path_prefix}/verification/layer_3_editing.png"
+                    self._upload_to_r2(self._img_to_bytes(current_img), step3_key, is_preview=request.is_preview)
+                    step3_url = f"https://assets.drimit.ai/{step3_key}"
+                    
+                    verify_res = simulation_engine.verify_editing.remote(step3_url)
+                    
+                    log_step(StepResult(
+                        step_name="layer_3_editing",
+                        status=verify_res.get("status", "FAIL"),
+                        r2_key=step3_key,
+                        verification_meta=verify_res,
+                        duration_ms=(time.time() - t0) * 1000
+                    ))
+                except Exception as e:
+                    print(f"Layer 3 Failed: {e}")
+                    log_step(StepResult(
+                        step_name="layer_3_editing",
+                        status="FAIL",
+                        error=str(e)
+                    ))
+            else:
+                 log_step(StepResult(
+                    step_name="layer_3_editing",
+                    status="SKIPPED",
+                    duration_ms=0
+                ))
+
+            # --- LAYER 4: WATERMARK ---
+            if request.use_watermark:
+                t0 = time.time()
+                try:
+                    # Provide Artwork ID as the payload
+                    current_img = self._apply_layer_watermark(current_img, request.artwork_id)
+                    
+                    step4_key = f"{path_prefix}/verification/layer_4_watermark.png"
+                    self._upload_to_r2(self._img_to_bytes(current_img), step4_key, is_preview=request.is_preview)
+                    step4_url = f"https://assets.drimit.ai/{step4_key}"
+                    
+                    verify_res = simulation_engine.verify_watermark.remote(step4_url, request.artwork_id)
+                    
+                    log_step(StepResult(
+                        step_name="layer_4_watermark",
+                        status=verify_res.get("status", "FAIL"),
+                        r2_key=step4_key,
+                        verification_meta=verify_res,
+                        duration_ms=(time.time() - t0) * 1000
+                    ))
+                except Exception as e:
+                    print(f"Layer 4 Failed: {e}")
+                    log_step(StepResult(
+                        step_name="layer_4_watermark",
+                        status="FAIL",
+                        error=str(e)
+                    ))
+            else:
+                 log_step(StepResult(
+                    step_name="layer_4_watermark",
+                    status="SKIPPED",
+                    duration_ms=0
+                ))
                     status="FAIL",
                     error=str(e)
                 ))
