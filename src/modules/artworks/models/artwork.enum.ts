@@ -12,11 +12,6 @@ export type ProtectionStatusType =
     (typeof ProtectionStatus)[keyof typeof ProtectionStatus];
 
 export const ProtectionMethod = {
-    // Deprecated / Legacy
-    MIST: "mist", 
-    WATERMARK: "watermark", 
-    POISONING: "poisoning",
-    
     // V2 Unified Standard
     SHIELD: "shield", 
 

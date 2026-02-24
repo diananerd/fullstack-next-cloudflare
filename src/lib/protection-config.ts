@@ -24,75 +24,6 @@ export const PROTECTION_METHODS_CONFIG: Record<
             mode: "fast",
         },
     },
-    [ProtectionMethod.MIST]: { // Legacy placeholder - Redirects to Shield V2
-        urlEnvVar: "MODAL_KERNEL_API_URL", 
-        tokenEnvVar: "MODAL_AUTH_TOKEN", 
-        statusUrlEnvVar: "MODAL_KERNEL_STATUS_URL",
-        description: "Adversarial Mist v2 Protection (Unified)",
-        defaultConfig: {
-             method: "mist_legacy" 
-        },
-    },
-    // Removed legacy methods (Grayscale, Watermark) as they are now consolidated or deprecated
-    [ProtectionMethod.POISONING]: {
-        urlEnvVar: "MODAL_POISONING_API_URL",
-        tokenEnvVar: "MODAL_AUTH_TOKEN",
-        statusUrlEnvVar: "MODAL_POISONING_STATUS_URL",
-        description: "AI Poisoning",
-        defaultConfig: {
-            epsilon: 0.04,
-            steps: 100,
-            alpha: 0.012,
-            max_res: 3840,
-            apply_poison: true,
-            apply_watermark: true,
-            apply_visual_watermark: false,
-            watermark_text: "DRIMIT SHIELD"
-        },
-    },
-    // Placeholder to satisfy ProtectionMethodType constraint
-    [ProtectionMethod.WATERMARK]: {
-        urlEnvVar: "MODAL_KERNEL_API_URL", // Reuse Shield Kernel
-        tokenEnvVar: "MODAL_AUTH_TOKEN",
-        statusUrlEnvVar: "MODAL_KERNEL_STATUS_URL",
-        description: "Deprecated Legacy Watermark (Redirect to Shield)",
-        defaultConfig: {
-            method: "watermark_legacy"
-        },
-    },
-    [ProtectionMethod.POISON_IVY]: {
-        urlEnvVar: "MODAL_POISONING_API_URL",
-        tokenEnvVar: "MODAL_AUTH_TOKEN",
-        statusUrlEnvVar: "MODAL_POISONING_STATUS_URL",
-        description: "Drimit Pixel Cloak",
-        defaultConfig: {
-            apply_poison: true,
-            apply_concept_poison: false,
-            apply_visual_watermark: false,
-        },
-    },
-    [ProtectionMethod.CONCEPT_CLOAK]: {
-        urlEnvVar: "MODAL_POISONING_API_URL",
-        tokenEnvVar: "MODAL_AUTH_TOKEN",
-        statusUrlEnvVar: "MODAL_POISONING_STATUS_URL",
-        description: "Drimit Concept Cloak",
-        defaultConfig: {
-            apply_poison: false,
-            apply_concept_poison: true,
-            apply_visual_watermark: false,
-        },
-    },
-    [ProtectionMethod.VISUAL_WATERMARK]: {
-        urlEnvVar: "MODAL_POISONING_API_URL",
-        tokenEnvVar: "MODAL_AUTH_TOKEN",
-        statusUrlEnvVar: "MODAL_POISONING_STATUS_URL",
-        description: "Drimit Visual Watermark",
-        defaultConfig: {
-            apply_poison: false,
-            apply_concept_poison: false,
-            apply_visual_watermark: true,
-        },
-    },
 };
 
 export function getProtectionConfig(method: ProtectionMethodType) {
@@ -102,14 +33,8 @@ export function getProtectionConfig(method: ProtectionMethodType) {
     }
 
     // Resolve URL from Env
-    let url = process.env[config.urlEnvVar];
+    const url = process.env[config.urlEnvVar];
     let statusUrl = process.env[config.statusUrlEnvVar];
-
-    // Backward compatibility for Mist
-    if (method === ProtectionMethod.MIST) {
-        if (!url) url = process.env.MODAL_API_URL;
-        if (!statusUrl) statusUrl = process.env.MODAL_STATUS_URL;
-    }
 
     const token = process.env[config.tokenEnvVar];
 

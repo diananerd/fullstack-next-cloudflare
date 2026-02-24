@@ -197,11 +197,19 @@ export class PipelineService {
 
         console.log(`[Pipeline] Dispatching Job ${jobId} (SHIELD)`);
 
+        // Fetch artwork r2Key so Python can derive the correct output path prefix.
+        // Convention: {userId}/{sha256}/original.ext → output goes to {userId}/{sha256}/
+        const artwork = await db.query.artworks.findFirst({
+            where: eq(artworks.id, job.artworkId),
+            columns: { r2Key: true },
+        });
+
         try {
             const externalId = await dispatchProtectionJob({
                 artworkId: job.artworkId,
                 userId: userId,
                 imageUrl: job.inputUrl,
+                imageR2Key: artwork?.r2Key,
                 method: job.method as ProtectionMethodType,
                 config: job.config,
             });
@@ -355,9 +363,13 @@ export class PipelineService {
                         };
                         
                         if (artwork) {
-                             // Update Metadata on Artwork
+                             // Update Metadata on Artwork (includes verificationReport)
+                             const finalMetadata = {
+                                 ...updatedMetadata,
+                                 verificationReport: steps,
+                             };
                              await db.update(artworks).set({
-                                 metadata: updatedMetadata,
+                                 metadata: finalMetadata,
                                  protectionStatus: ProtectionStatus.DONE,
                                  updatedAt: new Date().toISOString()
                              }).where(eq(artworks.id, job.artworkId));
@@ -374,17 +386,6 @@ export class PipelineService {
                         console.error(`[Pipeline] Charge failed for ${job.artworkId}:`, e);
                     }
 
-                    updates.push(
-                        db.update(artworks).set({
-                            protectionStatus: ProtectionStatus.DONE,
-                            updatedAt: new Date().toISOString(),
-                            metadata: {
-                                ...(await db.query.artworks.findFirst({ where: eq(artworks.id, job.artworkId) }))?.metadata as any,
-                                verificationReport: steps, // Verify report is the steps log
-                            }
-                        }).where(eq(artworks.id, job.artworkId))
-                    );
-
                 } else if (status === "failed" || status === "error") {
                      console.warn(`[Pipeline] Job ${job.id} FAILED: ${state.error}`);
                      updates.push(
@@ -394,11 +395,12 @@ export class PipelineService {
                             updatedAt: new Date().toISOString(),
                         }).where(eq(artworkJobs.id, job.id))
                     );
+                    const failedArtwork = await db.query.artworks.findFirst({ where: eq(artworks.id, job.artworkId) });
                     updates.push(
                          db.update(artworks).set({
                             protectionStatus: ProtectionStatus.FAILED,
                             metadata: {
-                                ...(await db.query.artworks.findFirst({ where: eq(artworks.id, job.artworkId) }))?.metadata as any,
+                                ...(failedArtwork?.metadata as any),
                                 error: state.error
                             }
                         }).where(eq(artworks.id, job.artworkId))

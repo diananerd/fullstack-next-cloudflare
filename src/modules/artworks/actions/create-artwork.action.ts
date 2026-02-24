@@ -15,6 +15,7 @@ import {
 } from "@/modules/artworks/schemas/artwork.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { CreditService } from "@/modules/credits/services/credit.service";
+import { Analytics } from "@/lib/analytics";
 
 // Temporary route definition until we have a proper route file
 const DASHBOARD_ROUTE = "/artworks";
@@ -50,6 +51,7 @@ async function checkDuplicateHash(userId: string, hash: string) {
 }
 
 export async function createArtworkAction(formData: FormData) {
+    let userId = "";
     try {
         const hash = formData.get("hash") as string;
         console.log(
@@ -57,6 +59,7 @@ export async function createArtworkAction(formData: FormData) {
         );
 
         const user = await requireAuth();
+        userId = user.id;
 
         const imageFile = formData.get("image") as File | null;
         console.log(
@@ -175,9 +178,9 @@ export async function createArtworkAction(formData: FormData) {
         const description = descriptionRaw
             ? (descriptionRaw as string)
             : undefined;
-        // Default to mist if not provided.
+        // Default to shield loop if not provided.
         // We will expose this in the UI later, but the backend must support it now.
-        const method = (formData.get("method") as string) || "mist";
+        const method = (formData.get("method") as string) || "shield";
 
         // Validate and Prepare data
         // We let Zod parse it, but we need to supply the R2 data
@@ -251,9 +254,22 @@ export async function createArtworkAction(formData: FormData) {
 
         revalidatePath(DASHBOARD_ROUTE);
 
+        if (newArtworkId) {
+            Analytics.artworkUploaded(user.id, {
+                artwork_id: newArtworkId,
+                size_bytes: imageFile.size,
+                mime_type: imageFile.type,
+            });
+        }
+
         return { success: true, artworkId: newArtworkId };
     } catch (error: unknown) {
         console.error(`[CreateArtworkAction] Critical Error:`, error);
+        if (userId) {
+            Analytics.captureException(userId, error, {
+                action: "create_artwork",
+            });
+        }
         // Return Zod errors if available
         // biome-ignore lint/suspicious/noExplicitAny: Zod error check
         if ((error as any).flatten) {

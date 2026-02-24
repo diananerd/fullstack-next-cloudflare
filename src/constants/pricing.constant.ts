@@ -16,33 +16,7 @@ export const PROTECTION_PRICING: Record<
         estimatedDuration: 90,
         label: "Drimit Shield V2",
     },
-    // Legacy / Group keys
-    [ProtectionMethod.POISONING]: {
-        cost: 0.0,
-        estimatedDuration: 60,
-        label: "Protection Job",
-    },
-    // Specific UI keys
-    "poison-ivy": {
-        cost: PRICE_POISON, // 0.50
-        estimatedDuration: 30,
-        label: "Drimit Pixel Cloak",
-    },
-    "concept-cloak": {
-        cost: 0.0,
-        estimatedDuration: 30,
-        label: "Drimit Concept Cloak", 
-    },
-    "ai-watermark": {
-        cost: PRICE_AI_WATERMARK, // 0.25
-        estimatedDuration: 10,
-        label: "AI Watermark",
-    },
-    "visual-watermark": {
-        cost: PRICE_VISUAL_WATERMARK, // 0.00
-        estimatedDuration: 5,
-        label: "Visual Watermark",
-    },
+    // Verification step (part of Shield, but also standalone in older flows)
     "verification": {
         cost: 0.0, // Free
         estimatedDuration: 15,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import { usePostHog } from "posthog-js/react";
 import { toast } from "react-hot-toast";
 import { z } from "zod";
 import {
@@ -53,6 +54,7 @@ import { checkArtworkProtectionEligibility } from "../actions/check-eligibility.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePWA } from "@/providers/pwa-provider";
+import { PIPELINE_LAYERS, PIPELINE_GLOBAL_CONFIG } from "@/constants/pipeline-contract";
 
 interface ProtectArtworkDialogProps {
     artworkId: number;
@@ -61,21 +63,8 @@ interface ProtectArtworkDialogProps {
     onOpenChange?: (open: boolean) => void;
 }
 
-const PROTECTION_OPTIONS = [
-    {
-        value: "shield",
-        label: "Drimit Shield V2 (Unified)",
-        description: "Complete protection suite: Identity Cloaking, Style Poisoning, Edit Immunity, and Watermarking.",
-        icon: ShieldCheck,
-        disabled: false,
-    }
-];
-
-const INTENSITY_OPTIONS = [
-    { value: "Low", label: "Low (Better Quality)" },
-    { value: "Medium", label: "Medium (Balanced)" },
-    { value: "High", label: "High (Stronger Protection)" }
-];
+// Layer options and intensity are derived from the Pipeline Contract.
+// See src/constants/pipeline-contract.ts to add/edit layers or config options.
 
 export function ProtectArtworkDialog({
     artworkId,
@@ -84,6 +73,7 @@ export function ProtectArtworkDialog({
     onOpenChange: controlledOnOpenChange,
 }: ProtectArtworkDialogProps) {
     const router = useRouter();
+    const ph = usePostHog();
     const [internalOpen, setInternalOpen] = useState(false);
     const { isInstalled, canInstall, promptInstall } = usePWA();
     
@@ -98,14 +88,18 @@ export function ProtectArtworkDialog({
         }
     };
 
-    const [step, setStep] = useState(1); // 1: Config (Combined), 2: Confirm, 3: Success
-    const [selectedMethods, setSelectedMethods] = useState<string[]>(["shield"]);
-    
+    const [step, setStep] = useState(1);
+
     // Config States
-    // Watermark text defaults to user name or fallback
     const [watermarkText, setWatermarkText] = useState("DRIMIT SHIELD");
-    // Intensity for poisoning
-    const [intensity, setIntensity] = useState("Medium");
+    const [intensity, setIntensity] = useState<string>(PIPELINE_GLOBAL_CONFIG.intensity.default);
+
+    // Layer flags — driven by PIPELINE_LAYERS contract, no hardcoding
+    const [layerFlags, setLayerFlags] = useState<Record<string, boolean>>(
+        () => Object.fromEntries(PIPELINE_LAYERS.map((l) => [l.id, l.defaultEnabled])),
+    );
+    const setLayerFlag = (id: string, val: boolean) =>
+        setLayerFlags((prev) => ({ ...prev, [id]: val }));
     
     const [isPending, startTransition] = useTransition();
 
@@ -119,37 +113,46 @@ export function ProtectArtworkDialog({
         proposedCost: number;
     } | null>(null);
 
+    // Build active layers array from contract — adding a layer to the contract is enough
+    const getActiveLayers = () =>
+        PIPELINE_LAYERS.filter((l) => layerFlags[l.id]).map((l) => l.layerKey);
+
+    // Combined Effect: Fetch cost/eligibility whenever config changes
     useEffect(() => {
-        if (open && step === 2 && session?.user?.id) {
-            setEligibility(null);
-            startTransition(async () => {
-                // Construct pipeline for eligibility check with correct V2 flags
-                 const pipeline = [{
-                    method: ProtectionMethod.SHIELD, // Use unified method
-                    config: {
-                        intensity, 
-                        watermark_text: watermarkText,
-                        // Explicitly request all layers for cost calc (if relevant)
-                        layers: ["identity", "mimicry", "editing", "watermark"]
-                    }
-                }];
-                const result = await checkArtworkProtectionEligibility(
-                    session.user.id,
-                    pipeline,
-                );
-                setEligibility(result);
-            });
+        if (open && step === 1 && session?.user?.id) {
+            // Debounce slightly or just run
+            const timer = setTimeout(() => {
+                startTransition(async () => {
+                    const pipeline = [{
+                        method: ProtectionMethod.SHIELD,
+                        config: {
+                            intensity,
+                            watermark_text: watermarkText,
+                            layers: getActiveLayers()
+                        }
+                    }];
+                    const result = await checkArtworkProtectionEligibility(
+                        session.user.id,
+                        pipeline,
+                    );
+                    setEligibility(result);
+                });
+            }, 300);
+            return () => clearTimeout(timer);
         }
-    }, [open, step, session, selectedMethods, intensity, watermarkText]);
+    }, [open, step, session, intensity, watermarkText, layerFlags]);
 
     useEffect(() => {
         if (open) {
             // Reset state on open
             setStep(1);
-            setSelectedMethods(["shield"]); // Auto-select Shield V2
             // Resetting to default string triggers the session auto-fill effect below
             setWatermarkText("DRIMIT SHIELD");
             setIntensity("Medium");
+            // Reset layer flags to contract defaults
+            setLayerFlags(Object.fromEntries(PIPELINE_LAYERS.map((l) => [l.id, l.defaultEnabled])));
+            // Track dialog open
+            ph?.capture("protection_dialog_opened", { artwork_id: artworkId });
         }
     }, [open]);
 
@@ -176,31 +179,32 @@ export function ProtectArtworkDialog({
         });
 
     const handleNext = () => {
+        // Now handles direct submission validation
         if (step === 1) {
-            // Validate Config immediately since Step 1 is Config
             const result = watermarkSchema.safeParse(watermarkText);
             if (!result.success) {
                 toast.error(result.error.issues[0].message);
                 return;
             }
-            setStep(2); // Go to Confirmation (Skip ordering)
+            // Proceed to submit directly
+            handleSubmit();
         }
     };
 
     const handleBack = () => {
-        if (step === 2) {
-            setStep(1);
-        }
+        // No step 2 anymore, just close or reset? 
+        // If we are in Config, back closes.
+        handleClose();
     };
 
     const handleSubmit = () => {
         startTransition(async () => {
-            const pipeline = [{
+             const pipeline = [{
                 method: ProtectionMethod.SHIELD,
                 config: {
                     intensity,
                     watermark_text: watermarkText.trim(),
-                    layers: ["identity", "mimicry", "editing", "watermark"]
+                    layers: getActiveLayers()
                 }
             }];
 
@@ -210,8 +214,11 @@ export function ProtectArtworkDialog({
             });
 
             if (result.success) {
-                // Show success step
-                setStep(3);
+                // Show success step (now Step 2)
+                setStep(2);
+                // Survey targeting: fires when protection is queued.
+                // Configure PostHog surveys to trigger on this event.
+                ph?.capture("protection_pipeline_queued", { artwork_id: artworkId });
                 // Ideally refresh page or invalidate cache here
                 router.refresh();
             } else {
@@ -228,7 +235,7 @@ export function ProtectArtworkDialog({
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{children}</DialogTrigger>
             <DialogContent className="sm:max-w-[450px]">
-                {step !== 5 ? (
+                {step === 1 ? (
                     <DialogHeader>
                         <DialogTitle>Protect Artwork</DialogTitle>
                         <DialogDescription>
@@ -244,20 +251,30 @@ export function ProtectArtworkDialog({
                 <div className="py-2">
                     {/* STEP 1: CONFIGURATION */}
                     {step === 1 && (
+                        <>
                         <div className="space-y-6">
                             
-                            {/* Method Selection (Static for now) */}
-                            <div className="rounded-md border border-primary/20 bg-primary/5 p-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                                        <ShieldCheck className="h-6 w-6" />
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold text-sm">Drimit Shield V2 (Unified)</p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Includes Identity Cloaking, Style Poisoning, Edit Immunity, and Watermarking.
-                                        </p>
-                                    </div>
+                            {/* Protection Layers Selection */}
+                            <div className="space-y-3">
+                                <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                                    Active Protections
+                                </Label>
+                                <div className="grid grid-cols-1 gap-2 rounded-md border p-3 bg-muted/20">
+                                    {PIPELINE_LAYERS.map((layer) => (
+                                        <div key={layer.id} className="flex items-start space-x-3 p-1">
+                                            <Checkbox
+                                                id={`use-${layer.id}`}
+                                                checked={layerFlags[layer.id]}
+                                                onCheckedChange={(c) => setLayerFlag(layer.id, !!c)}
+                                            />
+                                            <div className="grid gap-1.5 leading-none">
+                                                <Label htmlFor={`use-${layer.id}`} className="text-sm font-medium cursor-pointer">
+                                                    {layer.label}
+                                                </Label>
+                                                <p className="text-xs text-muted-foreground">{layer.uiDescription}</p>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 
@@ -272,7 +289,7 @@ export function ProtectArtworkDialog({
                                             <SelectValue placeholder="Select intensity" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {INTENSITY_OPTIONS.map((opt) => (
+                                            {PIPELINE_GLOBAL_CONFIG.intensity.options.map((opt) => (
                                                 <SelectItem key={opt.value} value={opt.value}>
                                                     {opt.label}
                                                 </SelectItem>
@@ -280,86 +297,64 @@ export function ProtectArtworkDialog({
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground">
-                                        Controls the strength of the adversarial noise. Higher intensity protects better against fine-tuning but may be more visible.
+                                        {PIPELINE_GLOBAL_CONFIG.intensity.helpText}
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Watermark Config */}
-                            <div className="space-y-3">
-                                <Label className="text-xs font-semibold uppercase text-muted-foreground">
-                                    Invisible Watermark
-                                </Label>
-                                <div className="space-y-2">
-                                    <Label htmlFor="watermark" className="sr-only">
-                                        Text Content
+                            {/* Watermark Config - Only if watermark layer is enabled */}
+                            {layerFlags["layer_4_watermark"] && (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                                        Watermark Text
                                     </Label>
-                                    <Input
-                                        id="watermark"
-                                        value={watermarkText}
-                                        onChange={(e) =>
-                                            setWatermarkText(e.target.value)
-                                        }
-                                        placeholder="Enter custom watermark text"
-                                        maxLength={25}
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        This text will be embedded into the image frequency domain. 
-                                        (Max 25 chars)
-                                    </p>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="watermark" className="sr-only">
+                                            Text Content
+                                        </Label>
+                                        <Input
+                                            id="watermark"
+                                            value={watermarkText}
+                                            onChange={(e) =>
+                                                setWatermarkText(e.target.value)
+                                            }
+                                            placeholder="Enter custom watermark text"
+                                            maxLength={25}
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            This text will be embedded into the image frequency domain. 
+                                            (Max 25 chars)
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
                         </div>
-                    )}
 
-
-
-                    {/* (Steps 2 and 3 removed) */}
-
-
-                    {/* STEP 2: CONFIRMATION */}
-                    {step === 2 && (
-                        <div className="space-y-6">
-                            <div className="space-y-4">
-                                <div>
-                                    <p className="text-sm font-medium">
-                                        Ready to protect?
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        This process runs in the background. It
-                                        will take approximately{" "}
-                                        <span className="font-semibold text-foreground">
-                                            60-90 seconds
-                                        </span>
-                                        .
-                                    </p>
-                                </div>
-                                
-                                {eligibility && !eligibility.eligible && (
-                                    <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-start gap-3">
-                                        <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                         {/* Cost / Eligibility Card (Live) */}
+                         <div className="pt-4 animate-in fade-in slide-in-from-bottom-2">
+                             {eligibility ? (
+                                 !eligibility.eligible ? (
+                                    <div className="rounded-md border border-red-200 bg-red-50 p-3 flex gap-3 items-start">
+                                        <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
                                         <div>
-                                            <p className="text-sm font-semibold text-red-700">
-                                                Insufficient Credits
-                                            </p>
+                                            <p className="text-sm font-semibold text-red-700">Insufficient Credits</p>
                                             <p className="text-xs text-red-600 mt-1">
-                                                You need <b>{eligibility.proposedCost.toFixed(2)}</b> credits for this job, but you only have <b>{eligibility.balance.toFixed(2)}</b> available.
+                                                Required: <b>{eligibility.proposedCost.toFixed(2)}</b> • Available: <b>{eligibility.balance.toFixed(2)}</b>
                                             </p>
                                         </div>
                                     </div>
-                                )}
-                                
-                                {eligibility && eligibility.eligible && (
-                                     <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex items-center justify-between">
+                                 ) : (
+                                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
                                                 $
                                             </div>
                                             <div>
-                                                 <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide">
+                                                <p className="text-xs font-semibold uppercase tracking-wide text-blue-800">
                                                     Estimated Cost
                                                 </p>
-                                                <p className="text-lg font-bold text-blue-900 leading-none">
+                                                <p className="text-lg font-bold leading-none text-blue-900">
                                                     {eligibility.proposedCost.toFixed(2)} Credits
                                                 </p>
                                             </div>
@@ -369,32 +364,17 @@ export function ProtectArtworkDialog({
                                                 Balance: {eligibility.balance.toFixed(2)}
                                             </p>
                                         </div>
-                                     </div>
-                                )}
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
-                                    Summary
-                                </h4>
-                                <div className="rounded-md border p-3 flex flex-col gap-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground">Method</span>
-                                        <span className="font-medium">Shield V2 (Unified)</span>
                                     </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground">Intensity</span>
-                                        <span className="font-medium">{intensity}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-muted-foreground">Watermark</span>
-                                        <span className="font-medium">{watermarkText || "Default"}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                                 )
+                             ) : (
+                                 <div className="h-[74px] rounded-md border border-muted bg-muted/10 animate-pulse" />
+                             )}
+                         </div>
+                        </>
                     )}
-                    {step === 3 && (
+
+
+                    {step === 2 && (
                         <div className="flex flex-col items-center justify-center py-6 text-center space-y-4 animate-in fade-in zoom-in duration-300">
                             <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
                                 <Check className="h-8 w-8" />
@@ -436,45 +416,39 @@ export function ProtectArtworkDialog({
 
                 <DialogFooter
                     className={cn(
-                        "flex flex-row items-center gap-2 sm:justify-end",
-                        step === 3
+                        "flex flex-row items-center gap-2",
+                        step === 2
                             ? "justify-center sm:justify-center"
-                            : "justify-end",
+                            : "justify-between sm:justify-between",
                     )}
                 >
-                    {step === 2 && (
+                    {step === 1 && (
                         <Button
                             variant="ghost"
-                            onClick={handleBack}
+                            onClick={handleClose}
                             disabled={isPending}
                         >
-                            Back
+                            Cancel
                         </Button>
                     )}
 
                     {step === 1 ? (
-                        <Button
-                            onClick={handleNext}
-                        >
-                            Next <ArrowRight className="h-4 w-4 ml-2" />
-                        </Button>
-                    ) : step === 2 ? (
-                        eligibility && !eligibility.eligible ? (
+                         eligibility && !eligibility.eligible ? (
                              <Button 
                                 onClick={() => router.push("/billing")} 
                                 variant="destructive"
                             >
-                                Recharge to Continue
+                                Recharge
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         ) : (
-                            <Button onClick={handleSubmit} disabled={isPending || !eligibility}>
-                                {isPending || !eligibility ? (
+                            <Button onClick={handleNext} disabled={isPending || !eligibility}>
+                                {isPending ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
                                     <>
-                                        {eligibility?.proposedCost === 0 ? "Start Free (0.00 Credits)" : `Start (${eligibility?.proposedCost.toFixed(2)} Credits)`}
-                                        <Sparkles className="ml-2 h-4 w-4" />
+                                        Protect Artwork
+                                        <ShieldCheck className="ml-2 h-4 w-4" />
                                     </>
                                 )}
                             </Button>

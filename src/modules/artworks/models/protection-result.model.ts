@@ -28,29 +28,7 @@ export interface ProtectionJobResult {
     shieldScore?: number; // Aggregated Shield Score (0-100)
 }
 
-export const STEPS_CONFIG = [
-    {
-        key: "layer_1_identity",
-        label: "Identity Shield",
-        description: "Biometric disruption (Anti-FaceNet)",
-        icon: "UserX",
-    },
-    {
-        key: "layer_2_mimicry",
-        label: "Style Poison",
-        description: "Concept/Style poisoning (Anti-LoRA)",
-        icon: "Palette",
-    },
-    {
-        key: "layer_3_editing",
-        label: "Edit Immunity",
-        description: "Diffusion immunization (Anti-Inpainting)",
-        icon: "Edit3",
-    },
-    {
-        key: "layer_4_watermark",
-        label: "Watermark",
-        description: "Invisible attribution (DCT)",
-        icon: "Fingerprint",
-    },
-] as const;
+// STEPS_CONFIG is now derived from the Pipeline Contract.
+// Import PIPELINE_LAYERS from "@/constants/pipeline-contract" instead.
+// This re-export maintains backward compatibility during the transition.
+export { PIPELINE_LAYERS as STEPS_CONFIG } from "@/constants/pipeline-contract";

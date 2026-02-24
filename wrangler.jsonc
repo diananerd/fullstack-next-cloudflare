@@ -56,7 +56,8 @@
         "MODAL_KERNEL_STATUS_URL": "https://diananerdoficial--drimit-shield-kernel-fastapi-app.modal.run/status",
         "MODAL_POISONING_API_URL": "https://diananerdoficial--drimit-shield-poisoning-submit-protection-job.modal.run",
         "MODAL_POISONING_STATUS_URL": "https://diananerdoficial--drimit-shield-poisoning-check-status.modal.run",
-        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51SRx3bPYr42ZFOGH48eoeAzCwcTDmKzx60kQRUnkyZiBMJdd8jgTv1DpkkaqCmKxO3WRCWAYJeyHW3vzsv4YxSmh00F6YFaiwO"
+        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51SRx3bPYr42ZFOGH48eoeAzCwcTDmKzx60kQRUnkyZiBMJdd8jgTv1DpkkaqCmKxO3WRCWAYJeyHW3vzsv4YxSmh00F6YFaiwO",
+        "R2_ASSET_BASE_URL": "https://assets.drimit.ai"
     },
     "routes": [
         {

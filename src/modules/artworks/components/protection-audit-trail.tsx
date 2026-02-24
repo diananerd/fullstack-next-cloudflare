@@ -34,7 +34,8 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import type { ProtectionJobResult, StepResult } from "../models/protection-result.model";
-import { STEPS_CONFIG } from "../models/protection-result.model";
+import { PIPELINE_LAYERS } from "@/constants/pipeline-contract";
+import type { VerificationMetricConfig } from "@/constants/pipeline-contract";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 
@@ -43,6 +44,7 @@ interface ProtectionAuditTrailProps {
     status: string;
     statusDate?: string;
     className?: string;
+    r2BaseUrl?: string;
 }
 
 export function ProtectionAuditTrail({
@@ -50,6 +52,7 @@ export function ProtectionAuditTrail({
     status,
     statusDate,
     className,
+    r2BaseUrl,
 }: ProtectionAuditTrailProps) {
     // Helper: Find step result
     const getStepResult = (stepKey: string): StepResult | undefined => {
@@ -66,47 +69,57 @@ export function ProtectionAuditTrail({
         </div>
     );
 
-    const renderVerificationDetails = (stepKey: string, result: StepResult) => {
+    const renderVerificationDetails = (layerId: string, result: StepResult) => {
+        const layer = PIPELINE_LAYERS.find((l) => l.id === layerId);
+        if (!layer || layer.verificationMetrics.length === 0) return null;
+
         const meta = result.verification_meta || {};
 
-        if (stepKey === "layer_1_identity") {
-            const faces = meta.faces_detected ?? -1;
-            const passed = faces === 0;
-            return (
-                <div className="mt-3 space-y-1">
-                    {renderMetric("Faces Detected", faces === -1 ? "N/A" : faces, passed)}
-                    {renderMetric("Confidence", `${((meta.confidence || 0) * 100).toFixed(1)}%`, true)}
-                </div>
-            );
-        }
+        const formatValue = (value: unknown, metric: VerificationMetricConfig): string | number => {
+            switch (metric.format) {
+                case "percent": return `${((value as number) * 100).toFixed(1)}%`;
+                case "decimal": return (value as number).toFixed(3);
+                case "boolean": return value ? "YES" : "NO";
+                case "count": return value === -1 ? "N/A" : String(value);
+                default: return String(value);
+            }
+        };
 
-        if (stepKey === "layer_2_mimicry") {
-            const sim = meta.style_similarity ?? 0;
-            // Assuming < 0.3 is good for style mimicry protection (simulated)
-            return (
-                <div className="mt-3 space-y-1">
-                    {renderMetric("Style Similarity", sim.toFixed(3), sim < 0.3)}
-                    {renderMetric("Concept Distance", "High", true)}
-                </div>
-            );
-        }
+        const isGoodValue = (value: unknown, metric: VerificationMetricConfig): boolean => {
+            switch (metric.goodWhen) {
+                case "zero": return value === 0;
+                case "nonzero": return !!value;
+                case "low": return typeof value === "number" && value < (metric.threshold ?? 0.5);
+                case "high": return typeof value === "number" && value > (metric.threshold ?? 0.5);
+                default: return true;
+            }
+        };
 
-        if (stepKey === "layer_4_watermark") {
-            const detected = meta.watermark_detected;
-            return (
-                <div className="mt-3 space-y-1">
-                    {renderMetric("Watermark Found", detected ? "YES" : "NO", !!detected)}
-                    {meta.decoded_uuid && (
-                        <div className="mt-1 bg-muted/50 p-1.5 rounded">
-                            <span className="text-[10px] text-muted-foreground block mb-0.5">UUID Payload</span>
-                            <code className="text-[10px] break-all block leading-tight">{meta.decoded_uuid}</code>
+        return (
+            <div className="mt-3 space-y-1">
+                {layer.verificationMetrics.map((metric) => {
+                    const value = meta[metric.key];
+
+                    if (metric.format === "code") {
+                        if (!value) return null;
+                        return (
+                            <div key={metric.key} className="mt-1 bg-muted/50 p-1.5 rounded">
+                                <span className="text-[10px] text-muted-foreground block mb-0.5">{metric.label}</span>
+                                <code className="text-[10px] break-all block leading-tight">{String(value)}</code>
+                            </div>
+                        );
+                    }
+
+                    if (value === undefined || value === null) return null;
+
+                    return (
+                        <div key={metric.key}>
+                            {renderMetric(metric.label, formatValue(value, metric), isGoodValue(value, metric))}
                         </div>
-                    )}
-                </div>
-            );
-        }
-
-        return null;
+                    );
+                })}
+            </div>
+        );
     };
 
     // Overall Status Logic
@@ -153,8 +166,8 @@ export function ProtectionAuditTrail({
                 <CardContent className="pt-6 space-y-8 pr-6">
                     {/* Pipeline Visualization */}
                     <div className="relative border-l-2 border-muted ml-3 space-y-8 pb-4">
-                        {STEPS_CONFIG.map((step, idx) => {
-                            const result = getStepResult(step.key);
+                        {PIPELINE_LAYERS.map((layer, idx) => {
+                            const result = getStepResult(layer.id);
                             const stepStatus = result?.status || "PENDING";
                             
                             // Determine current visual state
@@ -177,7 +190,7 @@ export function ProtectionAuditTrail({
                             }
 
                             return (
-                                <div key={step.key} className="relative pl-8">
+                                <div key={layer.id} className="relative pl-8">
                                     {/* Timeline Node */}
                                     <div className={cn(
                                         "absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 flex items-center justify-center z-10 box-content",
@@ -195,7 +208,7 @@ export function ProtectionAuditTrail({
                                         <div className="flex items-start justify-between mb-2">
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-muted-foreground font-normal">Layer {idx + 1}</Badge>
-                                                <h4 className="text-sm font-semibold">{step.label}</h4>
+                                                <h4 className="text-sm font-semibold">{layer.label}</h4>
                                             </div>
                                             <TooltipProvider>
                                                 <Tooltip>
@@ -212,13 +225,13 @@ export function ProtectionAuditTrail({
                                         </div>
                                         
                                         <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                                            {step.description}
+                                            {layer.description}
                                         </p>
 
                                         {/* Dynamic Verification Details */}
                                         {result && result.status !== "PENDING" && (
                                             <div className="animate-in fade-in zoom-in-95 duration-300">
-                                                {renderVerificationDetails(step.key, result)}
+                                                {renderVerificationDetails(layer.id, result)}
                                                 
                                                 {/* Error View */}
                                                 {result.error && (
@@ -229,9 +242,14 @@ export function ProtectionAuditTrail({
                                                 )}
 
                                                 {/* Debug Links */}
-                                                {result.r2_key && (
+                                                {result.r2_key && r2BaseUrl && (
                                                     <div className="mt-3 pt-2 border-t flex justify-end">
-                                                        <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-primary">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-primary"
+                                                            onClick={() => window.open(`${r2BaseUrl}/${result.r2_key}`, "_blank")}
+                                                        >
                                                             <Eye className="w-3 h-3" /> View Layer Output
                                                         </Button>
                                                     </div>

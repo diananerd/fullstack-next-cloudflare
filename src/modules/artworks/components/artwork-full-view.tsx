@@ -394,11 +394,12 @@ export function ArtworkFullView({
                     )}>
                         {showAudit && ( // Conditional render content to avoid layout thrashing when width is 0
                             <div className="flex flex-col h-full bg-zinc-950">
-                                <ProtectionAuditTrail 
-                                    status={artwork.protectionStatus} 
-                                    jobResult={statusData?.progress || { steps: [] }} 
+                                <ProtectionAuditTrail
+                                    status={artwork.protectionStatus}
+                                    jobResult={statusData?.progress || { steps: [] }}
                                     statusDate={artwork.updatedAt}
                                     className="border-0 bg-transparent"
+                                    r2BaseUrl={artwork.url ? new URL(artwork.url).origin : undefined}
                                 />
                             </div>
                         )}

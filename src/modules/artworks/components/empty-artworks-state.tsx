@@ -39,7 +39,7 @@ export function EmptyArtworksState() {
                     <div className="pt-1.5">
                         <h4 className="font-semibold text-gray-900 text-sm">Protect</h4>
                         <p className="text-xs text-gray-500 mt-0.5 leading-snug">
-                            Apply <b>AI protection</b> or Watermark.
+                            Apply <b>Drimit Shield V2</b> protection.
                         </p>
                     </div>
                 </div>

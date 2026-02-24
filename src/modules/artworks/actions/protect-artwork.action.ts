@@ -5,6 +5,7 @@ import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { type ProtectionMethodType } from "@/modules/artworks/models/artwork.enum";
 import { PipelineService } from "../services/pipeline.service";
 import { checkArtworkProtectionEligibility } from "./check-eligibility.action";
+import { Analytics } from "@/lib/analytics";
 
 const DASHBOARD_ROUTE = "/artworks";
 
@@ -17,11 +18,13 @@ export type ProtectArtworkInput = {
 };
 
 export async function protectArtworkAction(input: ProtectArtworkInput) {
+    let userId = "";
     try {
         console.log(
             `[ProtectArtworkAction] Initiating pipeline for ID ${input.artworkId} with ${input.pipeline.length} steps`,
         );
         const user = await requireAuth();
+        userId = user.id;
 
         if (input.pipeline.length === 0) {
             return { success: false, error: "No protection methods selected" };
@@ -30,9 +33,14 @@ export async function protectArtworkAction(input: ProtectArtworkInput) {
         // Validate Credits
         const eligibility = await checkArtworkProtectionEligibility(user.id, input.pipeline);
         if (!eligibility.eligible) {
-            return { 
-                success: false, 
-                error: `Insufficient credits. Please recharge your account. (Missing ${eligibility.missing.toFixed(2)} credits)` 
+            Analytics.creditsInsufficient(user.id, {
+                balance: eligibility.balance,
+                required: eligibility.proposedCost,
+                missing: eligibility.missing,
+            });
+            return {
+                success: false,
+                error: `Insufficient credits. Please recharge your account. (Missing ${eligibility.missing.toFixed(2)} credits)`
             };
         }
 
@@ -43,6 +51,13 @@ export async function protectArtworkAction(input: ProtectArtworkInput) {
             user.id,
             input.pipeline,
         );
+
+        Analytics.protectionStarted(user.id, {
+            artwork_id: input.artworkId,
+            layers: (input.pipeline[0]?.config?.layers as string[]) ?? [],
+            intensity: (input.pipeline[0]?.config?.intensity as string) ?? "Medium",
+            cost_credits: eligibility.proposedCost,
+        });
 
         // --- NEW: Force Queue Processing ---
         // In the decoupled architecture, 'startPipeline' only queues the job.
@@ -62,6 +77,12 @@ export async function protectArtworkAction(input: ProtectArtworkInput) {
         return { success: true };
     } catch (error: unknown) {
         console.error(`[ProtectArtworkAction] Error:`, error);
+        if (userId) {
+            Analytics.captureException(userId, error, {
+                artwork_id: input.artworkId,
+                action: "protect_artwork",
+            });
+        }
         return {
             success: false,
             error:

@@ -1,17 +1,26 @@
 import { getProtectionConfig } from "@/lib/protection-config";
 import type { ProtectionMethodType } from "@/modules/artworks/models/artwork.enum";
+import { PIPELINE_LAYERS } from "@/constants/pipeline-contract";
 
 interface DispatchJobInput {
     artworkId: number;
     userId: string;
     imageUrl: string;
+    imageR2Key?: string; // R2 key of the original: {userId}/{sha256}/original.ext
     method: ProtectionMethodType;
     config?: Record<string, any>;
     isPreview?: boolean;
 }
 
 export async function dispatchProtectionJob(input: DispatchJobInput) {
-    const { artworkId, userId, imageUrl, method, config, isPreview } = input;
+    const { artworkId, userId, imageUrl, imageR2Key, method, config, isPreview } = input;
+
+    // Build the R2 public base URL so the Python kernel can construct
+    // publicly-accessible URLs for intermediate artifacts (used by SimulationEngine)
+    const r2RawHost = process.env.CLOUDFLARE_R2_URL;
+    const r2AssetBaseUrl = r2RawHost
+        ? `https://${r2RawHost}`
+        : "https://assets.drimit.ai";
 
     // Resolve configuration and credentials
     // Note: getProtectionConfig reads from process.env, which works in Next.js server actions / API routes
@@ -30,16 +39,30 @@ export async function dispatchProtectionJob(input: DispatchJobInput) {
         );
     }
 
+    // Build Python flags from the Pipeline Contract — contract-driven, no hardcoding.
+    // Each layer's pythonFlag is set based on whether its layerKey is in config.layers[].
+    // Default: all layers enabled (backward compat when config.layers is absent).
+    const layers = Array.isArray(methodConfig.layers) ? (methodConfig.layers as string[]) : null;
+    const layerFlagPayload = Object.fromEntries(
+        PIPELINE_LAYERS.map((l) => [
+            l.pythonFlag,
+            layers ? layers.includes(l.layerKey) : l.defaultEnabled,
+        ]),
+    );
+
     console.log(`[Dispatch] Dispatching ${method} for ID ${artworkId}`);
-    console.log(`[Dispatch] Config flags:`, JSON.stringify(methodConfig, null, 2));
+    console.log(`[Dispatch] Layer flags:`, layerFlagPayload);
 
     const payload = {
         artwork_id: String(artworkId),
         user_id: userId,
         image_url: imageUrl,
+        image_r2_key: imageR2Key ?? null,
+        r2_public_base_url: r2AssetBaseUrl,
         method: method,
         config: methodConfig,
         is_preview: isPreview ?? process.env.NODE_ENV !== "production",
+        ...layerFlagPayload,
     };
 
     const modalResponse = await fetch(modalUrl, {
