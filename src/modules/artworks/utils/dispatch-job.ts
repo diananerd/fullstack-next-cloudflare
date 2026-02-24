@@ -16,11 +16,14 @@ export async function dispatchProtectionJob(input: DispatchJobInput) {
     const { artworkId, userId, imageUrl, imageR2Key, method, config, isPreview } = input;
 
     // Build the R2 public base URL so the Python kernel can construct
-    // publicly-accessible URLs for intermediate artifacts (used by SimulationEngine)
-    const r2RawHost = process.env.CLOUDFLARE_R2_URL;
-    const r2AssetBaseUrl = r2RawHost
-        ? `https://${r2RawHost}`
-        : "https://assets.drimit.ai";
+    // publicly-accessible URLs for intermediate artifacts (used by SimulationEngine).
+    // R2_ASSET_BASE_URL is the canonical source (set in both .env.local and wrangler.jsonc).
+    // CLOUDFLARE_R2_URL (raw hostname) is a dev fallback.
+    const r2AssetBaseUrl =
+        process.env.R2_ASSET_BASE_URL ||
+        (process.env.CLOUDFLARE_R2_URL
+            ? `https://${process.env.CLOUDFLARE_R2_URL}`
+            : "https://assets.drimit.ai");
 
     // Resolve configuration and credentials
     // Note: getProtectionConfig reads from process.env, which works in Next.js server actions / API routes

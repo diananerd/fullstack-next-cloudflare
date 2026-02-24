@@ -443,8 +443,8 @@ class ProtectionKernel:
             return Image.fromarray(adv_np)
 
         except Exception as e:
-            print(f"[Layer 3] PGD failed ({e}), falling back to noise approximation.")
-            return self._simple_noise_fallback(img)
+            print(f"[Layer 3] PGD failed: {e}")
+            raise
 
     def _apply_layer_watermark(self, img: Image.Image, text: str) -> Image.Image:
         """Layer 4: Invisible Watermark (Provenance)"""
@@ -476,12 +476,9 @@ class ProtectionKernel:
             
             return Image.fromarray(img_encoded_rgb)
             
-        except ImportError:
-            print("Warning: invisible-watermark not installed, skipping.")
-            return img
         except Exception as e:
-            print(f"Watermark Error: {e}")
-            return img
+            print(f"[Layer 4] Watermark error: {e}")
+            raise
 
     @modal.method()
     def run_shield_pipeline(self, request: ProtectionRequest) -> ProtectionJobResult:
@@ -660,7 +657,7 @@ class ProtectionKernel:
                 t0 = time.time()
                 try:
                     # Provide Artwork ID as the payload
-                    current_img = self._apply_layer_watermark(current_img, request.artwork_id)
+                    current_img = self._apply_layer_watermark(current_img, watermark_text)
                     
                     step4_key = f"{path_prefix}/verification/layer_4_watermark.png"
                     self._upload_to_r2(self._img_to_bytes(current_img), step4_key, is_preview=request.is_preview)
@@ -761,13 +758,21 @@ class ProtectionKernel:
             )
 
 # FastAPI Integration
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request as FastAPIRequest
 from fastapi.responses import JSONResponse
 
 web_app = FastAPI()
 
+def _verify_token(request: FastAPIRequest):
+    auth = request.headers.get("Authorization", "")
+    token = auth.removeprefix("Bearer ").strip()
+    expected = os.environ.get("MODAL_AUTH_TOKEN", "")
+    if not expected or token != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
 @web_app.post("/protect")
-async def start_protection_job(request: ProtectionRequest):
+async def start_protection_job(http_request: FastAPIRequest, request: ProtectionRequest):
+    _verify_token(http_request)
     print(f"[API] Received protection request for {request.artwork_id}")
     try:
         # Spawn the job asynchronously using the Modal function
@@ -795,7 +800,8 @@ class StatusRequest(BaseModel):
     artwork_ids: List[str]
 
 @web_app.post("/status")
-async def check_bulk_status(request: StatusRequest):
+async def check_bulk_status(http_request: FastAPIRequest, request: StatusRequest):
+    _verify_token(http_request)
     """
     Called by PipelineService.syncRunningJobs with { artwork_ids: [...] }
     Returns { artwork_id: { status: str, result: dict } }
