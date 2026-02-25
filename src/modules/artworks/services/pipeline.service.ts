@@ -19,7 +19,7 @@ import { dispatchProtectionJob } from "../utils/dispatch-job";
 import { getProtectionConfig } from "@/lib/protection-config";
 import { deleteFromR2, cleanDirectoryExcept } from "@/lib/r2";
 import { CreditService } from "@/modules/credits/services/credit.service";
-import { PROTECTION_PRICING } from "@/constants/pricing.constant";
+import { PROTECTION_PRICING, DEFAULT_PROCESS_COST } from "@/constants/pricing.constant";
 import { Analytics } from "@/lib/analytics";
 
 export class PipelineService {
@@ -352,7 +352,7 @@ export class PipelineService {
                     );
 
                     // 2. Finalize Artwork & Charge
-                    const cost = PROTECTION_PRICING[ProtectionMethod.SHIELD]?.cost || 1.0;
+                    const cost = PROTECTION_PRICING[ProtectionMethod.SHIELD]?.cost ?? DEFAULT_PROCESS_COST;
                     // Declared outside try so catch can reference it for error reporting
                     let artwork: Awaited<ReturnType<typeof db.query.artworks.findFirst>> | undefined;
 
