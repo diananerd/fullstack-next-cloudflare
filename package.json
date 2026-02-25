@@ -12,7 +12,7 @@
         "build:cf": "npx @opennextjs/cloudflare build",
         "deploy:cf": "npx @opennextjs/cloudflare deploy",
         "preview:cf": "npx @opennextjs/cloudflare preview",
-        "deploy": "npx @opennextjs/cloudflare deploy",
+        "deploy": "npx @opennextjs/cloudflare build && npx @opennextjs/cloudflare deploy",
         "deploy:preview": "npx @opennextjs/cloudflare deploy --env preview",
         "db:generate": "drizzle-kit generate",
         "db:generate:named": "drizzle-kit generate --name",
