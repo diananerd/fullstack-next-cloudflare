@@ -73,6 +73,13 @@ def download_models():
     from diffusers import StableDiffusionImg2ImgPipeline, AutoencoderKL
     from facenet_pytorch import InceptionResnetV1
 
+    # HF login — required for gated models (e.g. FLUX VAE)
+    hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    if hf_token:
+        from huggingface_hub import login
+        login(token=hf_token, add_to_git_credential=False)
+        print("HuggingFace login successful.")
+
     # 1. SD 1.5 (Layer 3 VAE legacy proxy + fallback img2img)
     print("Downloading Stable Diffusion v1-5...")
     model_id = "runwayml/stable-diffusion-v1-5"
