@@ -59,7 +59,7 @@ R2_BUCKET_DEV = "drimit-shield-dev-bucket"
 app = modal.App("drimit-shield-kernel")
 
 # Reference Simulation
-simulation_engine = modal.Cls.from_name("drimit-shield-simulation", "SimulationEngine")
+simulation_engine = modal.Cls.from_name("drimit-shield-simulation", "SimulationEngine")()
 
 # Persistent State
 job_states = modal.Dict.from_name("shield-job-states", create_if_missing=True)
