@@ -121,6 +121,10 @@ class SimulationEngine:
         import requests
         from PIL import Image
         headers = {"User-Agent": "Mozilla/5.0"}
+        # /api/assets/ routes require Bearer auth (same token used for /protect)
+        auth_token = os.environ.get("MODAL_AUTH_TOKEN", "")
+        if auth_token and "/api/assets/" in url:
+            headers["Authorization"] = f"Bearer {auth_token}"
         r = requests.get(url, headers=headers, stream=True)
         r.raise_for_status()
         return Image.open(io.BytesIO(r.content)).convert("RGB")
