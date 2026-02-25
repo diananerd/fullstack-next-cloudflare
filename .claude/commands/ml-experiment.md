@@ -37,7 +37,7 @@ When status = "completed", display a table:
 |-------|--------|------------|-------|--------|-------|
 | Identity Shield | PASS | faces_detected | 0 | 0 | ✓ |
 | Style Poison | PASS | style_similarity | 0.21 | <0.30 | ✓ |
-| Edit Immunity | PASS | — | — | — | ✓ |
+| Edit Immunity | PASS | latent_l2_distance | N/A (no verifier) | — | ✓ |
 | Watermark | PASS | watermark_detected | YES | YES | ✓ |
 
 Also report:
@@ -47,6 +47,7 @@ Also report:
 
 ### 6. Diagnose failures
 If a layer fails, read the `error` field and suggest fixes based on common ML issues:
-- OOM → reduce batch size or image resolution
+- OOM → reduce batch size or image resolution; for Layer 3 use `torch.float16` for VAE
 - Low confidence → increase epsilon/steps for that layer
-- Watermark not detected → check DWT parameters
+- Layer 3 fails entirely → check VAE loads from `/models/stable-diffusion-v1-5`; no fallback (exceptions propagate)
+- Watermark not detected → check DWT parameters; confirm `watermark_text` was in config (not empty)

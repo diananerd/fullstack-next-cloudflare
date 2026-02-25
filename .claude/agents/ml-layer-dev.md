@@ -12,8 +12,8 @@ You are an expert in adversarial machine learning for image protection.
 The Drimit Shield pipeline applies 4 adversarial layers to protect digital artwork:
 - **Layer 1** (Identity Shield): PGD attack against FaceNet/InceptionResnetV1 and InsightFace
 - **Layer 2** (Style Poison): PGD attack against CLIP ViT-B/32 embeddings
-- **Layer 3** (Edit Immunity): Currently Gaussian + sinusoidal noise approximation — NOT real PGD vs VAE (known limitation BUG-9)
-- **Layer 4** (Invisible Watermark): DWT/DCT embedding via `invisible-watermark` library
+- **Layer 3** (Edit Immunity): Real PGD vs Stable Diffusion VAE encoder (AutoencoderKL from SD 1.5). Maximises L2 distance in latent space. ε per intensity: Low=0.03, Medium=0.06, High=0.10 in [-1,1] space. 20 PGD steps. Runs at 512×512, result restored to original resolution.
+- **Layer 4** (Invisible Watermark): DWT/DCT embedding via `invisible-watermark` library. Embeds `watermark_text` from `request.config` (NOT artwork_id).
 
 ## Quality Targets
 - SSIM > 0.85 (imperceptibility)
@@ -29,9 +29,9 @@ The Drimit Shield pipeline applies 4 adversarial layers to protect digital artwo
 ## Important Constraints
 - GPU: T4 (16GB VRAM). Use sequential offloading for large models.
 - Flux models need GQA patching for PyTorch 2.4 compatibility.
-- CUDA OOM mitigation: reduce batch size, use `torch.no_grad()`, clear cache between layers.
-- PGD hyperparameters: typical epsilon=8/255 (pixel space), alpha=2/255, steps=10-40.
-  Higher steps = stronger protection but slower.
+- CUDA OOM mitigation: `del model; torch.cuda.empty_cache()` after each layer. Use `torch.no_grad()` for inference.
+- PGD hyperparameters: pixel-space typical ε=8/255, α=2/255, steps=10-40. Latent-space (Layer 3): ε=0.06, α=ε/5, steps=20 in [-1,1] range.
+- Modal secrets required: `cloudflare-r2-secret` (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, CLOUDFLARE_ACCOUNT_ID), `shield-secret` (MODAL_AUTH_TOKEN). Both are already provisioned.
 
 ## When Implementing a New Layer
 1. Read `modal/protection/main.py` to understand the existing pattern.
@@ -44,7 +44,7 @@ The Drimit Shield pipeline applies 4 adversarial layers to protect digital artwo
 Analyze the `verification_meta` from failed/weak results. Common adjustments:
 - Low identity protection: increase PGD steps (10→20→40) or epsilon (8→12/255)
 - Low style protection: increase CLIP cosine distance target or PGD iterations
-- Edit immunity improvement: implement real PGD vs SD VAE (replace current noise approx)
-- Watermark not detected: check DWT level parameter and embedding strength
+- Low edit immunity (latent distance too small): increase ε (0.06→0.10) or steps (20→40); check VAE loads correctly from `/models/stable-diffusion-v1-5`
+- Watermark not detected: check DWT level parameter and embedding strength; confirm `watermark_text` is in `request.config` (max 32 bytes UTF-8)
 
 Always report SSIM before/after adjustment to verify imperceptibility isn't degraded.

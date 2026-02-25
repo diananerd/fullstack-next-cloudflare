@@ -14,7 +14,8 @@ export interface VerificationMeta {
 export interface StepResult {
     step_name: string;
     status: StepStatus;
-    r2_key?: string; // Intermediate image key
+    r2_key?: string; // Intermediate image key (protected image artifact)
+    r2_key_original?: string; // R2 key of original-image verification artifact (v3)
     verification_meta?: any; // Flexible meta
     error?: string;
     duration_ms?: number;

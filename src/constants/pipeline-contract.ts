@@ -78,6 +78,7 @@ export const PIPELINE_LAYERS: PipelineLayerConfig[] = [
         verificationMetrics: [
             { key: "faces_detected", label: "Faces Detected", format: "count", goodWhen: "zero" },
             { key: "confidence", label: "Detection Confidence", format: "percent", goodWhen: "always" },
+            { key: "confidence_drop", label: "Confidence Drop", format: "percent", goodWhen: "high", threshold: 0.3 },
         ],
         configFields: [],
     },
@@ -92,6 +93,7 @@ export const PIPELINE_LAYERS: PipelineLayerConfig[] = [
         defaultEnabled: true,
         verificationMetrics: [
             { key: "style_similarity", label: "Style Similarity", format: "decimal", goodWhen: "low", threshold: 0.3 },
+            { key: "flux_vae_latent_drift", label: "FLUX Latent Drift", format: "decimal", goodWhen: "high", threshold: 0.02 },
         ],
         configFields: [],
     },
@@ -100,11 +102,14 @@ export const PIPELINE_LAYERS: PipelineLayerConfig[] = [
         layerKey: "editing",
         pythonFlag: "use_edit_immunity",
         label: "Edit Immunity",
-        description: "Diffusion immunization via adversarial noise against SD VAE",
+        description: "Diffusion immunization via adversarial noise against FLUX VAE + SD 1.5 VAE",
         uiDescription: "Disrupts AI-powered editing and inpainting of your artwork",
         icon: "Edit3",
         defaultEnabled: true,
-        verificationMetrics: [],
+        verificationMetrics: [
+            { key: "flux_latent_disruption", label: "FLUX Latent Disruption", format: "decimal", goodWhen: "high", threshold: 0.01 },
+            { key: "artifacts_metric", label: "Inpaint Disruption", format: "decimal", goodWhen: "high", threshold: 1200 },
+        ],
         configFields: [],
     },
     {
@@ -112,13 +117,14 @@ export const PIPELINE_LAYERS: PipelineLayerConfig[] = [
         layerKey: "watermark",
         pythonFlag: "use_watermark",
         label: "Invisible Watermark",
-        description: "Invisible attribution embedding via DWT/DCT frequency domain",
-        uiDescription: "Embeds your identity invisibly into the image's frequency domain",
+        description: "Invisible attribution embedding via TrustMark steganographic encoding",
+        uiDescription: "Embeds your identity invisibly into the image using neural steganography",
         icon: "Fingerprint",
         defaultEnabled: true,
         verificationMetrics: [
             { key: "watermark_detected", label: "Watermark Found", format: "boolean", goodWhen: "always" },
-            { key: "decoded_uuid", label: "UUID Payload", format: "code" },
+            { key: "decoded_uuid", label: "Decoded Payload", format: "code" },
+            { key: "robustness_score", label: "Robustness Score", format: "percent", goodWhen: "high", threshold: 0.5 },
         ],
         configFields: [
             {

@@ -20,6 +20,7 @@ All events are defined in `src/lib/analytics.ts`. Key events:
 | `protection_dialog_opened` | Client (`protect-artwork-dialog.tsx`) | `artwork_id` |
 | `artwork_uploaded` | Server (`create-artwork.action.ts`) | `artwork_id`, `size_bytes`, `mime_type` |
 | `protection_started` | Server (`protect-artwork.action.ts`) | `artwork_id`, `layers[]`, `intensity`, `cost_credits` |
+| `protection_pipeline_queued` | Client (dialog success step) | `artwork_id` — fires when job is accepted; **use as survey trigger** |
 | `protection_completed` | Server (`sync-modal-status` cron) | `artwork_id`, `shield_score`, `duration_ms`, `layers_passed`, `layers_failed` |
 | `protection_failed` | Server (cron) | `artwork_id`, `error` |
 
@@ -27,6 +28,21 @@ All events are defined in `src/lib/analytics.ts`. Key events:
 | Event | Key properties |
 |-------|----------------|
 | `credits_insufficient` | `balance`, `required`, `missing` |
+
+### Error Tracking
+| Event | Key properties |
+|-------|----------------|
+| `$exception` | `$exception_message`, `$exception_type`, `$exception_stack_trace_raw`, `context` |
+
+Exceptions are captured from:
+- Server actions (protect-artwork, create-artwork) via `Analytics.captureException()`
+- Dashboard error boundary (`src/app/(dashboard)/error.tsx`)
+- Global error boundary (`src/app/global-error.tsx`)
+- Global browser errors (`window.onerror`, `unhandledrejection`) via `AnalyticsProvider`
+
+### Feature Flags
+Managed in PostHog dashboard. Server: `getFeatureFlag(userId, key)`. Client: `useFeatureFlagEnabled(key)`.
+No flags active yet — document here when created.
 
 ### User Lifecycle
 | Event | Key properties |
@@ -40,6 +56,7 @@ All events are defined in `src/lib/analytics.ts`. Key events:
 $pageview (/artworks)
   → protection_dialog_opened
   → protection_started
+  → protection_pipeline_queued   ← client confirmation (survey trigger point)
   → protection_completed (success) / protection_failed
 ```
 **Health metric**: `protection_started / protection_dialog_opened` > 60%

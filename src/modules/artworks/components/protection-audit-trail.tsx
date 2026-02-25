@@ -95,6 +95,14 @@ export function ProtectionAuditTrail({
             }
         };
 
+        // v3 comparison rows: entries with both baseline + protected measurements
+        const v3Entries = [meta.latest, meta.legacy].filter(
+            (e): e is Record<string, any> =>
+                !!e &&
+                typeof e === "object" &&
+                ("baseline" in e || "baseline_self_similarity" in e)
+        );
+
         return (
             <div className="mt-3 space-y-1">
                 {layer.verificationMetrics.map((metric) => {
@@ -118,6 +126,91 @@ export function ProtectionAuditTrail({
                         </div>
                     );
                 })}
+
+                {/* v3: Before / After comparison table (only when dual-run data is present) */}
+                {v3Entries.length > 0 && (
+                    <div className="mt-3 border-t pt-2">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">Before / After</p>
+                        <table className="w-full text-[10px]">
+                            <thead>
+                                <tr className="text-muted-foreground">
+                                    <th className="text-left font-normal pb-1">Model</th>
+                                    <th className="text-right font-normal pb-1">Before</th>
+                                    <th className="text-right font-normal pb-1">After</th>
+                                    <th className="text-right font-normal pb-1">Delta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {v3Entries.map((entry) => {
+                                    const before = entry.baseline?.confidence ?? entry.baseline_self_similarity ?? 0;
+                                    const after = entry.protected?.confidence ?? entry.protected_similarity ?? 0;
+                                    const drop = entry.confidence_drop ?? entry.drift ?? (before - after);
+                                    const isGood = drop > 0.3;
+                                    return (
+                                        <tr key={entry.model} className="border-t border-muted/50">
+                                            <td className="py-0.5 font-mono text-[9px] text-muted-foreground">{entry.model}</td>
+                                            <td className="text-right font-mono">{(before * 100).toFixed(1)}%</td>
+                                            <td className="text-right font-mono">{(after * 100).toFixed(1)}%</td>
+                                            <td className={cn("text-right font-mono", isGood ? "text-green-600" : "text-yellow-600")}>
+                                                ↓ {(drop * 100).toFixed(1)}%
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {/* v3: Layer 3 side-by-side inpainting comparison */}
+                {layerId === "layer_3_editing" && result.r2_key_original && r2BaseUrl && (
+                    <div className="mt-3 border-t pt-2">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">Editing Test</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                            <div>
+                                <p className="text-[9px] text-muted-foreground mb-0.5">Original image</p>
+                                <img
+                                    src={`${r2BaseUrl}/${result.r2_key_original}`}
+                                    alt="Inpaint on original"
+                                    className="w-full rounded border"
+                                />
+                            </div>
+                            <div>
+                                <p className="text-[9px] text-muted-foreground mb-0.5">Protected image</p>
+                                <img
+                                    src={`${r2BaseUrl}/${result.r2_key}`}
+                                    alt="Inpaint on protected"
+                                    className="w-full rounded border"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* v3: Layer 4 robustness breakdown */}
+                {layerId === "layer_4_watermark" && meta.jpeg_80 !== undefined && (
+                    <div className="mt-3 border-t pt-2">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">Robustness Tests</p>
+                        <div className="space-y-0.5">
+                            {([
+                                { label: "Direct decode", data: meta.direct },
+                                { label: "JPEG q80", data: meta.jpeg_80 },
+                                { label: "JPEG q60", data: meta.jpeg_60 },
+                                { label: "VAE encode-decode", data: meta.vae_pass },
+                                { label: "Bilateral filter", data: meta.bilateral },
+                            ] as { label: string; data?: { detected?: boolean; match?: boolean } }[])
+                                .filter((item) => item.data)
+                                .map((item) => (
+                                    <div key={item.label} className="flex justify-between text-[10px] py-0.5">
+                                        <span className="text-muted-foreground">{item.label}</span>
+                                        <span className={cn("font-mono", item.data?.match ? "text-green-600" : item.data?.detected ? "text-yellow-600" : "text-muted-foreground")}>
+                                            {item.data?.match ? "✓ match" : item.data?.detected ? "detected, no match" : "not found"}
+                                        </span>
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };

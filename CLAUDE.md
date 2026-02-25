@@ -44,10 +44,10 @@ Al añadir una capa, dispatch-job.ts se actualiza solo via el contrato.
 
 ## ML Quality Targets
 - SSIM > 0.85 (protección imperceptible para el ojo humano)
-- Layer 1: `faces_detected === 0` después de protección
-- Layer 2: `style_similarity < 0.3`
-- Layer 4: `watermark_detected === true` siempre
-- Layer 3: actualmente noise approx (no PGD real vs VAE) — mejora pendiente
+- Layer 1: `faces_detected === 0` después de protección (PGD vs FaceNet/InceptionResnetV1)
+- Layer 2: `style_similarity < 0.3` (PGD vs CLIP embeddings)
+- Layer 3: maximiza distancia L2 en espacio latente del VAE de SD 1.5 (PGD real, ε=0.06 @ Medium, 20 pasos)
+- Layer 4: `watermark_detected === true` siempre — texto embebido = `config.watermark_text`
 
 ## Commands Cheat Sheet
 ```

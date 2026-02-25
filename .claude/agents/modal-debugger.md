@@ -24,8 +24,9 @@ Check: status, external_id, error_message, updated_at.
 ### 2. Dispatch Check
 Read `src/modules/artworks/utils/dispatch-job.ts` and check:
 - Was the artwork's `r2Key` fetched and passed as `image_r2_key`?
-- Was `r2_public_base_url` resolved from `CLOUDFLARE_R2_URL`?
+- Was `r2_public_base_url` resolved from `R2_ASSET_BASE_URL` (canonical) or `CLOUDFLARE_R2_URL` (dev fallback)?
 - Were all layer flags passed based on `config.layers`?
+- Was the Bearer token sent (`Authorization: Bearer ${MODAL_AUTH_TOKEN}`)? Both `/protect` and `/status` now enforce it.
 
 ### 3. Modal Status
 Read `.env.local` for `MODAL_KERNEL_STATUS_URL` and `MODAL_AUTH_TOKEN`.
@@ -51,6 +52,9 @@ Common failure patterns:
 | Watermark not detected | DWT parameters changed or image was re-compressed |
 | r2_key is null in StepResult | R2 upload failed — check credentials or bucket name |
 | path mismatch in R2 | image_r2_key not passed or backward compat path used |
+| 401 on /protect or /status | MODAL_AUTH_TOKEN not in `shield-secret` or token mismatch with `.env.local` |
+| Layer 3 FAIL: OOM | VAE load failed on T4 — try `torch_dtype=torch.float16` or reduce image to 512×512 before passing |
+| Watermark embeds wrong text | Old deploy — watermark now uses `config.watermark_text`, redeploy protection |
 
 ### 6. Report
 Present a clear timeline:

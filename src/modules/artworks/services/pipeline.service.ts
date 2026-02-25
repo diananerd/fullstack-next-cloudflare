@@ -20,6 +20,7 @@ import { getProtectionConfig } from "@/lib/protection-config";
 import { deleteFromR2, cleanDirectoryExcept } from "@/lib/r2";
 import { CreditService } from "@/modules/credits/services/credit.service";
 import { PROTECTION_PRICING } from "@/constants/pricing.constant";
+import { Analytics } from "@/lib/analytics";
 
 export class PipelineService {
     /**
@@ -232,6 +233,10 @@ export class PipelineService {
                 .where(eq(artworks.id, job.artworkId));
         } catch (error) {
             console.error(`[Pipeline] Dispatch Error Job ${jobId}:`, error);
+            void Analytics.captureException(userId, error, {
+                action: "dispatch_job",
+                job_id: jobId,
+            });
             await db
                 .update(artworkJobs)
                 .set({
@@ -348,10 +353,12 @@ export class PipelineService {
 
                     // 2. Finalize Artwork & Charge
                     const cost = PROTECTION_PRICING[ProtectionMethod.SHIELD]?.cost || 1.0;
-                    
+                    // Declared outside try so catch can reference it for error reporting
+                    let artwork: Awaited<ReturnType<typeof db.query.artworks.findFirst>> | undefined;
+
                     try {
-                        const artwork = await db.query.artworks.findFirst({
-                             where: eq(artworks.id, job.artworkId) 
+                        artwork = await db.query.artworks.findFirst({
+                             where: eq(artworks.id, job.artworkId)
                         });
                         
                         // Merge result into artwork metadata for easy frontend access
@@ -374,6 +381,14 @@ export class PipelineService {
                                  updatedAt: new Date().toISOString()
                              }).where(eq(artworks.id, job.artworkId));
 
+                             void Analytics.protectionCompleted(artwork.userId, {
+                                 artwork_id: job.artworkId,
+                                 shield_score: shieldScore,
+                                 duration_ms: result.total_duration_ms,
+                                 layers_passed: steps.filter((s: any) => s.status === "PASS").length,
+                                 layers_failed: steps.filter((s: any) => s.status === "FAIL").length,
+                             });
+
                              await CreditService.chargeCredits(
                                 artwork.userId,
                                 cost,
@@ -384,6 +399,11 @@ export class PipelineService {
                         }
                     } catch (e) {
                         console.error(`[Pipeline] Charge failed for ${job.artworkId}:`, e);
+                        void Analytics.captureException(artwork?.userId ?? "unknown", e, {
+                            action: "charge_credits",
+                            artwork_id: job.artworkId,
+                            job_id: job.id,
+                        });
                     }
 
                 } else if (status === "failed" || status === "error") {
@@ -396,6 +416,12 @@ export class PipelineService {
                         }).where(eq(artworkJobs.id, job.id))
                     );
                     const failedArtwork = await db.query.artworks.findFirst({ where: eq(artworks.id, job.artworkId) });
+                    if (failedArtwork?.userId) {
+                        void Analytics.protectionFailed(failedArtwork.userId, {
+                            artwork_id: job.artworkId,
+                            error: state.error || "Unknown Error",
+                        });
+                    }
                     updates.push(
                          db.update(artworks).set({
                             protectionStatus: ProtectionStatus.FAILED,
@@ -425,6 +451,7 @@ export class PipelineService {
 
         } catch (e) {
             console.error("[Pipeline] Sync Error:", e);
+            void Analytics.captureException("system", e, { action: "sync_running_jobs" });
         }
 
         return { synced: validJobs.length };

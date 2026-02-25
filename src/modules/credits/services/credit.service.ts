@@ -179,6 +179,33 @@ export class CreditService {
 
         const db = await getDb();
 
+        // Idempotency check — prevent double-charge on concurrent cron runs.
+        // addCredits has this guard; chargeCredits must too.
+        if (referenceId) {
+            const existing = await db
+                .select({ id: creditTransactions.id })
+                .from(creditTransactions)
+                .where(
+                    and(
+                        eq(creditTransactions.referenceId, referenceId),
+                        eq(creditTransactions.type, "USAGE"),
+                    ),
+                )
+                .limit(1)
+                .get();
+            if (existing) {
+                console.log(
+                    `[CreditService] Charge referenceId=${referenceId} already processed. Skipping.`,
+                );
+                const bal = await db
+                    .select({ credits: user.credits })
+                    .from(user)
+                    .where(eq(user.id, userId))
+                    .get();
+                return bal?.credits ?? 0;
+            }
+        }
+
         try {
             // Attempt atomic update ensuring balance doesn't go below 0
             // We verify the user has enough credits directly in the UPDATE condition

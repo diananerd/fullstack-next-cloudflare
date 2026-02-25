@@ -35,6 +35,7 @@ class StepResult(BaseModel):
     step_name: str
     status: str # PASS, FAIL, SKIPPED, PENDING
     r2_key: Optional[str] = None
+    r2_key_original: Optional[str] = None  # R2 key of original-image verification artifact (v3)
     verification_meta: Dict[str, Any] = {}
     error: Optional[str] = None
     duration_ms: float = 0
@@ -69,53 +70,92 @@ def download_models():
     import os
     import torch
     import insightface
-    from diffusers import StableDiffusionImg2ImgPipeline
+    from diffusers import StableDiffusionImg2ImgPipeline, AutoencoderKL
     from facenet_pytorch import InceptionResnetV1
-    
-    # 1. Mist Models (SD 1.5 - Backcompat / Edit Immunity)
-    print("Downloading Stable Diffusion v1-5 (Mist)...")
+
+    # Explicit HF login — handles any env var name (HF_TOKEN or HUGGING_FACE_HUB_TOKEN)
+    hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    if hf_token:
+        from huggingface_hub import login
+        login(token=hf_token, add_to_git_credential=False)
+        print("HuggingFace login successful.")
+
+    # 1. SD 1.5 (Layer 3 VAE legacy proxy + fallback img2img)
+    print("Downloading Stable Diffusion v1-5...")
     model_id = "runwayml/stable-diffusion-v1-5"
     if torch.cuda.is_available():
         pipe = StableDiffusionImg2ImgPipeline.from_pretrained(model_id, torch_dtype=torch.float16, safety_checker=None)
     else:
         pipe = StableDiffusionImg2ImgPipeline.from_pretrained(model_id, safety_checker=None)
     pipe.save_pretrained("/models/stable-diffusion-v1-5")
-    
-    # 2. Poisoning/Concept (CLIP/SigLIP)
+
+    # 2. CLIP ViT-L/14 (Layer 2 legacy proxy)
     from transformers import CLIPModel, CLIPProcessor
-    print("Downloading CLIP (Poison)...")
+    print("Downloading CLIP ViT-L/14 (Layer 2 legacy)...")
     CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
     CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
-    
-    # 3. InsightFace (Deepfake Defense - SOTA)
-    print("Downloading InsightFace models...")
-    # This caches 'buffalo_l' to ~/.insightface/models/
-    try:
-        app = insightface.app.FaceAnalysis(name='buffalo_l', providers=['CUDAExecutionProvider'])
-        app.prepare(ctx_id=0, det_size=(640, 640))
-    except Exception as e:
-        print(f"InsightFace download warning (may be OK if cached): {e}")
 
-    # 4. Facenet-PyTorch (Identity Attack Proxy)
-    print("Downloading InceptionResnetV1 (Identity Proxy)...")
-    # This downloads weights to ~/.cache/torch/hub/checkpoints/
-    model = InceptionResnetV1(pretrained='vggface2').eval()
+    # 3. OpenCLIP ViT-H/14 (Layer 2 primary proxy — SDXL/IP-Adapter class)
+    print("Downloading OpenCLIP ViT-H/14 (Layer 2 primary)...")
+    try:
+        import open_clip
+        open_clip.create_model_and_transforms('ViT-H-14', pretrained='laion2b_s32b_b79k')
+        print("OpenCLIP ViT-H/14 cached successfully.")
+    except Exception as e:
+        print(f"OpenCLIP ViT-H/14 warning: {e}")
+
+    # 4. InsightFace antelopev2 (Layer 1 primary — ArcFace R100/Glint360K, InstantID era)
+    # Note: buffalo_l is NOT needed in protection — only antelopev2 is used for face detection.
+    # buffalo_l lives in simulation/main.py (verify_identity dual-run).
+    print("Downloading InsightFace antelopev2...")
+    try:
+        app_v2 = insightface.app.FaceAnalysis(name='antelopev2', providers=['CUDAExecutionProvider'])
+        app_v2.prepare(ctx_id=0, det_size=(640, 640))
+        print("antelopev2 cached successfully.")
+    except Exception as e:
+        print(f"InsightFace antelopev2 warning: {e}")
+
+    # 6. InceptionResnetV1/VGGFace2 (differentiable identity proxy for PGD)
+    print("Downloading InceptionResnetV1 (VGGFace2 differentiable proxy)...")
+    InceptionResnetV1(pretrained='vggface2').eval()
+
+    # 7. FLUX VAE (Layer 3 primary proxy — 16-channel, modern diffusion)
+    print("Downloading FLUX VAE (16-channel, Layer 3 primary)...")
+    try:
+        AutoencoderKL.from_pretrained(
+            "black-forest-labs/FLUX.1-schnell",
+            subfolder="vae",
+            torch_dtype=torch.float32,
+        )
+        print("FLUX VAE cached successfully.")
+    except Exception as e:
+        print(f"FLUX VAE warning: {e}")
+
+    # 8. TrustMark (Layer 4 — neural steganographic watermarking)
+    print("Downloading TrustMark-C watermark model...")
+    try:
+        from trustmark import TrustMark
+        TrustMark(verbose=False, model_type='C')
+        print("TrustMark-C cached successfully.")
+    except Exception as e:
+        print(f"TrustMark warning: {e}")
     
 kernel_image = (
     modal.Image.debian_slim(python_version="3.10")
-    .apt_install("git", "libgl1", "libglib2.0-0", "wget", "libsm6", "libxext6", "fonts-dejavu-core", "gcc", "g++")
+    .apt_install("git", "libgl1", "libglib2.0-0", "wget", "libsm6", "libxext6", "gcc", "g++")
     .pip_install(
-        "torch==2.0.1", "torchvision",
-        "diffusers==0.24.0", "transformers>=4.39.0",
-        "accelerate==0.25.0", "huggingface-hub==0.19.4",
+        "torch>=2.6.0,<2.8.0", "torchvision>=0.21.0,<0.23.0",
+        "diffusers>=0.30.0,<0.35.0", "transformers>=4.41.0,<5.0.0",
+        "accelerate>=0.26.0,<2.0.0", "huggingface-hub>=0.22.0,<1.0.0",
         "numpy<2", "scipy", "safetensors", "opencv-python",
-        "pynvml", "ftfy", "tqdm", "fire", "mediapipe",
-        "fastapi[standard]", "requests", "Pillow", "boto3", "sentencepiece",
-        "invisible-watermark==0.2.0",
-        "insightface==0.7.3", "onnxruntime-gpu>=1.16.0",
+        "ftfy", "tqdm",
+        "fastapi[standard]", "requests", "Pillow", "boto3",
+        "open_clip_torch",
+        "trustmark",
+        "insightface==0.7.3", "onnxruntime-gpu>=1.16.0,<2.0.0",
         "facenet-pytorch"
     )
-    .run_function(download_models, gpu="any")
+    .run_function(download_models, gpu="any", secrets=[modal.Secret.from_name("shield-secret")])
 )
 
 app.image = kernel_image
@@ -183,189 +223,240 @@ class ProtectionKernel:
     # --- ATOMIC LAYERS ---
 
     def _apply_layer_identity(self, img: Image.Image, intensity: str) -> Image.Image:
-        """Layer 1: Identity Shield (SOTA: PGD Attack vs ArcFace/FaceNet)"""
+        """Layer 1: Identity Shield — dual-proxy PGD (antelopev2 face crop + VGGFace2 global).
+
+        Proxy 1 (primary): antelopev2 face detection → differentiable affine crop → InceptionResnetV1
+        Proxy 2 (legacy):  InceptionResnetV1 on global 160×160 resize
+        Combined loss: 0.65 * crop_sim + 0.35 * global_sim (falls back to 1.0 * global if no face)
+        """
         import torch
-        import torch.nn as nn
-        import torch.optim as optim
+        import torch.nn.functional as F
         import numpy as np
         import cv2
-        from facenet_pytorch import InceptionResnetV1
-        
-        print(f"[Layer 1] Applying Identity Shield (Adversarial Noise - Intensity: {intensity})...")
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        
-        # 1. Load Differentiable Face Model (Proxy for Attack)
-        # We use InceptionResnetV1 (VGGFace2) as a strong proxy for Face Recognition
-        try:
-            model = InceptionResnetV1(pretrained='vggface2').eval().to(device)
-            # Freeze params
-            for p in model.parameters():
-                p.requires_grad = False
-        except Exception as e:
-            print(f"[Layer 1] Critical Error loading Face Proxy: {e}")
-            return img # Fail open if model fails
-        
-        # 2. Prepare Image
-        # FaceNet expects specific normalization
-        img_np = np.array(img).astype(np.float32) / 255.0
-        # Convert to tensor [1, 3, H, W]
-        img_tensor = torch.tensor(img_np).permute(2,0,1).unsqueeze(0).to(device) 
-        
-        # We need to attack the embedding space.
-        # Helper to get embedding from full image (Global Attack Strategy)
-        # For robustness, we attack the resized global view. Ideally we'd crop faces, 
-        # but a global attack is more robust to different croppers and detectors.
         import torchvision.transforms as T
-        resizer = T.Resize((160, 160), antialias=True)
-        # Standard normalization for InceptionResnetV1 used in facenet-pytorch
-        # (Actually, facenet-pytorch usually uses simple whitening or fixed stats. 
-        # Here we follow the standard: (x - 127.5) / 128.0 approx [-1, 1])
-        # But our tensor is [0,1]. So (x - 0.5) / 0.5 -> [-1, 1]
-        
-        def get_embedding(full_img_tensor):
-            crops = resizer(full_img_tensor)
-            normed = (crops - 0.5) / 0.5 
-            return model(normed)
+        from facenet_pytorch import InceptionResnetV1
+        import insightface
 
-        with torch.no_grad():
-            orig_emb = get_embedding(img_tensor)
-            
-        # PGD Settings
-        # Epsilon: Max perturbation (L-inf norm)
-        epsilon = 0.03 if intensity == "Low" else (0.07 if intensity == "High" else 0.05)
-        alpha = 0.005 # Step size
-        steps = 40 if intensity == "High" else 25
-        
-        input_var = img_tensor.clone().detach()
-        input_var.requires_grad = True
-        
-        optimizer = optim.Adam([input_var], lr=0.01) # Adam can be better than simple SGD for this
-        
-        for i in range(steps):
-            curr_emb = get_embedding(input_var)
-            
-            # Loss: Maximize distance (Minimize Cosine Similarity)
-            # We want sim to be 0 or -1.
-            cos_sim = torch.nn.functional.cosine_similarity(curr_emb, orig_emb)
-            loss = cos_sim.mean() # Minimize this
-            
-            model.zero_grad()
-            loss.backward()
-            
-            # Update (Projected Gradient Descent)
-            # Gradient Ascent on Distance = Gradient Descent on Similarity
-            grad = input_var.grad.data
-            # Minimize similarity -> move AGAINST gradient
-            input_var.data = input_var.data - alpha * grad.sign()
-            
-            # Projection
-            diff = input_var.data - img_tensor.data
-            diff = torch.clamp(diff, -epsilon, epsilon)
-            input_var.data = torch.clamp(img_tensor.data + diff, 0, 1)
-            
-            input_var.grad = None
-            
-        print(f"[Layer 1] Identity Shield Final Loss (Sim): {loss.item():.4f}")
-        
-        res_np = input_var.detach().cpu().squeeze(0).permute(1, 2, 0).numpy()
-        res_uint8 = (res_np * 255).astype(np.uint8)
-        
-        # Verify result validity
-        return Image.fromarray(res_uint8)
-
-    def _apply_layer_mimicry(self, img: Image.Image, intensity: str) -> Image.Image:
-        """Layer 2: Style Poison (Feature Space Perturbation)"""
-        import torch
-        import torch.nn as nn
-        import torch.optim as optim
-        from transformers import CLIPModel, CLIPProcessor
-        import numpy as np
-        
-        print("[Layer 2] Applying Style Poison (CLIP-Targeted Adversarial Noise)...")
-        # Ensure we have clean memory
+        print(f"[Layer 1] Applying Identity Shield v3 (dual-proxy PGD, intensity={intensity})...")
         torch.cuda.empty_cache()
-        
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        
-        # 1. Load CLIP (The "Eye" of the AI we want to fool)
-        # Using openai/clip-vit-large-patch14 as standard reference
-        model_id = "openai/clip-vit-large-patch14"
+
+        # --- Load differentiable proxy (InceptionResnetV1 / VGGFace2) ---
         try:
-            model = CLIPModel.from_pretrained(model_id).to(device)
-            # Freeze extraction backbone
-            for p in model.parameters():
+            facenet = InceptionResnetV1(pretrained='vggface2').eval().to(device)
+            for p in facenet.parameters():
                 p.requires_grad = False
         except Exception as e:
-            # Fallback if download fails inside loop (should be pre-downloaded)
-            print(f"Warning: CLIP load failed ({e}), skipping style poison.")
+            print(f"[Layer 1] Critical: failed to load InceptionResnetV1: {e}")
             return img
 
-        # 2. Prepare Inputs
-        # Convert Image to Tensor for Optimization
-        # We process inputs manually to maintain gradients
-        
-        # Standardize input
-        import torchvision.transforms as T
-        # CLIP Standard normalization
-        normalizer = T.Normalize(mean=[0.48145466, 0.4578275, 0.40821073], 
-                                 std=[0.26862954, 0.26130258, 0.27577711])
-        resizer = T.Resize((224, 224), interpolation=T.InterpolationMode.BICUBIC, antialias=True)
-        
-        # Original Input for reference (Loss Target: Maximize distance from this)
-        # Convert [0,1] tensor first
+        # --- Prepare image tensor ---
         img_np = np.array(img).astype(np.float32) / 255.0
-        img_tensor = torch.tensor(img_np).permute(2,0,1).unsqueeze(0).to(device) # [1,3,H,W]
-        
-        with torch.no_grad():
-            proc_init = normalizer(resizer(img_tensor))
-            original_embedding = model.get_image_features(proc_init)
-        
-        # Intensity settings (Adversarial Budget)
-        epsilon = 0.03 if intensity == "Low" else (0.08 if intensity == "High" else 0.05)
-        steps = 40 
-        alpha = epsilon / 10 # Heuristic step size
-        
-        # PGD Loop
-        adv_tensor = img_tensor.clone().detach()
-        adv_tensor.requires_grad = True
-        
-        optimizer = optim.Adam([adv_tensor], lr=0.01)
-        
-        for i in range(steps):
-            # 1. Forward Pass (Resize -> Normalize -> CLIP)
-            # We resize inside loop to make the perturbation robust to resizing (AOT)
-            processed = normalizer(resizer(adv_tensor))
-            
-            # 2. Extract Features
-            current_embedding = model.get_image_features(processed)
-            
-            # 3. Calculate Loss (Cosine Similarity)
-            # We want to MINIMIZE similarity (Make it different semantically)
-            cos_sim = torch.nn.functional.cosine_similarity(current_embedding, original_embedding)
-            loss = cos_sim.mean() 
-            
-            # 4. Backward
-            model.zero_grad()
-            loss.backward()
-            
-            # 5. Update (Gradient Descent on Similarity = Gradient Ascent on Distance)
-            grad = adv_tensor.grad.data
-            adv_tensor.data = adv_tensor.data - alpha * grad.sign()
-            
-            # 6. Projection (Clamp to epsilon ball)
-            diff = adv_tensor.data - img_tensor.data
-            diff = torch.clamp(diff, -epsilon, epsilon)
-            adv_tensor.data = torch.clamp(img_tensor.data + diff, 0, 1)
-            
-            adv_tensor.grad = None
-            
-        print(f"[Layer 2] Style Poison Final Loss (Similarity): {loss.item():.4f}")
+        H, W = img.height, img.width
+        img_tensor = torch.tensor(img_np).permute(2, 0, 1).unsqueeze(0).to(device)  # [1,3,H,W]
 
-        # Convert back
-        res_np = adv_tensor.detach().cpu().squeeze(0).permute(1, 2, 0).numpy()
-        res_uint8 = (res_np * 255).astype(np.uint8)
-        
-        return Image.fromarray(res_uint8)
+        resizer_160 = T.Resize((160, 160), antialias=True)
+
+        def emb_from_tensor(t):
+            """InceptionResnetV1 embedding from arbitrary [1,3,H,W] tensor in [0,1]."""
+            cropped = resizer_160(t)
+            normed = (cropped - 0.5) / 0.5  # [0,1] → [-1,1]
+            return facenet(normed)
+
+        # --- antelopev2 face detection (non-differentiable, run once on original) ---
+        has_face = False
+        crop_coords = None
+        try:
+            providers = ['CUDAExecutionProvider'] if torch.cuda.is_available() else ['CPUExecutionProvider']
+            app_v2 = insightface.app.FaceAnalysis(name='antelopev2', providers=providers)
+            app_v2.prepare(ctx_id=0, det_size=(640, 640))
+            img_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+            faces = app_v2.get(img_bgr)
+            if len(faces) > 0:
+                bbox = faces[0].bbox.astype(int)
+                x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
+                pad = int(0.15 * max(x2 - x1, y2 - y1))
+                x1 = max(0, x1 - pad);  y1 = max(0, y1 - pad)
+                x2 = min(W, x2 + pad);  y2 = min(H, y2 + pad)
+                # Normalise to [-1,1] (PyTorch affine grid space)
+                crop_coords = (
+                    2 * x1 / W - 1, 2 * y1 / H - 1,
+                    2 * x2 / W - 1, 2 * y2 / H - 1,
+                )
+                has_face = True
+                print(f"[Layer 1] antelopev2 detected face bbox=({x1},{y1},{x2},{y2})")
+            del app_v2
+        except Exception as e:
+            print(f"[Layer 1] antelopev2 detection warning: {e} — using global attack only")
+
+        def crop_differentiable(tensor, x1n, y1n, x2n, y2n, out_size=160):
+            """Differentiable affine crop via grid_sample."""
+            sx = (x2n - x1n) / 2.0
+            sy = (y2n - y1n) / 2.0
+            tx = (x1n + x2n) / 2.0
+            ty = (y1n + y2n) / 2.0
+            theta = torch.tensor(
+                [[[sx, 0.0, tx], [0.0, sy, ty]]],
+                dtype=tensor.dtype, device=tensor.device
+            )
+            grid = F.affine_grid(theta, (1, tensor.size(1), out_size, out_size), align_corners=False)
+            return F.grid_sample(tensor, grid, align_corners=False)
+
+        # Pre-compute reference embeddings (no grad needed)
+        with torch.no_grad():
+            orig_emb_global = emb_from_tensor(img_tensor)
+            if has_face:
+                orig_emb_crop = emb_from_tensor(
+                    crop_differentiable(img_tensor, *crop_coords)
+                )
+
+        # --- PGD settings ---
+        epsilon = {"Low": 0.03, "Medium": 0.05, "High": 0.07}.get(intensity, 0.05)
+        steps   = {"Low": 20,   "Medium": 30,   "High": 40  }.get(intensity, 30)
+        alpha   = epsilon / 8
+
+        adv = img_tensor.clone().detach()
+
+        for _ in range(steps):
+            adv.requires_grad_(True)
+
+            loss_parts = []
+
+            # Proxy 1: crop-based (antelopev2-aligned face region)
+            if has_face:
+                emb_crop = emb_from_tensor(crop_differentiable(adv, *crop_coords))
+                sim_crop = torch.nn.functional.cosine_similarity(emb_crop, orig_emb_crop)
+                loss_parts.append(0.65 * sim_crop.mean())
+
+            # Proxy 2: global resize (legacy VGGFace2 approach)
+            emb_global = emb_from_tensor(adv)
+            sim_global = torch.nn.functional.cosine_similarity(emb_global, orig_emb_global)
+            w_global = 0.35 if has_face else 1.0
+            loss_parts.append(w_global * sim_global.mean())
+
+            loss = sum(loss_parts)
+            loss.backward()
+
+            with torch.no_grad():
+                adv = adv - alpha * adv.grad.sign()
+                delta = torch.clamp(adv - img_tensor, -epsilon, epsilon)
+                adv = torch.clamp(img_tensor + delta, 0.0, 1.0).detach()
+
+        final_sim = loss.item()
+        print(f"[Layer 1] PGD complete. Final combined cosine sim: {final_sim:.4f}")
+
+        del facenet
+        torch.cuda.empty_cache()
+
+        res_np = adv.cpu().squeeze(0).permute(1, 2, 0).numpy()
+        return Image.fromarray((res_np * 255).astype(np.uint8))
+
+    def _apply_layer_mimicry(self, img: Image.Image, intensity: str) -> Image.Image:
+        """Layer 2: Style Poison — dual CLIP proxy PGD.
+
+        Proxy 1 (primary): OpenCLIP ViT-H/14 (laion2b_s32b_b79k) — SDXL/IP-Adapter image encoder class
+        Proxy 2 (legacy):  CLIP ViT-L/14 (openai) — classic image retrieval proxy
+
+        Note: targets CLIP-based tools (image retrieval, IP-Adapter image conditioning).
+        Style LoRA protection is handled primarily by Layer 3 (VAE latent disruption).
+        """
+        import torch
+        import numpy as np
+        import torchvision.transforms as T
+
+        print("[Layer 2] Applying Style Poison v3 (dual-CLIP: ViT-H/14 + ViT-L/14)...")
+        torch.cuda.empty_cache()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        # CLIP standard normalisation (same for both models)
+        normalizer = T.Normalize(
+            mean=[0.48145466, 0.4578275, 0.40821073],
+            std=[0.26862954, 0.26130258, 0.27577711]
+        )
+        resizer = T.Resize((224, 224), interpolation=T.InterpolationMode.BICUBIC, antialias=True)
+
+        img_np = np.array(img).astype(np.float32) / 255.0
+        img_tensor = torch.tensor(img_np).permute(2, 0, 1).unsqueeze(0).to(device)  # [1,3,H,W]
+
+        # --- Load Proxy 1: OpenCLIP ViT-H/14 ---
+        has_clip_h = False
+        orig_emb_h = None
+        clip_h = None
+        try:
+            import open_clip
+            clip_h, _, _ = open_clip.create_model_and_transforms(
+                'ViT-H-14', pretrained='laion2b_s32b_b79k'
+            )
+            clip_h = clip_h.to(device).eval()
+            for p in clip_h.parameters():
+                p.requires_grad = False
+            with torch.no_grad():
+                orig_emb_h = clip_h.encode_image(normalizer(resizer(img_tensor)))
+            has_clip_h = True
+            print("[Layer 2] OpenCLIP ViT-H/14 loaded.")
+        except Exception as e:
+            print(f"[Layer 2] OpenCLIP ViT-H/14 warning: {e}. Continuing with ViT-L/14 only.")
+
+        # --- Load Proxy 2: CLIP ViT-L/14 ---
+        has_clip_l = False
+        orig_emb_l = None
+        clip_l = None
+        try:
+            from transformers import CLIPModel
+            clip_l = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(device)
+            for p in clip_l.parameters():
+                p.requires_grad = False
+            with torch.no_grad():
+                orig_emb_l = clip_l.get_image_features(normalizer(resizer(img_tensor)))
+            has_clip_l = True
+            print("[Layer 2] CLIP ViT-L/14 loaded.")
+        except Exception as e:
+            print(f"[Layer 2] CLIP ViT-L/14 warning: {e}.")
+
+        if not has_clip_h and not has_clip_l:
+            print("[Layer 2] All CLIP models failed — using simple noise fallback.")
+            return self._simple_noise_fallback(img)
+
+        # --- PGD settings ---
+        epsilon = {"Low": 0.03, "Medium": 0.05, "High": 0.08}.get(intensity, 0.05)
+        steps   = 40
+        alpha   = epsilon / 10
+
+        adv = img_tensor.clone().detach()
+
+        for _ in range(steps):
+            adv.requires_grad_(True)
+            processed = normalizer(resizer(adv))
+
+            loss_parts = []
+            if has_clip_h:
+                emb_h = clip_h.encode_image(processed)
+                sim_h = torch.nn.functional.cosine_similarity(emb_h, orig_emb_h)
+                loss_parts.append(0.6 * sim_h.mean())
+            if has_clip_l:
+                emb_l = clip_l.get_image_features(processed)
+                sim_l = torch.nn.functional.cosine_similarity(emb_l, orig_emb_l)
+                w = 0.4 if has_clip_h else 1.0
+                loss_parts.append(w * sim_l.mean())
+
+            loss = sum(loss_parts)
+            loss.backward()
+
+            with torch.no_grad():
+                adv = adv - alpha * adv.grad.sign()
+                delta = torch.clamp(adv - img_tensor, -epsilon, epsilon)
+                adv = torch.clamp(img_tensor + delta, 0.0, 1.0).detach()
+
+        print(f"[Layer 2] Style Poison final loss: {loss.item():.4f}")
+
+        if clip_h is not None:
+            del clip_h
+        if clip_l is not None:
+            del clip_l
+        torch.cuda.empty_cache()
+
+        res_np = adv.cpu().squeeze(0).permute(1, 2, 0).numpy()
+        return Image.fromarray((res_np * 255).astype(np.uint8))
 
     def _simple_noise_fallback(self, img):
         import numpy as np
@@ -375,109 +466,145 @@ class ProtectionKernel:
         return Image.fromarray(img_poisoned)
 
     def _apply_layer_editing(self, img: Image.Image, intensity: str = "Medium") -> Image.Image:
-        """Layer 3: Edit Immunity — PGD adversarial attack against the SD VAE encoder.
+        """Layer 3: Edit Immunity — dual-VAE PGD.
 
-        Maximises the L2 distance between the original and adversarial latent
-        representations, disrupting inpainting / img2img pipelines while keeping
-        the visible perturbation within a tight ε-ball.
+        Proxy 1 (primary): FLUX VAE (16-channel, bfloat16) — targets FLUX-based LoRA/editing
+        Proxy 2 (legacy):  SD 1.5 VAE (4-channel, float32) — targets SD 1.5/2.x pipelines
+
+        Combined PGD loss: 0.65 * loss_flux + 0.35 * loss_sd15
+        Both VAEs share the same perturbation variable and ε-ball.
         """
         import torch
         import numpy as np
         import torchvision.transforms as T
         from diffusers import AutoencoderKL
 
-        print("[Layer 3] Applying Edit Immunity (PGD vs. VAE encoder)...")
+        print("[Layer 3] Applying Edit Immunity v3 (dual-VAE PGD: FLUX + SD1.5)...")
         torch.cuda.empty_cache()
-
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
+        epsilon = {"Low": 0.03, "Medium": 0.06, "High": 0.10}.get(intensity, 0.06)
+        steps   = 20
+        alpha   = epsilon / 5
+
+        orig_w, orig_h = img.width, img.height
+        resize_512  = T.Resize((512, 512), interpolation=T.InterpolationMode.BICUBIC, antialias=True)
+        restore_orig = T.Resize((orig_h, orig_w), interpolation=T.InterpolationMode.BICUBIC, antialias=True)
+
+        img_np = np.array(img).astype(np.float32) / 127.5 - 1.0  # [0,255] → [-1,1]
+        img_tensor = torch.from_numpy(img_np).permute(2, 0, 1).unsqueeze(0).to(device)  # float32
+        img_512 = resize_512(img_tensor)
+
+        # --- Load FLUX VAE (primary, 16-channel) ---
+        has_flux = False
+        flux_vae = None
+        z_flux_orig = None
         try:
-            vae = AutoencoderKL.from_pretrained(
+            flux_vae = AutoencoderKL.from_pretrained(
+                "black-forest-labs/FLUX.1-schnell",
+                subfolder="vae",
+                torch_dtype=torch.float32,
+            ).to(device)
+            flux_vae.eval()
+            for p in flux_vae.parameters():
+                p.requires_grad = False
+            with torch.no_grad():
+                z_flux_orig = flux_vae.encode(img_512).latent_dist.mean  # [1,16,64,64]
+            has_flux = True
+            print("[Layer 3] FLUX VAE (16-ch) loaded.")
+        except Exception as e:
+            print(f"[Layer 3] FLUX VAE warning: {e}. Continuing with SD1.5 VAE only.")
+
+        # --- Load SD 1.5 VAE (legacy, 4-channel) ---
+        has_sd15 = False
+        sd15_vae = None
+        z_sd15_orig = None
+        try:
+            sd15_vae = AutoencoderKL.from_pretrained(
                 "/models/stable-diffusion-v1-5",
                 subfolder="vae",
                 torch_dtype=torch.float32,
             ).to(device)
-            vae.eval()
-            for p in vae.parameters():
+            sd15_vae.eval()
+            for p in sd15_vae.parameters():
                 p.requires_grad = False
+            with torch.no_grad():
+                z_sd15_orig = sd15_vae.encode(img_512).latent_dist.mean  # [1,4,64,64]
+            has_sd15 = True
+            print("[Layer 3] SD 1.5 VAE (4-ch) loaded.")
+        except Exception as e:
+            print(f"[Layer 3] SD 1.5 VAE warning: {e}.")
 
-            # Intensity → adversarial budget (ε in [-1, 1] space)
-            epsilon = {"Low": 0.03, "Medium": 0.06, "High": 0.10}.get(intensity, 0.06)
-            steps = 20
-            alpha = epsilon / 5
+        if not has_flux and not has_sd15:
+            raise RuntimeError("[Layer 3] Both VAEs failed to load — cannot apply Edit Immunity.")
 
-            # Resize to 512×512 for VAE, keep originals for restoration
-            orig_w, orig_h = img.width, img.height
-            resize_512 = T.Resize((512, 512), interpolation=T.InterpolationMode.BICUBIC, antialias=True)
-            restore_orig = T.Resize((orig_h, orig_w), interpolation=T.InterpolationMode.BICUBIC, antialias=True)
+        adv = img_512.clone().detach()
 
-            img_np = np.array(img).astype(np.float32) / 127.5 - 1.0  # [0,255] → [-1,1]
-            img_tensor = torch.from_numpy(img_np).permute(2, 0, 1).unsqueeze(0).to(device)
-            img_512 = resize_512(img_tensor)
+        for _ in range(steps):
+            adv.requires_grad_(True)
+
+            loss_parts = []
+            if has_flux:
+                z_flux_adv = flux_vae.encode(adv).latent_dist.mean
+                loss_flux = -torch.mean((z_flux_adv - z_flux_orig) ** 2)
+                loss_parts.append(0.65 * loss_flux)
+            if has_sd15:
+                z_sd15_adv = sd15_vae.encode(adv).latent_dist.mean
+                loss_sd15 = -torch.mean((z_sd15_adv - z_sd15_orig) ** 2)
+                w = 0.35 if has_flux else 1.0
+                loss_parts.append(w * loss_sd15)
+
+            loss = sum(loss_parts)
+            loss.backward()
 
             with torch.no_grad():
-                z_orig = vae.encode(img_512).latent_dist.mean  # [1,4,64,64]
+                adv = adv - alpha * adv.grad.sign()
+                delta = torch.clamp(adv - img_512, -epsilon, epsilon)
+                adv = torch.clamp(img_512 + delta, -1.0, 1.0).detach()
 
-            adv = img_512.clone().detach()
+        # Log final disruption
+        with torch.no_grad():
+            dist_info = []
+            if has_flux:
+                fd = torch.mean((flux_vae.encode(adv).latent_dist.mean - z_flux_orig) ** 2).item()
+                dist_info.append(f"FLUX L2={fd:.4f}")
+            if has_sd15:
+                sd = torch.mean((sd15_vae.encode(adv).latent_dist.mean - z_sd15_orig) ** 2).item()
+                dist_info.append(f"SD15 L2={sd:.4f}")
+        print(f"[Layer 3] PGD complete. {' | '.join(dist_info)}")
 
-            for _ in range(steps):
-                adv.requires_grad_(True)
-                z_adv = vae.encode(adv).latent_dist.mean
-                # Maximise latent L2 distance (negate to turn into a minimisation)
-                loss = -torch.mean((z_adv - z_orig) ** 2)
-                loss.backward()
-                with torch.no_grad():
-                    adv = adv - alpha * adv.grad.sign()
-                    delta = torch.clamp(adv - img_512, -epsilon, epsilon)
-                    adv = torch.clamp(img_512 + delta, -1.0, 1.0).detach()
+        if flux_vae is not None:
+            del flux_vae
+        if sd15_vae is not None:
+            del sd15_vae
+        torch.cuda.empty_cache()
 
-            final_dist = torch.mean((z_orig - vae.encode(adv).latent_dist.mean) ** 2).item()
-            print(f"[Layer 3] PGD complete. Latent L2 distance: {final_dist:.4f}")
-
-            del vae
-            torch.cuda.empty_cache()
-
-            adv_orig = restore_orig(adv)
-            adv_np = ((adv_orig.squeeze(0).permute(1, 2, 0).cpu().numpy() + 1.0) * 127.5)
-            adv_np = adv_np.clip(0, 255).astype(np.uint8)
-            return Image.fromarray(adv_np)
-
-        except Exception as e:
-            print(f"[Layer 3] PGD failed: {e}")
-            raise
+        adv_orig = restore_orig(adv)
+        adv_np = ((adv_orig.squeeze(0).permute(1, 2, 0).cpu().numpy() + 1.0) * 127.5)
+        adv_np = adv_np.clip(0, 255).astype(np.uint8)
+        return Image.fromarray(adv_np)
 
     def _apply_layer_watermark(self, img: Image.Image, text: str) -> Image.Image:
-        """Layer 4: Invisible Watermark (Provenance)"""
-        print(f"[Layer 4] Embedding Watermark: {text}")
-        
+        """Layer 4: Invisible Watermark — TrustMark neural steganographic encoding.
+
+        TrustMark-C embeds a 100-bit steganographic payload, robust against JPEG,
+        cropping, and mild adversarial filtering. Replaces DWT/DCT which is trivially
+        stripped by diffusion purification.
+        """
+        from trustmark import TrustMark
+
+        print(f"[Layer 4] Embedding TrustMark watermark: '{text}'")
         try:
-            import numpy as np
-            from imwatermark import WatermarkEncoder
-            import cv2
-            
-            # 1. Convert PIL to OpenCV (BGR)
-            img_np = np.array(img)
-            img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-            
-            # 2. Configure Encoder (DWTDct is robust)
-            encoder = WatermarkEncoder()
-            
-            # 3. Payload: Using first 32 chars of text (UUID) or hash
-            # invisible-watermark bytes limits exist. Hex string is safe.
-            payload_bytes = text.encode('utf-8')[:32]
-            
-            encoder.set_watermark('bytes', payload_bytes)
-            
-            # 4. Embed
-            img_encoded_bgr = encoder.encode(img_bgr, 'dwtDct')
-            
-            # 5. Convert back to RGB
-            img_encoded_rgb = cv2.cvtColor(img_encoded_bgr, cv2.COLOR_BGR2RGB)
-            
-            return Image.fromarray(img_encoded_rgb)
-            
+            tm = TrustMark(verbose=False, model_type='C')
+            # TrustMark requires RGB mode — convert defensively (prior layers always return RGB
+            # but guard against skipped layers handing a palette/RGBA image)
+            img_rgb = img.convert('RGB')
+            # TrustMark.encode(img_pil, string_payload) → returns watermarked PIL Image
+            watermarked = tm.encode(img_rgb, text)
+            print("[Layer 4] TrustMark encoding complete.")
+            return watermarked
         except Exception as e:
-            print(f"[Layer 4] Watermark error: {e}")
+            print(f"[Layer 4] TrustMark error: {e}")
             raise
 
     @modal.method()
@@ -518,51 +645,41 @@ class ProtectionKernel:
             original_img = self._download_image(request.image_url)
             current_img = original_img.copy()
             original_img_bytes = self._img_to_bytes(original_img)
-            
+
             # --- Config ---
             intensity = request.config.get("intensity", "Medium")
             watermark_text = request.config.get("watermark_text", "DRIMIT SHIELD")
-            
-            # Path Prefix Construction
-            # Standard: {userId}/{artworkId}/... 
-            # (Using artwork_id as the 'hash' for folder structure consistency if real hash not provided)
-            
-            # Extract basic path from input URL if possible to reuse folder?
-            # Input: .../uploads/{userId}/{uuid}-{filename}
-            # We want Output: jobs/{userId}/{artworkId}/...
-            
-            # However, user requested strict structure: {userId}/{hash}/...
-            # Let's align with that.
-            
-            # Compute output path prefix.
-            # New convention: {userId}/{sha256} (mirrors the original upload path)
-            # This makes the protected image land at {userId}/{sha256}/protected.png,
-            # which the frontend infers directly from artwork.r2Key.
+
+            # --- Path Prefix ---
             if request.image_r2_key:
                 # Strip filename: "{userId}/{sha256}/original.ext" → "{userId}/{sha256}"
                 path_prefix = request.image_r2_key.rsplit("/", 1)[0]
             else:
-                # Backward-compat fallback for calls without image_r2_key
                 import hashlib
                 folder_hash = hashlib.sha256(
                     f"{request.user_id}_{request.artwork_id}".encode()
                 ).hexdigest()[:16]
                 path_prefix = f"protected/{request.user_id}/{folder_hash}"
 
+            # --- Upload original reference for dual-run verification baseline ---
+            original_ref_key = f"{path_prefix}/verification/original_reference.png"
+            self._upload_to_r2(original_img_bytes, original_ref_key, is_preview=request.is_preview)
+            original_r2_url = f"{request.r2_public_base_url}/{original_ref_key}"
+            print(f"[Shield] Original reference uploaded: {original_ref_key}")
 
             # --- LAYER 1: IDENTITY ---
             if request.use_identity_shield:
                 t0 = time.time()
                 try:
                     current_img = self._apply_layer_identity(current_img, intensity)
-                    
-                    # Verification / Step Artifacts
+
                     step1_key = f"{path_prefix}/verification/layer_1_identity.png"
                     self._upload_to_r2(self._img_to_bytes(current_img), step1_key, is_preview=request.is_preview)
                     step1_url = f"{request.r2_public_base_url}/{step1_key}"
-                    
-                    verify_res = simulation_engine.verify_identity.remote(step1_url)
-                    
+
+                    # v3: pass original_url for dual-run baseline
+                    verify_res = simulation_engine.verify_identity.remote(step1_url, original_r2_url)
+
                     log_step(StepResult(
                         step_name="layer_1_identity",
                         status=verify_res.get("status", "FAIL"),
@@ -585,18 +702,17 @@ class ProtectionKernel:
                 ))
 
             # --- LAYER 2: MIMICRY (Style Poison) ---
-            # Needs to run if selected, uses layer 1 output
             if request.use_style_poison:
                 t0 = time.time()
                 try:
                     current_img = self._apply_layer_mimicry(current_img, intensity)
-                    
+
                     step2_key = f"{path_prefix}/verification/layer_2_mimicry.png"
                     self._upload_to_r2(self._img_to_bytes(current_img), step2_key, is_preview=request.is_preview)
                     step2_url = f"{request.r2_public_base_url}/{step2_key}"
-                    
-                    # Pass original URL for comparison
-                    verify_res = simulation_engine.verify_style.remote(step2_url, request.image_url)
+
+                    # v3: use original_r2_url (already on R2) instead of raw image_url
+                    verify_res = simulation_engine.verify_style.remote(step2_url, original_r2_url)
                     
                     log_step(StepResult(
                         step_name="layer_2_mimicry",
@@ -624,17 +740,21 @@ class ProtectionKernel:
                 t0 = time.time()
                 try:
                     current_img = self._apply_layer_editing(current_img, intensity)
-                    
+
                     step3_key = f"{path_prefix}/verification/layer_3_editing.png"
                     self._upload_to_r2(self._img_to_bytes(current_img), step3_key, is_preview=request.is_preview)
                     step3_url = f"{request.r2_public_base_url}/{step3_key}"
-                    
-                    verify_res = simulation_engine.verify_editing.remote(step3_url)
-                    
+
+                    # v3: pass original_url + path_prefix so simulation can upload r2_key_original
+                    verify_res = simulation_engine.verify_editing.remote(
+                        step3_url, original_r2_url, path_prefix, request.is_preview
+                    )
+
                     log_step(StepResult(
                         step_name="layer_3_editing",
                         status=verify_res.get("status", "FAIL"),
                         r2_key=step3_key,
+                        r2_key_original=verify_res.get("r2_key_original"),  # NEW in v3
                         verification_meta=verify_res,
                         duration_ms=(time.time() - t0) * 1000
                     ))
@@ -656,14 +776,16 @@ class ProtectionKernel:
             if request.use_watermark:
                 t0 = time.time()
                 try:
-                    # Provide Artwork ID as the payload
                     current_img = self._apply_layer_watermark(current_img, watermark_text)
-                    
+
                     step4_key = f"{path_prefix}/verification/layer_4_watermark.png"
                     self._upload_to_r2(self._img_to_bytes(current_img), step4_key, is_preview=request.is_preview)
                     step4_url = f"{request.r2_public_base_url}/{step4_key}"
-                    
-                    verify_res = simulation_engine.verify_watermark.remote(step4_url, request.artwork_id)
+
+                    # v3: pass original_url for baseline + watermark_text as expected payload
+                    verify_res = simulation_engine.verify_watermark.remote(
+                        step4_url, original_r2_url, watermark_text
+                    )
                     
                     log_step(StepResult(
                         step_name="layer_4_watermark",
