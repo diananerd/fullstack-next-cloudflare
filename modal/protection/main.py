@@ -685,12 +685,13 @@ class ProtectionKernel:
                     step1_url = f"{request.r2_public_base_url}/{step1_key}"
 
                     # v3: pass original_url for dual-run baseline
-                    verify_res = simulation_engine.verify_identity.remote(step1_url, original_r2_url)
+                    verify_res = simulation_engine.verify_identity.remote(step1_url, original_r2_url, path_prefix, request.is_preview)
 
                     log_step(StepResult(
                         step_name="layer_1_identity",
                         status=verify_res.get("status", "FAIL"),
-                        r2_key=step1_key,
+                        r2_key=verify_res.get("r2_key") or step1_key,
+                        r2_key_original=verify_res.get("r2_key_original"),
                         verification_meta=verify_res,
                         duration_ms=(time.time() - t0) * 1000
                     ))
@@ -719,12 +720,13 @@ class ProtectionKernel:
                     step2_url = f"{request.r2_public_base_url}/{step2_key}"
 
                     # v3: use original_r2_url (already on R2) instead of raw image_url
-                    verify_res = simulation_engine.verify_style.remote(step2_url, original_r2_url)
-                    
+                    verify_res = simulation_engine.verify_style.remote(step2_url, original_r2_url, path_prefix, request.is_preview)
+
                     log_step(StepResult(
                         step_name="layer_2_mimicry",
                         status=verify_res.get("status", "FAIL"),
-                        r2_key=step2_key,
+                        r2_key=verify_res.get("r2_key") or step2_key,
+                        r2_key_original=verify_res.get("r2_key_original"),
                         verification_meta=verify_res,
                         duration_ms=(time.time() - t0) * 1000
                     ))
@@ -791,13 +793,14 @@ class ProtectionKernel:
 
                     # v3: pass original_url for baseline + watermark_text as expected payload
                     verify_res = simulation_engine.verify_watermark.remote(
-                        step4_url, original_r2_url, watermark_text
+                        step4_url, original_r2_url, watermark_text, path_prefix, request.is_preview
                     )
-                    
+
                     log_step(StepResult(
                         step_name="layer_4_watermark",
                         status=verify_res.get("status", "FAIL"),
-                        r2_key=step4_key,
+                        r2_key=verify_res.get("r2_key") or step4_key,
+                        r2_key_original=verify_res.get("r2_key_original"),
                         verification_meta=verify_res,
                         duration_ms=(time.time() - t0) * 1000
                     ))

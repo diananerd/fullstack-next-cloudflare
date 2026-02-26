@@ -6,6 +6,7 @@ import {
     CheckCircle2,
     ChevronDown,
     Clock,
+    Copy,
     Loader2,
     ShieldAlert,
     XCircle,
@@ -135,6 +136,7 @@ export function ProtectionAuditTrail({
 }: ProtectionAuditTrailProps) {
     const firstLayerId = PIPELINE_LAYERS[0].id;
     const [openLayerId, setOpenLayerId] = useState<string>(firstLayerId);
+    const [copied, setCopied] = useState(false);
 
     const toggleLayer = (id: string) => {
         setOpenLayerId((prev) => (prev === id ? firstLayerId : id));
@@ -333,7 +335,7 @@ export function ProtectionAuditTrail({
                         const variantKey = LAYER_VARIANT[layer.layerKey];
                         const isActiveVariant = !!variantKey && (
                             selectedVariant === variantKey ||
-                            (layer.layerKey === "editing" && (selectedVariant === "editing" || selectedVariant === "editing_orig"))
+                            selectedVariant === `${variantKey}_orig`
                         );
 
                         // Icon + colors based on status
@@ -446,52 +448,33 @@ export function ProtectionAuditTrail({
                                                     : ""}
                                             </span>
 
-                                            {/* Preview variant buttons */}
+                                            {/* Preview variant buttons — dual pattern for all layers */}
                                             {result?.r2_key && onSelectVariant && (
                                                 <div className="flex gap-1.5">
-                                                    {layer.layerKey === "editing" ? (
-                                                        <>
-                                                            {result.r2_key && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => onSelectVariant("editing")}
-                                                                    className={cn(
-                                                                        "text-[10px] px-2 py-0.5 rounded-full border transition-all",
-                                                                        selectedVariant === "editing"
-                                                                            ? "bg-emerald-600 border-emerald-600 text-white"
-                                                                            : "border-zinc-700 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400",
-                                                                    )}
-                                                                >
-                                                                    Protected
-                                                                </button>
-                                                            )}
-                                                            {result.r2_key_original && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => onSelectVariant("editing_orig")}
-                                                                    className={cn(
-                                                                        "text-[10px] px-2 py-0.5 rounded-full border transition-all",
-                                                                        selectedVariant === "editing_orig"
-                                                                            ? "bg-zinc-500 border-zinc-500 text-white"
-                                                                            : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300",
-                                                                    )}
-                                                                >
-                                                                    Original
-                                                                </button>
-                                                            )}
-                                                        </>
-                                                    ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onSelectVariant(variantKey)}
+                                                        className={cn(
+                                                            "text-[10px] px-2 py-0.5 rounded-full border transition-all",
+                                                            selectedVariant === variantKey
+                                                                ? "bg-emerald-600 border-emerald-600 text-white"
+                                                                : "border-zinc-700 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400",
+                                                        )}
+                                                    >
+                                                        {result.r2_key_original ? "Protected" : "Preview"}
+                                                    </button>
+                                                    {result.r2_key_original && (
                                                         <button
                                                             type="button"
-                                                            onClick={() => onSelectVariant(variantKey)}
+                                                            onClick={() => onSelectVariant(`${variantKey}_orig`)}
                                                             className={cn(
                                                                 "text-[10px] px-2 py-0.5 rounded-full border transition-all",
-                                                                selectedVariant === variantKey
-                                                                    ? "bg-emerald-600 border-emerald-600 text-white"
-                                                                    : "border-zinc-700 text-zinc-400 hover:border-emerald-600 hover:text-emerald-400",
+                                                                selectedVariant === `${variantKey}_orig`
+                                                                    ? "bg-zinc-500 border-zinc-500 text-white"
+                                                                    : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300",
                                                             )}
                                                         >
-                                                            Preview
+                                                            Original
                                                         </button>
                                                     )}
                                                 </div>
@@ -505,6 +488,40 @@ export function ProtectionAuditTrail({
                 </div>
 
             </ScrollArea>
+
+            {/* Debug copy button */}
+            {jobResult && (
+                <div className="shrink-0 px-3 py-2 border-t border-zinc-800 bg-zinc-900/60">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const compact = {
+                                status,
+                                shieldScore: jobResult.shieldScore,
+                                total_duration_ms: jobResult.total_duration_ms,
+                                error: jobResult.error_message,
+                                steps: jobResult.steps?.map((s) => ({
+                                    name: s.step_name,
+                                    status: s.status,
+                                    duration_ms: s.duration_ms,
+                                    error: s.error,
+                                    r2_key: s.r2_key,
+                                    r2_key_original: s.r2_key_original,
+                                    meta: s.verification_meta,
+                                })),
+                            };
+                            navigator.clipboard.writeText(JSON.stringify(compact, null, 2)).then(() => {
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                            });
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 text-[10px] text-zinc-500 hover:text-zinc-300 py-1 rounded transition-colors"
+                    >
+                        <Copy className="w-3 h-3" />
+                        {copied ? "Copied!" : "Copy debug report"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

@@ -20,7 +20,8 @@ interface ArtworkFullViewProps {
 }
 
 type VariantType = "original" | "protected" | "flux" | "sdxl" | "semantic"
-    | "identity" | "mimicry" | "editing" | "editing_orig" | "watermark";
+    | "identity" | "identity_orig" | "mimicry" | "mimicry_orig"
+    | "editing" | "editing_orig" | "watermark" | "watermark_orig";
 
 export function ArtworkFullView({
     artwork,
@@ -50,10 +51,13 @@ export function ArtworkFullView({
 
     // v3 availability (has artifact even if verification errored)
     const hasIdentity = !!step1?.r2_key;
+    const hasIdentityOrig = !!step1?.r2_key_original;
     const hasMimicry = !!step2?.r2_key;
+    const hasMimicryOrig = !!step2?.r2_key_original;
     const hasEditing = !!step3?.r2_key;
     const hasEditingOrig = !!step3?.r2_key_original;
     const hasWatermark = !!step4?.r2_key;
+    const hasWatermarkOrig = !!step4?.r2_key_original;
 
     // v1 legacy availability (backward compat)
     const hasFlux = !Array.isArray(report) && hasReport && (!!report?.primary_attack_key || !!report?.primary_attack_url);
@@ -116,10 +120,13 @@ export function ArtworkFullView({
     
     // v3 layer artifact URLs (via authenticated asset proxy)
     const getIdentityUrl = () => step1?.r2_key ? `/api/assets/${step1.r2_key}` : "";
+    const getIdentityOrigUrl = () => step1?.r2_key_original ? `/api/assets/${step1.r2_key_original}` : "";
     const getMimicryUrl = () => step2?.r2_key ? `/api/assets/${step2.r2_key}` : "";
+    const getMimicryOrigUrl = () => step2?.r2_key_original ? `/api/assets/${step2.r2_key_original}` : "";
     const getEditingUrl = () => step3?.r2_key ? `/api/assets/${step3.r2_key}` : "";
     const getEditingOrigUrl = () => step3?.r2_key_original ? `/api/assets/${step3.r2_key_original}` : "";
     const getWatermarkUrl = () => step4?.r2_key ? `/api/assets/${step4.r2_key}` : "";
+    const getWatermarkOrigUrl = () => step4?.r2_key_original ? `/api/assets/${step4.r2_key_original}` : "";
 
     // v1 legacy (backward compat)
     const getFluxUrl = () => {
@@ -150,10 +157,13 @@ export function ArtworkFullView({
             case "protected": return getProtectedUrl();
             // v3 layer variants
             case "identity": return getIdentityUrl();
+            case "identity_orig": return getIdentityOrigUrl();
             case "mimicry": return getMimicryUrl();
+            case "mimicry_orig": return getMimicryOrigUrl();
             case "editing": return getEditingUrl();
             case "editing_orig": return getEditingOrigUrl();
             case "watermark": return getWatermarkUrl();
+            case "watermark_orig": return getWatermarkOrigUrl();
             // v1 legacy
             case "flux": return getFluxUrl();
             case "sdxl": return getSDXLUrl();
@@ -210,7 +220,7 @@ export function ArtworkFullView({
             setVariantBroken(prev => ({...prev, semantic: true}));
             setSelectedVariant("original");
         }
-        else if (["identity", "mimicry", "editing", "editing_orig", "watermark"].includes(selectedVariant)) {
+        else if (["identity", "identity_orig", "mimicry", "mimicry_orig", "editing", "editing_orig", "watermark", "watermark_orig"].includes(selectedVariant)) {
             setVariantBroken(prev => ({...prev, [selectedVariant]: true}));
             setSelectedVariant("original");
         }
@@ -280,6 +290,17 @@ export function ArtworkFullView({
                                         )}
 
                                         {/* v3 layer artifacts */}
+                                        {hasIdentityOrig && !variantBroken["identity_orig"] && (
+                                            <button
+                                                onClick={() => setSelectedVariant("identity_orig")}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "identity_orig" ? "bg-zinc-500 text-white" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10"
+                                                )}
+                                            >
+                                                Identity ↗ Original
+                                            </button>
+                                        )}
                                         {hasIdentity && !variantBroken["identity"] && (
                                             <button
                                                 onClick={() => setSelectedVariant("identity")}
@@ -288,7 +309,18 @@ export function ArtworkFullView({
                                                     selectedVariant === "identity" ? "bg-violet-500 text-white" : "text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
                                                 )}
                                             >
-                                                Identity
+                                                Identity ↗ Protected
+                                            </button>
+                                        )}
+                                        {hasMimicryOrig && !variantBroken["mimicry_orig"] && (
+                                            <button
+                                                onClick={() => setSelectedVariant("mimicry_orig")}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "mimicry_orig" ? "bg-zinc-500 text-white" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10"
+                                                )}
+                                            >
+                                                Style ↗ Original
                                             </button>
                                         )}
                                         {hasMimicry && !variantBroken["mimicry"] && (
@@ -299,7 +331,7 @@ export function ArtworkFullView({
                                                     selectedVariant === "mimicry" ? "bg-purple-500 text-white" : "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
                                                 )}
                                             >
-                                                Style
+                                                Style ↗ Protected
                                             </button>
                                         )}
                                         {hasEditingOrig && !variantBroken["editing_orig"] && (
@@ -310,7 +342,7 @@ export function ArtworkFullView({
                                                     selectedVariant === "editing_orig" ? "bg-zinc-500 text-white" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10"
                                                 )}
                                             >
-                                                Edit Test ↗ Original
+                                                Edit ↗ Original
                                             </button>
                                         )}
                                         {hasEditing && !variantBroken["editing"] && (
@@ -321,7 +353,18 @@ export function ArtworkFullView({
                                                     selectedVariant === "editing" ? "bg-orange-500 text-white" : "text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
                                                 )}
                                             >
-                                                Edit Test ↗ Protected
+                                                Edit ↗ Protected
+                                            </button>
+                                        )}
+                                        {hasWatermarkOrig && !variantBroken["watermark_orig"] && (
+                                            <button
+                                                onClick={() => setSelectedVariant("watermark_orig")}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "watermark_orig" ? "bg-zinc-500 text-white" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10"
+                                                )}
+                                            >
+                                                Watermark ↗ Original
                                             </button>
                                         )}
                                         {hasWatermark && !variantBroken["watermark"] && (
@@ -332,7 +375,7 @@ export function ArtworkFullView({
                                                     selectedVariant === "watermark" ? "bg-blue-500 text-white" : "text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
                                                 )}
                                             >
-                                                Watermark
+                                                Watermark ↗ Protected
                                             </button>
                                         )}
 
@@ -372,11 +415,14 @@ export function ArtworkFullView({
                                     <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/5 text-xs text-white/80 font-medium">
                                         {selectedVariant === "original" && "Original Source"}
                                         {selectedVariant === "protected" && "Protected Asset (Final Output)"}
-                                        {selectedVariant === "identity" && "After Identity Shield Layer"}
-                                        {selectedVariant === "mimicry" && "After Style Poison Layer"}
-                                        {selectedVariant === "editing_orig" && "Editing Test — Original Image (AI editing baseline)"}
-                                        {selectedVariant === "editing" && "Editing Test — Protected Image (disrupted output)"}
-                                        {selectedVariant === "watermark" && "After Watermark Layer (Final Protected)"}
+                                        {selectedVariant === "identity_orig" && "Identity Test — Original Image (face detection baseline)"}
+                                        {selectedVariant === "identity" && "Identity Test — Protected Image (face detection disrupted)"}
+                                        {selectedVariant === "mimicry_orig" && "Style Test — Original Image (VAE reconstruction baseline)"}
+                                        {selectedVariant === "mimicry" && "Style Test — Protected Image (VAE reconstruction disrupted)"}
+                                        {selectedVariant === "editing_orig" && "Edit Test — Original Image (AI editing baseline)"}
+                                        {selectedVariant === "editing" && "Edit Test — Protected Image (AI editing disrupted)"}
+                                        {selectedVariant === "watermark_orig" && "Watermark Test — Original Image (no watermark expected)"}
+                                        {selectedVariant === "watermark" && "Watermark Test — Protected Image (watermark decoded)"}
                                         {selectedVariant === "flux" && "Flux.1-Schnell Attack Simulation"}
                                         {selectedVariant === "sdxl" && "SDXL-Turbo Attack Simulation"}
                                         {selectedVariant === "semantic" && "Concept Reconstruction"}

@@ -158,7 +158,7 @@ class SimulationEngine:
         return buf.getvalue()
 
     @modal.method()
-    def verify_identity(self, image_url: str, original_url: str = None) -> Dict[str, Any]:
+    def verify_identity(self, image_url: str, original_url: str = None, path_prefix: str = None, is_preview: bool = False) -> Dict[str, Any]:
         """v3 dual-run identity verification.
 
         Runs antelopev2 (primary) and buffalo_l (legacy) on BOTH the original
@@ -168,6 +168,7 @@ class SimulationEngine:
         import cv2
         import numpy as np
         import insightface
+        from PIL import Image, ImageDraw
 
         print(f"[Simulation] verify_identity v3: {image_url}")
 
@@ -175,7 +176,7 @@ class SimulationEngine:
             faces = app_face.get(bgr_img)
             n = len(faces)
             conf = float(faces[0].det_score) if n > 0 else 0.0
-            return n, conf
+            return n, conf, faces
 
         try:
             providers = ['CUDAExecutionProvider'] if torch.cuda.is_available() else ['CPUExecutionProvider']
@@ -184,6 +185,7 @@ class SimulationEngine:
             img_prot_bgr = cv2.cvtColor(np.array(img_prot_pil), cv2.COLOR_RGB2BGR)
 
             img_orig_bgr = None
+            img_orig_pil = None
             if original_url:
                 try:
                     img_orig_pil = self._download_image(original_url)
@@ -192,15 +194,20 @@ class SimulationEngine:
                     print(f"[verify_identity] Could not load original: {e}")
 
             results = {}
+            faces_orig_primary = []
+            faces_prot_primary = []
 
             # --- antelopev2 (primary — ArcFace R100 / InstantID / ReActor era) ---
             try:
                 app_v2 = insightface.app.FaceAnalysis(name='antelopev2', providers=providers)
                 app_v2.prepare(ctx_id=0, det_size=(640, 640))
 
-                n_orig_v2, conf_orig_v2 = detect_faces(app_v2, img_orig_bgr) if img_orig_bgr is not None else (0, 0.0)
-                n_prot_v2, conf_prot_v2 = detect_faces(app_v2, img_prot_bgr)
+                n_orig_v2, conf_orig_v2, faces_orig_v2 = detect_faces(app_v2, img_orig_bgr) if img_orig_bgr is not None else (0, 0.0, [])
+                n_prot_v2, conf_prot_v2, faces_prot_v2 = detect_faces(app_v2, img_prot_bgr)
                 drop_v2 = conf_orig_v2 - conf_prot_v2
+
+                faces_orig_primary = faces_orig_v2
+                faces_prot_primary = faces_prot_v2
 
                 results["latest"] = {
                     "model": "antelopev2",
@@ -217,8 +224,8 @@ class SimulationEngine:
                 app_bl = insightface.app.FaceAnalysis(name='buffalo_l', providers=providers)
                 app_bl.prepare(ctx_id=0, det_size=(640, 640))
 
-                n_orig_bl, conf_orig_bl = detect_faces(app_bl, img_orig_bgr) if img_orig_bgr is not None else (0, 0.0)
-                n_prot_bl, conf_prot_bl = detect_faces(app_bl, img_prot_bgr)
+                n_orig_bl, conf_orig_bl, _ = detect_faces(app_bl, img_orig_bgr) if img_orig_bgr is not None else (0, 0.0, [])
+                n_prot_bl, conf_prot_bl, _ = detect_faces(app_bl, img_prot_bgr)
                 drop_bl = conf_orig_bl - conf_prot_bl
 
                 results["legacy"] = {
@@ -242,7 +249,7 @@ class SimulationEngine:
             pass_threshold = 0.60
             status = "PASS" if (faces_detected == 0 or confidence < pass_threshold) else "FAIL"
 
-            return {
+            ret = {
                 **results,
                 # backward-compat flat keys
                 "faces_detected": int(faces_detected),
@@ -251,12 +258,71 @@ class SimulationEngine:
                 "protection_score": float(protection_score),
                 "status": status,
             }
+
+            # --- Generate and upload visual artifacts ---
+            if path_prefix:
+                try:
+                    # Original visualization
+                    if img_orig_pil is not None:
+                        vis_orig = Image.fromarray(cv2.cvtColor(img_orig_bgr, cv2.COLOR_BGR2RGB)).copy()
+                        draw_orig = ImageDraw.Draw(vis_orig)
+                        for face in faces_orig_primary:
+                            bbox = face.bbox.astype(int)
+                            conf_f = float(face.det_score)
+                            draw_orig.rectangle([bbox[0], bbox[1], bbox[2], bbox[3]], outline=(255, 0, 0), width=3)
+                            draw_orig.text((bbox[0], max(0, bbox[1] - 15)), f"{conf_f:.0%}", fill=(255, 0, 0))
+                        # Top banner
+                        w_o, h_o = vis_orig.size
+                        banner_orig = Image.new("RGB", (w_o, 30), (30, 30, 30))
+                        draw_b = ImageDraw.Draw(banner_orig)
+                        draw_b.text((8, 8), "Original — Face Detection", fill=(220, 220, 220))
+                        combined_orig = Image.new("RGB", (w_o, h_o + 30))
+                        combined_orig.paste(banner_orig, (0, 0))
+                        combined_orig.paste(vis_orig, (0, 30))
+                        key_orig = f"{path_prefix}/verification/layer_1_identity_orig.png"
+                        self._upload_to_r2(self._pil_to_bytes(combined_orig), key_orig, is_preview=is_preview)
+                        ret["r2_key_original"] = key_orig
+
+                    # Protected visualization
+                    vis_prot = Image.fromarray(cv2.cvtColor(img_prot_bgr, cv2.COLOR_BGR2RGB)).copy()
+                    draw_prot = ImageDraw.Draw(vis_prot)
+                    for face in faces_prot_primary:
+                        bbox = face.bbox.astype(int)
+                        conf_f = float(face.det_score)
+                        draw_prot.rectangle([bbox[0], bbox[1], bbox[2], bbox[3]], outline=(255, 165, 0), width=3)
+                        draw_prot.text((bbox[0], max(0, bbox[1] - 15)), f"{conf_f:.0%}", fill=(255, 165, 0))
+                    w_p, h_p = vis_prot.size
+                    banner_prot = Image.new("RGB", (w_p, 30), (30, 30, 30))
+                    draw_bp = ImageDraw.Draw(banner_prot)
+                    draw_bp.text((8, 8), "Protected — Face Detection", fill=(220, 220, 220))
+                    combined_prot = Image.new("RGB", (w_p, h_p + 30))
+                    combined_prot.paste(banner_prot, (0, 0))
+                    combined_prot.paste(vis_prot, (0, 30))
+                    # Status overlay at bottom
+                    draw_status = ImageDraw.Draw(combined_prot)
+                    total_h = h_p + 30
+                    n_prot_faces = len(faces_prot_primary)
+                    if n_prot_faces == 0:
+                        status_text = "✓ No face detected"
+                        status_color = (0, 200, 0)
+                    else:
+                        status_text = f"⚠ {n_prot_faces} face(s) detected"
+                        status_color = (255, 80, 80)
+                    draw_status.rectangle([0, total_h - 30, w_p, total_h], fill=(25, 25, 35))
+                    draw_status.text((8, total_h - 22), status_text, fill=status_color)
+                    key_prot = f"{path_prefix}/verification/layer_1_identity_prot.png"
+                    self._upload_to_r2(self._pil_to_bytes(combined_prot), key_prot, is_preview=is_preview)
+                    ret["r2_key"] = key_prot
+                except Exception as e:
+                    print(f"[verify_identity] Visualization upload error: {e}")
+
+            return ret
         except Exception as e:
             print(f"[verify_identity] Error: {e}")
             return {"status": "ERROR", "error": str(e)}
 
     @modal.method()
-    def verify_style(self, image_url: str, original_url: str = None) -> Dict[str, Any]:
+    def verify_style(self, image_url: str, original_url: str = None, path_prefix: str = None, is_preview: bool = False) -> Dict[str, Any]:
         """v3 dual-run style verification.
 
         - OpenCLIP ViT-H/14 (primary): SDXL/IP-Adapter image encoder class
@@ -268,6 +334,7 @@ class SimulationEngine:
         import math
         import numpy as np
         from torch.nn import CosineSimilarity
+        from PIL import Image, ImageDraw
 
         print(f"[Simulation] verify_style v3: {image_url}")
 
@@ -337,6 +404,8 @@ class SimulationEngine:
 
             # --- FLUX VAE latent drift (proxy for LoRA style disruption) ---
             flux_vae_latent_drift = None
+            rec_orig_pil = None
+            rec_prot_pil = None
             try:
                 from diffusers import AutoencoderKL
                 resize_512 = T.Resize((512, 512), interpolation=T.InterpolationMode.BICUBIC, antialias=True)
@@ -351,6 +420,14 @@ class SimulationEngine:
                     z_orig = flux_vae.encode(t_orig_vae).latent_dist.mean
                     z_prot = flux_vae.encode(t_prot_vae).latent_dist.mean
                 flux_vae_latent_drift = torch.mean((z_prot - z_orig) ** 2).item()
+                # Decode both latents to get reconstruction images for visualization
+                with torch.no_grad():
+                    rec_orig = flux_vae.decode(z_orig).sample
+                    rec_prot = flux_vae.decode(z_prot).sample
+                rec_orig_np = ((rec_orig.squeeze(0).permute(1, 2, 0).cpu().numpy() + 1) * 127.5).clip(0, 255).astype(np.uint8)
+                rec_prot_np = ((rec_prot.squeeze(0).permute(1, 2, 0).cpu().numpy() + 1) * 127.5).clip(0, 255).astype(np.uint8)
+                rec_orig_pil = Image.fromarray(rec_orig_np)
+                rec_prot_pil = Image.fromarray(rec_prot_np)
                 del flux_vae
                 torch.cuda.empty_cache()
             except Exception as e:
@@ -367,7 +444,7 @@ class SimulationEngine:
             score = min(1.0, feature_drift * 20)
             status = "PASS" if style_similarity < 0.994 else "FAIL"
 
-            return {
+            ret = {
                 **results,
                 # backward-compat flat keys
                 "style_similarity": style_similarity,
@@ -376,6 +453,35 @@ class SimulationEngine:
                 "protection_score": score,
                 "status": status,
             }
+
+            # --- Generate and upload VAE reconstruction visualizations ---
+            if path_prefix:
+                try:
+                    def _add_banner(pil_img, text):
+                        w, h = pil_img.size
+                        banner = Image.new("RGB", (w, 30), (30, 30, 30))
+                        draw_b = ImageDraw.Draw(banner)
+                        draw_b.text((8, 8), text, fill=(220, 220, 220))
+                        combined = Image.new("RGB", (w, h + 30))
+                        combined.paste(banner, (0, 0))
+                        combined.paste(pil_img, (0, 30))
+                        return combined
+
+                    if rec_orig_pil is not None:
+                        vis_orig = _add_banner(rec_orig_pil, "Original — VAE Reconstruction")
+                        key_orig = f"{path_prefix}/verification/layer_2_mimicry_orig.png"
+                        self._upload_to_r2(self._pil_to_bytes(vis_orig), key_orig, is_preview=is_preview)
+                        ret["r2_key_original"] = key_orig
+
+                    if rec_prot_pil is not None:
+                        vis_prot = _add_banner(rec_prot_pil, "Protected — VAE Reconstruction (disrupted latent)")
+                        key_prot = f"{path_prefix}/verification/layer_2_mimicry_prot.png"
+                        self._upload_to_r2(self._pil_to_bytes(vis_prot), key_prot, is_preview=is_preview)
+                        ret["r2_key"] = key_prot
+                except Exception as e:
+                    print(f"[verify_style] Visualization upload error: {e}")
+
+            return ret
         except Exception as e:
             print(f"[verify_style] Error: {e}")
             return {"status": "ERROR", "error": str(e)}
@@ -533,7 +639,7 @@ class SimulationEngine:
 
     @modal.method()
     def verify_watermark(
-        self, image_url: str, original_url: str = None, expected_text: str = None
+        self, image_url: str, original_url: str = None, expected_text: str = None, path_prefix: str = None, is_preview: bool = False
     ) -> Dict[str, Any]:
         """v3 watermark verification — TrustMark decoder + multi-attack robustness.
 
@@ -570,6 +676,7 @@ class SimulationEngine:
 
             # --- Baseline: decode from original (should be empty) ---
             baseline = {"trustmark_detected": False, "decoded": ""}
+            img_orig = None
             if original_url:
                 try:
                     img_orig = self._download_image(original_url)
@@ -634,7 +741,7 @@ class SimulationEngine:
             tests = [match_direct, match_j80, match_j60, bool(match_vae), match_bil]
             robustness_score = sum(1 for t in tests if t) / len(tests)
 
-            return {
+            ret = {
                 "baseline": baseline,
                 "direct":    {"detected": bool(present_direct), "match": bool(match_direct)},
                 "jpeg_80":   {"detected": bool(present_j80),    "match": bool(match_j80)},
@@ -648,6 +755,46 @@ class SimulationEngine:
                 "protection_score": robustness_score,
                 "status": "PASS" if match_direct else "FAIL",
             }
+
+            # --- Generate and upload overlay visualizations ---
+            if path_prefix:
+                try:
+                    from PIL import ImageDraw as _ImageDraw
+
+                    def _add_bottom_banner(pil_img, text, text_color):
+                        w, h = pil_img.size
+                        vis = pil_img.copy()
+                        draw = _ImageDraw.Draw(vis)
+                        draw.rectangle([0, h - 45, w, h], fill=(25, 25, 35))
+                        draw.text((8, h - 40), text, fill=text_color)
+                        return vis
+
+                    # Original: grey banner — no watermark expected
+                    img_orig_vis = img_orig if img_orig is not None else img_prot
+                    vis_orig = _add_bottom_banner(
+                        img_orig_vis,
+                        "Original — No watermark (expected)",
+                        (160, 160, 160)
+                    )
+                    key_orig = f"{path_prefix}/verification/layer_4_watermark_orig.png"
+                    self._upload_to_r2(self._pil_to_bytes(vis_orig), key_orig, is_preview=is_preview)
+                    ret["r2_key_original"] = key_orig
+
+                    # Protected: green if detected, red if not
+                    if match_direct:
+                        prot_text = f"✓ Watermark verified: {decoded_direct[:25]}"
+                        prot_color = (0, 200, 0)
+                    else:
+                        prot_text = "✗ Watermark not detected"
+                        prot_color = (255, 80, 80)
+                    vis_prot = _add_bottom_banner(img_prot, prot_text, prot_color)
+                    key_prot = f"{path_prefix}/verification/layer_4_watermark_prot.png"
+                    self._upload_to_r2(self._pil_to_bytes(vis_prot), key_prot, is_preview=is_preview)
+                    ret["r2_key"] = key_prot
+                except Exception as e:
+                    print(f"[verify_watermark] Visualization upload error: {e}")
+
+            return ret
         except Exception as e:
             print(f"[verify_watermark] Error: {e}")
             return {"status": "ERROR", "error": str(e)}
