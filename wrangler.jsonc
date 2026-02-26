@@ -55,7 +55,7 @@
         "MODAL_KERNEL_API_URL": "https://diananerdoficial--drimit-shield-kernel-fastapi-app.modal.run/protect",
         "MODAL_KERNEL_STATUS_URL": "https://diananerdoficial--drimit-shield-kernel-fastapi-app.modal.run/status",
         "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51SRx3bPYr42ZFOGH48eoeAzCwcTDmKzx60kQRUnkyZiBMJdd8jgTv1DpkkaqCmKxO3WRCWAYJeyHW3vzsv4YxSmh00F6YFaiwO",
-        "R2_ASSET_BASE_URL": "https://assets.drimit.ai"
+        "R2_ASSET_BASE_URL": "https://drimit.io/api/assets"
     },
     "routes": [
         {
