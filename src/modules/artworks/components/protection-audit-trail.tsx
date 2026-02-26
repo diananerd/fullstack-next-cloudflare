@@ -859,8 +859,9 @@ export function ProtectionAuditTrail({
                                     );
                                 }
                                 // 270° arc: 0% at bottom-left (225°), 100% at bottom-right (315°)
-                                // gap (90°) points straight down
-                                const cx = 100, cy = 92, radius = 70;
+                                // gap (90°) points straight down.
+                                // SVG has y-axis pointing DOWN, so "over the top" = clockwise = sweep=1
+                                const cx = 100, cy = 88, radius = 68;
                                 const toRad = (d: number) => (d * Math.PI) / 180;
                                 const startDeg = 225; // standard math angle for 0%
                                 const totalDeg = 270;
@@ -868,30 +869,33 @@ export function ProtectionAuditTrail({
                                 const p0y = cy - radius * Math.sin(toRad(startDeg));
                                 const p100x = cx + radius * Math.cos(toRad(startDeg - totalDeg));
                                 const p100y = cy - radius * Math.sin(toRad(startDeg - totalDeg));
-                                // Track: full 270° arc, sweep=0 (counter-clockwise in SVG = over the top), large-arc=1
-                                const trackD = `M ${p0x.toFixed(2)} ${p0y.toFixed(2)} A ${radius} ${radius} 0 1 0 ${p100x.toFixed(2)} ${p100y.toFixed(2)}`;
-                                // Fill: from 0% to score
+                                // Track: full 270° arc, sweep=1 (clockwise in SVG = visually over the top)
+                                const trackD = `M ${p0x.toFixed(2)} ${p0y.toFixed(2)} A ${radius} ${radius} 0 1 1 ${p100x.toFixed(2)} ${p100y.toFixed(2)}`;
+                                // Fill: from 0% to score, same clockwise direction
                                 const score = Math.min(99.9, Math.max(0.1, raw));
                                 const arcDeg = (score / 100) * totalDeg;
                                 const endDeg = startDeg - arcDeg;
                                 const ex = cx + radius * Math.cos(toRad(endDeg));
                                 const ey = cy - radius * Math.sin(toRad(endDeg));
                                 const largeArc = arcDeg > 180 ? 1 : 0;
-                                const fillD = `M ${p0x.toFixed(2)} ${p0y.toFixed(2)} A ${radius} ${radius} 0 ${largeArc} 0 ${ex.toFixed(2)} ${ey.toFixed(2)}`;
+                                const fillD = `M ${p0x.toFixed(2)} ${p0y.toFixed(2)} A ${radius} ${radius} 0 ${largeArc} 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`;
                                 const gaugeColor = raw >= 80 ? "#34d399" : raw >= 50 ? "#facc15" : "#f87171";
                                 const gaugeLabel = raw >= 80 ? "HIGH PROTECTION" : raw >= 50 ? "MEDIUM PROTECTION" : "LOW PROTECTION";
                                 return (
-                                    <svg viewBox="0 0 200 148" className="w-full" style={{ display: "block" }}>
+                                    <svg viewBox="0 0 200 152" className="w-full" style={{ display: "block" }}>
                                         {/* Track */}
                                         <path d={trackD} fill="none" stroke="#27272a" strokeWidth="11" strokeLinecap="round" />
                                         {/* Fill */}
                                         <path d={fillD} fill="none" stroke={gaugeColor} strokeWidth="11" strokeLinecap="round" />
-                                        {/* Score number */}
-                                        <text x={cx} y={cy - 8} textAnchor="middle" fill="white" fontFamily="ui-monospace,monospace" fontSize="48" fontWeight="bold">
-                                            {raw.toFixed(0)}<tspan fontSize="16" dy="-24" dx="3" fill={gaugeColor}>%</tspan>
-                                        </text>
-                                        {/* Status label */}
-                                        <text x={cx} y={cy + 14} textAnchor="middle" fill={gaugeColor} fontFamily="ui-sans-serif,sans-serif" fontSize="8.5" fontWeight="600" letterSpacing="1.5">{gaugeLabel}</text>
+                                        {/* Text group — groupY is the single knob for vertical centering */}
+                                        <g transform={`translate(0, ${cy - 10})`}>
+                                            {/* x shifted +5 right: % is small so textAnchor="middle" pulls the
+                                                whole string left; the offset re-centers the number digits */}
+                                            <text x={cx + 5} y={18} textAnchor="middle" fill={gaugeColor} fontFamily="ui-monospace,monospace" fontSize="48" fontWeight="bold">
+                                                {raw.toFixed(0)}<tspan fontSize="16" dy="-24" dx="3" fill={gaugeColor}>%</tspan>
+                                            </text>
+                                            <text x={cx} y={37} textAnchor="middle" fill={gaugeColor} fontFamily="ui-sans-serif,sans-serif" fontSize="6.5" fontWeight="600" letterSpacing="1">{gaugeLabel}</text>
+                                        </g>
                                     </svg>
                                 );
                             })()}
