@@ -204,9 +204,10 @@ class ProtectionKernel:
                 Body=image_bytes,
                 ContentType=content_type,
             )
+            print(f"[R2] ↑ {bucket} / {key} ({len(image_bytes)/1024:.0f}KB)")
             return key
         except Exception as e:
-            print(f"Failed to upload to R2 ({bucket}): {e}")
+            print(f"[R2] ✗ Upload failed → {bucket}/{key}: {e}")
             return None
 
     def _download_image(self, url):
@@ -217,7 +218,9 @@ class ProtectionKernel:
             headers["Authorization"] = f"Bearer {auth_token}"
         r = requests.get(url, headers=headers, stream=True)
         r.raise_for_status()
-        return Image.open(io.BytesIO(r.content)).convert("RGB")
+        img = Image.open(io.BytesIO(r.content)).convert("RGB")
+        print(f"[SHIELD] ↓ Image loaded {img.width}×{img.height}px ← {'...'+url[-60:] if len(url)>80 else url}")
+        return img
 
     def _img_to_bytes(self, img: Image.Image, format="PNG") -> bytes:
         buf = io.BytesIO()
@@ -241,7 +244,7 @@ class ProtectionKernel:
         from facenet_pytorch import InceptionResnetV1
         import insightface
 
-        print(f"[Layer 1] Applying Identity Shield v3 (dual-proxy PGD, intensity={intensity})...")
+        print(f"[L1|Identity] ▶ Applying Identity Shield v3 (dual-proxy PGD, intensity={intensity})")
         torch.cuda.empty_cache()
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -251,7 +254,7 @@ class ProtectionKernel:
             for p in facenet.parameters():
                 p.requires_grad = False
         except Exception as e:
-            print(f"[Layer 1] Critical: failed to load InceptionResnetV1: {e}")
+            print(f"[L1|Identity] ✗ CRITICAL: InceptionResnetV1 load failed: {e}")
             return img
 
         # --- Prepare image tensor ---
@@ -288,10 +291,10 @@ class ProtectionKernel:
                     2 * x2 / W - 1, 2 * y2 / H - 1,
                 )
                 has_face = True
-                print(f"[Layer 1] antelopev2 detected face bbox=({x1},{y1},{x2},{y2})")
+                print(f"[L1|Identity] ✓ antelopev2 face detected — bbox=({x1},{y1},{x2},{y2}) using dual-proxy loss (0.65×crop + 0.35×global)")
             del app_v2
         except Exception as e:
-            print(f"[Layer 1] antelopev2 detection warning: {e} — using global attack only")
+            print(f"[L1|Identity] ⚙ antelopev2 no face / warning: {e} — falling back to global-only loss (1.0×global)")
 
         def crop_differentiable(tensor, x1n, y1n, x2n, y2n, out_size=160):
             """Differentiable affine crop via grid_sample."""
@@ -318,6 +321,7 @@ class ProtectionKernel:
         epsilon = {"Low": 0.03, "Medium": 0.05, "High": 0.07}.get(intensity, 0.05)
         steps   = {"Low": 20,   "Medium": 30,   "High": 40  }.get(intensity, 30)
         alpha   = epsilon / 8
+        print(f"[L1|Identity] ⚡ PGD config — ε={epsilon:.3f} steps={steps} α={alpha:.5f}")
 
         adv = img_tensor.clone().detach()
 
@@ -347,7 +351,7 @@ class ProtectionKernel:
                 adv = torch.clamp(img_tensor + delta, 0.0, 1.0).detach()
 
         final_sim = loss.item()
-        print(f"[Layer 1] PGD complete. Final combined cosine sim: {final_sim:.4f}")
+        print(f"[L1|Identity] ✓ PGD complete — final_cosine_sim={final_sim:.4f}")
 
         del facenet
         torch.cuda.empty_cache()
@@ -368,7 +372,7 @@ class ProtectionKernel:
         import numpy as np
         import torchvision.transforms as T
 
-        print("[Layer 2] Applying Style Poison v3 (dual-CLIP: ViT-H/14 + ViT-L/14)...")
+        print(f"[L2|StylePoison] ▶ Applying Style Poison v3 (dual-CLIP: ViT-H/14 + ViT-L/14, intensity={intensity})")
         torch.cuda.empty_cache()
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -397,9 +401,9 @@ class ProtectionKernel:
             with torch.no_grad():
                 orig_emb_h = clip_h.encode_image(normalizer(resizer(img_tensor)))
             has_clip_h = True
-            print("[Layer 2] OpenCLIP ViT-H/14 loaded.")
+            print("[L2|StylePoison] ⚙ OpenCLIP ViT-H/14 loaded")
         except Exception as e:
-            print(f"[Layer 2] OpenCLIP ViT-H/14 warning: {e}. Continuing with ViT-L/14 only.")
+            print(f"[L2|StylePoison] ⚠ OpenCLIP ViT-H/14 failed: {e} — continuing with ViT-L/14 only")
 
         # --- Load Proxy 2: CLIP ViT-L/14 ---
         has_clip_l = False
@@ -413,18 +417,19 @@ class ProtectionKernel:
             with torch.no_grad():
                 orig_emb_l = clip_l.get_image_features(normalizer(resizer(img_tensor)))
             has_clip_l = True
-            print("[Layer 2] CLIP ViT-L/14 loaded.")
+            print("[L2|StylePoison] ⚙ CLIP ViT-L/14 loaded")
         except Exception as e:
-            print(f"[Layer 2] CLIP ViT-L/14 warning: {e}.")
+            print(f"[L2|StylePoison] ⚠ CLIP ViT-L/14 failed: {e}")
 
         if not has_clip_h and not has_clip_l:
-            print("[Layer 2] All CLIP models failed — using simple noise fallback.")
+            print("[L2|StylePoison] ✗ All CLIP models failed — using simple noise fallback")
             return self._simple_noise_fallback(img)
 
         # --- PGD settings ---
         epsilon = {"Low": 0.03, "Medium": 0.05, "High": 0.08}.get(intensity, 0.05)
         steps   = 40
         alpha   = epsilon / 10
+        print(f"[L2|StylePoison] ⚡ PGD config — ε={epsilon:.3f} steps={steps} α={alpha:.5f} proxies={'ViT-H+ViT-L' if has_clip_h and has_clip_l else 'ViT-H' if has_clip_h else 'ViT-L'}")
 
         adv = img_tensor.clone().detach()
 
@@ -451,7 +456,7 @@ class ProtectionKernel:
                 delta = torch.clamp(adv - img_tensor, -epsilon, epsilon)
                 adv = torch.clamp(img_tensor + delta, 0.0, 1.0).detach()
 
-        print(f"[Layer 2] Style Poison final loss: {loss.item():.4f}")
+        print(f"[L2|StylePoison] ✓ PGD complete — final_loss={loss.item():.4f}")
 
         if clip_h is not None:
             del clip_h
@@ -483,13 +488,14 @@ class ProtectionKernel:
         import torchvision.transforms as T
         from diffusers import AutoencoderKL
 
-        print("[Layer 3] Applying Edit Immunity v3 (dual-VAE PGD: FLUX + SD1.5)...")
+        print(f"[L3|EditImmunity] ▶ Applying Edit Immunity v3 (dual-VAE PGD: FLUX+SD1.5, intensity={intensity})")
         torch.cuda.empty_cache()
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         epsilon = {"Low": 0.03, "Medium": 0.06, "High": 0.10}.get(intensity, 0.06)
         steps   = 20
         alpha   = epsilon / 5
+        print(f"[L3|EditImmunity] ⚡ PGD config — ε={epsilon:.3f} steps={steps} α={alpha:.5f}")
 
         orig_w, orig_h = img.width, img.height
         resize_512  = T.Resize((512, 512), interpolation=T.InterpolationMode.BICUBIC, antialias=True)
@@ -515,9 +521,9 @@ class ProtectionKernel:
             with torch.no_grad():
                 z_flux_orig = flux_vae.encode(img_512).latent_dist.mean  # [1,16,64,64]
             has_flux = True
-            print("[Layer 3] FLUX VAE (16-ch) loaded.")
+            print(f"[L3|EditImmunity] ⚙ FLUX VAE (16-ch) loaded — z_orig.shape={list(z_flux_orig.shape)}")
         except Exception as e:
-            print(f"[Layer 3] FLUX VAE warning: {e}. Continuing with SD1.5 VAE only.")
+            print(f"[L3|EditImmunity] ⚠ FLUX VAE load failed: {e} — SD1.5 only")
 
         # --- Load SD 1.5 VAE (legacy, 4-channel) ---
         has_sd15 = False
@@ -535,9 +541,9 @@ class ProtectionKernel:
             with torch.no_grad():
                 z_sd15_orig = sd15_vae.encode(img_512).latent_dist.mean  # [1,4,64,64]
             has_sd15 = True
-            print("[Layer 3] SD 1.5 VAE (4-ch) loaded.")
+            print(f"[L3|EditImmunity] ⚙ SD 1.5 VAE (4-ch) loaded — z_orig.shape={list(z_sd15_orig.shape)}")
         except Exception as e:
-            print(f"[Layer 3] SD 1.5 VAE warning: {e}.")
+            print(f"[L3|EditImmunity] ⚠ SD 1.5 VAE load failed: {e}")
 
         if not has_flux and not has_sd15:
             raise RuntimeError("[Layer 3] Both VAEs failed to load — cannot apply Edit Immunity.")
@@ -575,7 +581,7 @@ class ProtectionKernel:
             if has_sd15:
                 sd = torch.mean((sd15_vae.encode(adv).latent_dist.mean - z_sd15_orig) ** 2).item()
                 dist_info.append(f"SD15 L2={sd:.4f}")
-        print(f"[Layer 3] PGD complete. {' | '.join(dist_info)}")
+        print(f"[L3|EditImmunity] ✓ PGD complete — {' | '.join(dist_info)}")
 
         if flux_vae is not None:
             del flux_vae
@@ -597,7 +603,7 @@ class ProtectionKernel:
         """
         from trustmark import TrustMark
 
-        print(f"[Layer 4] Embedding TrustMark watermark: '{text}'")
+        print(f"[L4|Watermark] ▶ Embedding TrustMark-C — payload='{text}' ({len(text.encode())} bytes)")
         try:
             tm = TrustMark(verbose=False, model_type='C')
             # TrustMark requires RGB mode — convert defensively (prior layers always return RGB
@@ -605,16 +611,17 @@ class ProtectionKernel:
             img_rgb = img.convert('RGB')
             # TrustMark.encode(img_pil, string_payload) → returns watermarked PIL Image
             watermarked = tm.encode(img_rgb, text)
-            print("[Layer 4] TrustMark encoding complete.")
+            print("[L4|Watermark] ✓ TrustMark encoding complete")
             return watermarked
         except Exception as e:
-            print(f"[Layer 4] TrustMark error: {e}")
+            print(f"[L4|Watermark] ✗ TrustMark error: {e}")
             raise
 
     @modal.method()
     def run_shield_pipeline(self, request: ProtectionRequest) -> ProtectionJobResult:
         start_time = time.time()
-        print(f"[Shield] Starting Pipeline for {request.artwork_id}")
+        enabled = [k for k, v in [("L1",request.use_identity_shield),("L2",request.use_style_poison),("L3",request.use_edit_immunity),("L4",request.use_watermark)] if v]
+        print(f"[SHIELD] ▶ Pipeline start — artwork={request.artwork_id} user={request.user_id} layers={'+'.join(enabled)} intensity={request.config.get('intensity','Medium')} preview={request.is_preview}")
         
         # Track ID
         job_id = "unknown"
@@ -642,7 +649,7 @@ class ProtectionKernel:
                     })
                     job_states[job_id] = current_state
                 except Exception as e:
-                    print(f"Failed to update job state: {e}")
+                    print(f"[SHIELD] ⚠ Job state update failed ({job_id}): {e}")
 
         current_img = None
         original_img_bytes = None
@@ -672,7 +679,7 @@ class ProtectionKernel:
             original_ref_key = f"{path_prefix}/verification/original_reference.png"
             self._upload_to_r2(original_img_bytes, original_ref_key, is_preview=request.is_preview)
             original_r2_url = f"{request.r2_public_base_url}/{original_ref_key}"
-            print(f"[Shield] Original reference uploaded: {original_ref_key}")
+            print(f"[SHIELD] ↑ Original reference → R2: {original_ref_key}")
 
             # --- LAYER 1: IDENTITY ---
             if request.use_identity_shield:
@@ -683,6 +690,8 @@ class ProtectionKernel:
                     step1_key = f"{path_prefix}/verification/layer_1_identity.png"
                     self._upload_to_r2(self._img_to_bytes(current_img), step1_key, is_preview=request.is_preview)
                     step1_url = f"{request.r2_public_base_url}/{step1_key}"
+                    print(f"[L1|Identity] ↑ Artifact saved → {step1_key}")
+                    print(f"[L1|Identity] ▶ Dispatching verify_identity → SimulationEngine (protected={step1_url[-50:]}, original={original_r2_url[-50:]})")
 
                     # v3: pass original_url for dual-run baseline
                     verify_res = simulation_engine.verify_identity.remote(step1_url, original_r2_url, path_prefix, request.is_preview)
@@ -695,8 +704,9 @@ class ProtectionKernel:
                         verification_meta=verify_res,
                         duration_ms=(time.time() - t0) * 1000
                     ))
+                    print(f"[L1|Identity] ✓ verify done — status={verify_res.get('status')} faces={verify_res.get('faces_detected')} confidence={verify_res.get('confidence',0):.3f} drop={verify_res.get('confidence_drop',0):.3f}")
                 except Exception as e:
-                    print(f"Layer 1 Failed: {e}")
+                    print(f"[L1|Identity] ✗ Layer failed: {e}")
                     log_step(StepResult(
                         step_name="layer_1_identity",
                         status="FAIL",
@@ -718,6 +728,8 @@ class ProtectionKernel:
                     step2_key = f"{path_prefix}/verification/layer_2_mimicry.png"
                     self._upload_to_r2(self._img_to_bytes(current_img), step2_key, is_preview=request.is_preview)
                     step2_url = f"{request.r2_public_base_url}/{step2_key}"
+                    print(f"[L2|StylePoison] ↑ Artifact saved → {step2_key}")
+                    print(f"[L2|StylePoison] ▶ Dispatching verify_style → SimulationEngine (protected={step2_url[-50:]}, original={original_r2_url[-50:]})")
 
                     # v3: use original_r2_url (already on R2) instead of raw image_url
                     verify_res = simulation_engine.verify_style.remote(step2_url, original_r2_url, path_prefix, request.is_preview)
@@ -730,8 +742,9 @@ class ProtectionKernel:
                         verification_meta=verify_res,
                         duration_ms=(time.time() - t0) * 1000
                     ))
+                    print(f"[L2|StylePoison] ✓ verify done — status={verify_res.get('status')} style_sim={verify_res.get('style_similarity',0):.4f} flux_drift={verify_res.get('flux_vae_latent_drift',0):.4f} psnr={verify_res.get('visual_quality_psnr',0):.1f}dB")
                 except Exception as e:
-                    print(f"Layer 2 Failed: {e}")
+                    print(f"[L2|StylePoison] ✗ Layer failed: {e}")
                     log_step(StepResult(
                         step_name="layer_2_mimicry",
                         status="FAIL",
@@ -753,6 +766,8 @@ class ProtectionKernel:
                     step3_key = f"{path_prefix}/verification/layer_3_editing.png"
                     self._upload_to_r2(self._img_to_bytes(current_img), step3_key, is_preview=request.is_preview)
                     step3_url = f"{request.r2_public_base_url}/{step3_key}"
+                    print(f"[L3|EditImmunity] ↑ Artifact saved → {step3_key}")
+                    print(f"[L3|EditImmunity] ▶ Dispatching verify_editing → SimulationEngine (protected={step3_url[-50:]}, original={original_r2_url[-50:]})")
 
                     # v3: pass original_url + path_prefix so simulation can upload r2_key_original
                     verify_res = simulation_engine.verify_editing.remote(
@@ -767,8 +782,9 @@ class ProtectionKernel:
                         verification_meta=verify_res,
                         duration_ms=(time.time() - t0) * 1000
                     ))
+                    print(f"[L3|EditImmunity] ✓ verify done — status={verify_res.get('status')} artifacts={verify_res.get('artifacts_metric',0):.0f} flux_disruption={verify_res.get('flux_latent_disruption',0):.4f}")
                 except Exception as e:
-                    print(f"Layer 3 Failed: {e}")
+                    print(f"[L3|EditImmunity] ✗ Layer failed: {e}")
                     log_step(StepResult(
                         step_name="layer_3_editing",
                         status="FAIL",
@@ -790,6 +806,8 @@ class ProtectionKernel:
                     step4_key = f"{path_prefix}/verification/layer_4_watermark.png"
                     self._upload_to_r2(self._img_to_bytes(current_img), step4_key, is_preview=request.is_preview)
                     step4_url = f"{request.r2_public_base_url}/{step4_key}"
+                    print(f"[L4|Watermark] ↑ Artifact saved → {step4_key}")
+                    print(f"[L4|Watermark] ▶ Dispatching verify_watermark → SimulationEngine (protected={step4_url[-50:]}, original={original_r2_url[-50:]})")
 
                     # v3: pass original_url for baseline + watermark_text as expected payload
                     verify_res = simulation_engine.verify_watermark.remote(
@@ -804,8 +822,9 @@ class ProtectionKernel:
                         verification_meta=verify_res,
                         duration_ms=(time.time() - t0) * 1000
                     ))
+                    print(f"[L4|Watermark] ✓ verify done — status={verify_res.get('status')} detected={verify_res.get('watermark_detected')} decoded='{verify_res.get('decoded_uuid','')}' robustness={verify_res.get('robustness_score',0):.0%}")
                 except Exception as e:
-                    print(f"Layer 4 Failed: {e}")
+                    print(f"[L4|Watermark] ✗ Layer failed: {e}")
                     log_step(StepResult(
                         step_name="layer_4_watermark",
                         status="FAIL",
@@ -852,7 +871,7 @@ class ProtectionKernel:
 
             # Normalize to 0-100
             shield_score = min(max((total_score / 4.0) * 100, 0), 100)
-            print(f"[Shield] Calculated Score: {shield_score:.2f} / 100")
+            print(f"[SHIELD] ⚡ Shield Score: {shield_score:.1f}/100 (steps: {[(s.step_name,s.status) for s in steps_log]})")
 
             result = ProtectionJobResult(
                 artwork_id=str(request.artwork_id),
@@ -873,11 +892,11 @@ class ProtectionKernel:
                     "steps": [s.dict() for s in steps_log]
                 }
             
-            print(f"[Shield] Pipeline Completed. Status: {job_status}")
+            print(f"[SHIELD] ✓ Pipeline completed — status={job_status} duration={total_time/1000:.1f}s score={shield_score:.1f} final_key={final_key}")
             return result
 
         except Exception as e:
-            print(f"[Shield] Critical Error: {e}")
+            print(f"[SHIELD] ✗ CRITICAL pipeline error: {e}")
             if job_id and job_id != "unknown":
                 job_states[job_id] = {"status": "FAILED", "error": str(e)}
             
@@ -905,26 +924,27 @@ def _verify_token(request: FastAPIRequest):
 @web_app.post("/protect")
 async def start_protection_job(http_request: FastAPIRequest, request: ProtectionRequest):
     _verify_token(http_request)
-    print(f"[API] Received protection request for {request.artwork_id}")
+    print(f"[API] POST /protect — artwork={request.artwork_id} user={request.user_id} layers=({request.use_identity_shield},{request.use_style_poison},{request.use_edit_immunity},{request.use_watermark}) intensity={request.config.get('intensity','?')}")
     try:
         # Spawn the job asynchronously using the Modal function
         # We need to call `.spawn()` on the class method.
         # However, `ProtectionKernel` is a class. We usually instantiate it?
         # Modal class methods can be called with `Kernel().method.spawn(...)`
-        
+
         job = ProtectionKernel().run_shield_pipeline.spawn(request)
         job_id = job.object_id
-        
+
         # Store state
         state_data = {"status": "QUEUED", "artwork_id": request.artwork_id, "steps": []}
         job_states[job_id] = state_data
-        
+
         # Map artwork_id -> job_id
         job_map[str(request.artwork_id)] = job_id
-        
+
+        print(f"[API] ✓ Job spawned — artwork={request.artwork_id} job_id={job_id}")
         return JSONResponse(content={"job_id": job_id, "status": "QUEUED"})
     except Exception as e:
-        print(f"[API] Error spawning job: {e}")
+        print(f"[API] ✗ Spawn failed for artwork={request.artwork_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
