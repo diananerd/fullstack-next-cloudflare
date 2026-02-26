@@ -19,7 +19,8 @@ interface ArtworkFullViewProps {
     onClose: () => void;
 }
 
-type VariantType = "original" | "protected" | "flux" | "sdxl" | "semantic";
+type VariantType = "original" | "protected" | "flux" | "sdxl" | "semantic"
+    | "identity" | "mimicry" | "editing" | "editing_orig" | "watermark";
 
 export function ArtworkFullView({
     artwork,
@@ -36,12 +37,28 @@ export function ArtworkFullView({
     // Report Extraction
     const metadata = artwork.metadata as any;
     const report = metadata?.verificationReport;
-    const hasReport = !!report && !report.error;
+    // v3: verificationReport is an array of StepResult; v1 legacy: object with keys
+    const reportArr: any[] = Array.isArray(report) ? report : [];
+    const hasReport = reportArr.length > 0 || (!!report && !Array.isArray(report) && !report.error);
 
-    // Availability Checks based on Report Keys
-    const hasFlux = hasReport && (!!report.primary_attack_key || !!report.mimicry_pixel_bytes || !!report.mimicry_bytes || !!report.primary_attack_url);
-    const hasSDXL = hasReport && (!!report.secondary_attack_key || !!report.secondary_attack_url || !!report.mimicry_sdxl_bytes);
-    const hasSemantic = hasReport && (!!report.semantic_attack_key || !!report.semantic_attack_url || !!report.mimicry_semantic_bytes || !!report.semantic_audit);
+    // v3: per-layer step results
+    const stepByName = (name: string) => reportArr.find((s: any) => s.step_name === name);
+    const step1 = stepByName("layer_1_identity");
+    const step2 = stepByName("layer_2_mimicry");
+    const step3 = stepByName("layer_3_editing");
+    const step4 = stepByName("layer_4_watermark");
+
+    // v3 availability (has artifact even if verification errored)
+    const hasIdentity = !!step1?.r2_key;
+    const hasMimicry = !!step2?.r2_key;
+    const hasEditing = !!step3?.r2_key;
+    const hasEditingOrig = !!step3?.r2_key_original;
+    const hasWatermark = !!step4?.r2_key;
+
+    // v1 legacy availability (backward compat)
+    const hasFlux = !Array.isArray(report) && hasReport && (!!report?.primary_attack_key || !!report?.primary_attack_url);
+    const hasSDXL = !Array.isArray(report) && hasReport && (!!report?.secondary_attack_key || !!report?.secondary_attack_url);
+    const hasSemantic = !Array.isArray(report) && hasReport && (!!report?.semantic_attack_key || !!report?.semantic_attack_url);
 
     // View state
     // Default to 'original' as requested
@@ -97,49 +114,51 @@ export function ArtworkFullView({
         return "";
     };
     
+    // v3 layer artifact URLs (via authenticated asset proxy)
+    const getIdentityUrl = () => step1?.r2_key ? `/api/assets/${step1.r2_key}` : "";
+    const getMimicryUrl = () => step2?.r2_key ? `/api/assets/${step2.r2_key}` : "";
+    const getEditingUrl = () => step3?.r2_key ? `/api/assets/${step3.r2_key}` : "";
+    const getEditingOrigUrl = () => step3?.r2_key_original ? `/api/assets/${step3.r2_key_original}` : "";
+    const getWatermarkUrl = () => step4?.r2_key ? `/api/assets/${step4.r2_key}` : "";
+
+    // v1 legacy (backward compat)
     const getFluxUrl = () => {
-        if (report?.primary_attack_url) return report.primary_attack_url;
-        if (report?.primary_attack_key) return `/api/assets/${report.primary_attack_key}`; // Proxy if needed
-        
-        // Inference / Fallback
-        if (artwork.r2Key) {
-            const prefix = artwork.r2Key.substring(0, artwork.r2Key.lastIndexOf("/"));
-            return `/api/assets/${prefix}/verified/pixel.png`;
+        if (!Array.isArray(report)) {
+            if (report?.primary_attack_url) return report.primary_attack_url;
+            if (report?.primary_attack_key) return `/api/assets/${report.primary_attack_key}`;
         }
         return "";
-    }
-
+    };
     const getSDXLUrl = () => {
-        if (report?.secondary_attack_url) return report.secondary_attack_url;
-        if (report?.secondary_attack_key) return `/api/assets/${report.secondary_attack_key}`;
-
-        // Inference
-        if (artwork.r2Key) {
-             const prefix = artwork.r2Key.substring(0, artwork.r2Key.lastIndexOf("/"));
-             return `/api/assets/${prefix}/verified/sdxl.png`;
+        if (!Array.isArray(report)) {
+            if (report?.secondary_attack_url) return report.secondary_attack_url;
+            if (report?.secondary_attack_key) return `/api/assets/${report.secondary_attack_key}`;
         }
         return "";
-    }
-
+    };
     const getSemanticUrl = () => {
-         if (report?.semantic_attack_url) return report.semantic_attack_url;
-         if (report?.semantic_attack_key) return `/api/assets/${report.semantic_attack_key}`;
-
-         if (artwork.r2Key) {
-             const prefix = artwork.r2Key.substring(0, artwork.r2Key.lastIndexOf("/"));
-             return `/api/assets/${prefix}/verified/semantic.png`;
-         }
-         return "";
-    }
+        if (!Array.isArray(report)) {
+            if (report?.semantic_attack_url) return report.semantic_attack_url;
+            if (report?.semantic_attack_key) return `/api/assets/${report.semantic_attack_key}`;
+        }
+        return "";
+    };
 
     // Determine what to show based on selectedVariant
     const getActiveUrl = () => {
         switch (selectedVariant) {
             case "protected": return getProtectedUrl();
+            // v3 layer variants
+            case "identity": return getIdentityUrl();
+            case "mimicry": return getMimicryUrl();
+            case "editing": return getEditingUrl();
+            case "editing_orig": return getEditingOrigUrl();
+            case "watermark": return getWatermarkUrl();
+            // v1 legacy
             case "flux": return getFluxUrl();
             case "sdxl": return getSDXLUrl();
             case "semantic": return getSemanticUrl();
-            case "original": 
+            case "original":
             default:
                 return artwork.url;
         }
@@ -188,11 +207,15 @@ export function ArtworkFullView({
              setSelectedVariant("original");
         }
         else if (selectedVariant === "semantic") {
-             setVariantBroken(prev => ({...prev, semantic: true}));
-             setSelectedVariant("original");
-        } 
+            setVariantBroken(prev => ({...prev, semantic: true}));
+            setSelectedVariant("original");
+        }
+        else if (["identity", "mimicry", "editing", "editing_orig", "watermark"].includes(selectedVariant)) {
+            setVariantBroken(prev => ({...prev, [selectedVariant]: true}));
+            setSelectedVariant("original");
+        }
         else {
-             setImageError(true);
+            setImageError(true);
         }
     };
 
@@ -231,22 +254,24 @@ export function ArtworkFullView({
                                 
                                 {/* VARIANT SWITCHER OVERLAY */}
                                 <div className="absolute bottom-14 left-0 right-0 z-30 flex justify-center pointer-events-none">
-                                    <div className="pointer-events-auto bg-black/60 backdrop-blur-md rounded-full p-1 border border-white/10 flex items-center gap-1 shadow-2xl">
-                                        <button 
+                                    <div className="pointer-events-auto bg-black/60 backdrop-blur-md rounded-full p-1 border border-white/10 flex items-center gap-1 shadow-2xl flex-wrap justify-center max-w-[90vw]">
+                                        {/* Always: Original */}
+                                        <button
                                             onClick={() => setSelectedVariant("original")}
                                             className={cn(
-                                                "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all", 
+                                                "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
                                                 selectedVariant === "original" ? "bg-white text-black" : "text-white/60 hover:text-white hover:bg-white/10"
                                             )}
                                         >
                                             Original
                                         </button>
-                                        
+
+                                        {/* Protected final output */}
                                         {isProtectedReady && (
-                                            <button 
+                                            <button
                                                 onClick={() => setSelectedVariant("protected")}
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all flex items-center gap-1.5", 
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
                                                     selectedVariant === "protected" ? "bg-emerald-500 text-white" : "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
                                                 )}
                                             >
@@ -254,49 +279,90 @@ export function ArtworkFullView({
                                             </button>
                                         )}
 
-                                        {/* Flux: Only if reported as existing */}
-                                        {hasFlux && (
-                                            <button 
+                                        {/* v3 layer artifacts */}
+                                        {hasIdentity && !variantBroken["identity"] && (
+                                            <button
+                                                onClick={() => setSelectedVariant("identity")}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "identity" ? "bg-violet-500 text-white" : "text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
+                                                )}
+                                            >
+                                                Identity
+                                            </button>
+                                        )}
+                                        {hasMimicry && !variantBroken["mimicry"] && (
+                                            <button
+                                                onClick={() => setSelectedVariant("mimicry")}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "mimicry" ? "bg-purple-500 text-white" : "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                                                )}
+                                            >
+                                                Style
+                                            </button>
+                                        )}
+                                        {hasEditingOrig && !variantBroken["editing_orig"] && (
+                                            <button
+                                                onClick={() => setSelectedVariant("editing_orig")}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "editing_orig" ? "bg-zinc-500 text-white" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10"
+                                                )}
+                                            >
+                                                Edit Test ↗ Original
+                                            </button>
+                                        )}
+                                        {hasEditing && !variantBroken["editing"] && (
+                                            <button
+                                                onClick={() => setSelectedVariant("editing")}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "editing" ? "bg-orange-500 text-white" : "text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                                                )}
+                                            >
+                                                Edit Test ↗ Protected
+                                            </button>
+                                        )}
+                                        {hasWatermark && !variantBroken["watermark"] && (
+                                            <button
+                                                onClick={() => setSelectedVariant("watermark")}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "watermark" ? "bg-blue-500 text-white" : "text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                                                )}
+                                            >
+                                                Watermark
+                                            </button>
+                                        )}
+
+                                        {/* v1 legacy variants (only shown for old format reports) */}
+                                        {hasFlux && !variantBroken["flux"] && (
+                                            <button
                                                 onClick={() => setSelectedVariant("flux")}
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all flex items-center gap-1.5", 
-                                                    selectedVariant === "flux" 
-                                                        ? "bg-indigo-500 text-white" 
-                                                        : variantBroken["flux"] ? "hidden" : "text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/10"
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "flux" ? "bg-indigo-500 text-white" : "text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/10"
                                                 )}
-                                            >
-                                                Flux Audit
-                                            </button>
+                                            >Flux Audit</button>
                                         )}
-
-                                        {/* SDXL: Only if reported as existing */}
-                                        {hasSDXL && (
-                                            <button 
+                                        {hasSDXL && !variantBroken["sdxl"] && (
+                                            <button
                                                 onClick={() => setSelectedVariant("sdxl")}
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all flex items-center gap-1.5", 
-                                                    selectedVariant === "sdxl" 
-                                                        ? "bg-blue-500 text-white" 
-                                                        : variantBroken["sdxl"] ? "hidden" : "text-blue-300 hover:text-blue-200 hover:bg-blue-500/10"
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "sdxl" ? "bg-blue-500 text-white" : "text-blue-300 hover:text-blue-200 hover:bg-blue-500/10"
                                                 )}
-                                            >
-                                                SDXL Audit
-                                            </button>
+                                            >SDXL Audit</button>
                                         )}
-
-                                        {/* Semantic: Only if reported as existing */}
-                                        {hasSemantic && (
-                                            <button 
+                                        {hasSemantic && !variantBroken["semantic"] && (
+                                            <button
                                                 onClick={() => setSelectedVariant("semantic")}
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all flex items-center gap-1.5", 
-                                                    selectedVariant === "semantic" 
-                                                        ? "bg-purple-500 text-white" 
-                                                        : variantBroken["semantic"] ? "hidden" : "text-purple-300 hover:text-purple-200 hover:bg-purple-500/10"
+                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
+                                                    selectedVariant === "semantic" ? "bg-purple-500 text-white" : "text-purple-300 hover:text-purple-200 hover:bg-purple-500/10"
                                                 )}
-                                            >
-                                                Semantic
-                                            </button>
+                                            >Semantic</button>
                                         )}
                                     </div>
                                 </div>
@@ -305,7 +371,12 @@ export function ArtworkFullView({
                                 <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none">
                                     <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/5 text-xs text-white/80 font-medium">
                                         {selectedVariant === "original" && "Original Source"}
-                                        {selectedVariant === "protected" && "Protected Asset"}
+                                        {selectedVariant === "protected" && "Protected Asset (Final Output)"}
+                                        {selectedVariant === "identity" && "After Identity Shield Layer"}
+                                        {selectedVariant === "mimicry" && "After Style Poison Layer"}
+                                        {selectedVariant === "editing_orig" && "Editing Test — Original Image (AI editing baseline)"}
+                                        {selectedVariant === "editing" && "Editing Test — Protected Image (disrupted output)"}
+                                        {selectedVariant === "watermark" && "After Watermark Layer (Final Protected)"}
                                         {selectedVariant === "flux" && "Flux.1-Schnell Attack Simulation"}
                                         {selectedVariant === "sdxl" && "SDXL-Turbo Attack Simulation"}
                                         {selectedVariant === "semantic" && "Concept Reconstruction"}
@@ -398,8 +469,10 @@ export function ArtworkFullView({
                                     status={artwork.protectionStatus}
                                     jobResult={statusData?.progress || { steps: [] }}
                                     statusDate={artwork.updatedAt}
-                                    className="border-0 bg-transparent"
+                                    className="border-0"
                                     r2BaseUrl="/api/assets"
+                                    selectedVariant={selectedVariant}
+                                    onSelectVariant={(v) => setSelectedVariant(v as VariantType)}
                                 />
                             </div>
                         )}
