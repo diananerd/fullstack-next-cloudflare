@@ -22,21 +22,28 @@ export async function GET(
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
-        // --- NEW: Trigger explicit sync for this artwork ---
-        try {
-            // Only sync if likely active? Or always? Always is safer for "on demand" check.
-            await PipelineService.syncRunningJobs(artworkId);
-        } catch (syncError) {
-            console.error("[StatusAPI] Sync failed:", syncError);
-        }
-        // ---------------------------------------------------
-
         const db = await getDb();
 
         // 1. Get Artwork
         const artwork = await db.query.artworks.findFirst({
             where: eq(artworks.id, artworkId),
         });
+
+        // Sync with Modal only if the artwork is actively processing.
+        // Final states (done/failed/canceled) never need a Modal round-trip.
+        const activeStatuses = ["queued", "processing", "uploading"];
+        if (artwork && activeStatuses.includes(artwork.protectionStatus)) {
+            try {
+                await PipelineService.syncRunningJobs(artworkId);
+                // Re-fetch after sync so the response reflects the latest state
+                const refreshed = await db.query.artworks.findFirst({
+                    where: eq(artworks.id, artworkId),
+                });
+                if (refreshed) Object.assign(artwork, refreshed);
+            } catch (syncError) {
+                console.error("[StatusAPI] Sync failed:", syncError);
+            }
+        }
 
         if (!artwork) {
             return NextResponse.json(

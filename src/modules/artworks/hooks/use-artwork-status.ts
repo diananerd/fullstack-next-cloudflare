@@ -90,7 +90,7 @@ export function useArtworkStatus(
 
         let intervalId: NodeJS.Timeout;
         if (isProcessing) {
-             intervalId = setInterval(checkStatus, 3000); 
+             intervalId = setInterval(checkStatus, 15000);
         }
 
         return () => {
