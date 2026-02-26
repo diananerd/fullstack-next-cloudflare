@@ -276,6 +276,10 @@ export function ProtectionAuditTrail({
                                 stateIcon = <XCircle className="w-4 h-4 text-white" />;
                                 ringColor = "border-red-500";
                                 iconBg = "bg-red-500";
+                            } else if (stepStatus === "ERROR") {
+                                stateIcon = <AlertCircle className="w-4 h-4 text-white" />;
+                                ringColor = "border-orange-500";
+                                iconBg = "bg-orange-500";
                             } else if (stepStatus === "PROCESSING") {
                                 stateIcon = <Loader2 className="w-4 h-4 text-white animate-spin" />;
                                 ringColor = "border-blue-500";
@@ -325,8 +329,8 @@ export function ProtectionAuditTrail({
                                         {result && result.status !== "PENDING" && (
                                             <div className="animate-in fade-in zoom-in-95 duration-300">
                                                 {renderVerificationDetails(layer.id, result)}
-                                                
-                                                {/* Error View */}
+
+                                                {/* Error from result.error */}
                                                 {result.error && (
                                                     <div className="mt-2 text-xs bg-red-50 text-red-700 p-2 rounded border border-red-100 flex items-start gap-2">
                                                         <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
@@ -334,19 +338,32 @@ export function ProtectionAuditTrail({
                                                     </div>
                                                 )}
 
-                                                {/* Debug Links */}
-                                                {result.r2_key && r2BaseUrl && (
-                                                    <div className="mt-3 pt-2 border-t flex justify-end">
+                                                {/* Error from verification_meta.error (e.g. network errors inside verifier) */}
+                                                {!result.error && result.verification_meta?.error && (
+                                                    <div className="mt-2 text-xs bg-orange-50 text-orange-700 p-2 rounded border border-orange-100 flex items-start gap-2">
+                                                        <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                                                        <span className="break-all">{result.verification_meta.error}</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Footer: duration + layer output link */}
+                                                <div className="mt-3 pt-2 border-t flex items-center justify-between">
+                                                    {result.duration_ms !== undefined ? (
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            ⏱ {(result.duration_ms / 1000).toFixed(1)}s
+                                                        </span>
+                                                    ) : <span />}
+                                                    {result.r2_key && r2BaseUrl && (
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
                                                             className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-primary"
                                                             onClick={() => window.open(`${r2BaseUrl}/${result.r2_key}`, "_blank")}
                                                         >
-                                                            <Eye className="w-3 h-3" /> View Layer Output
+                                                            <Eye className="w-3 h-3" /> View Output
                                                         </Button>
-                                                    </div>
-                                                )}
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                     </div>

@@ -79,6 +79,7 @@ export const PIPELINE_LAYERS: PipelineLayerConfig[] = [
             { key: "faces_detected", label: "Faces Detected", format: "count", goodWhen: "zero" },
             { key: "confidence", label: "Detection Confidence", format: "percent", goodWhen: "always" },
             { key: "confidence_drop", label: "Confidence Drop", format: "percent", goodWhen: "high", threshold: 0.3 },
+            { key: "protection_score", label: "Protection Score", format: "percent", goodWhen: "high", threshold: 0.7 },
         ],
         configFields: [],
     },
@@ -94,6 +95,8 @@ export const PIPELINE_LAYERS: PipelineLayerConfig[] = [
         verificationMetrics: [
             { key: "style_similarity", label: "Style Similarity", format: "decimal", goodWhen: "low", threshold: 0.3 },
             { key: "flux_vae_latent_drift", label: "FLUX Latent Drift", format: "decimal", goodWhen: "high", threshold: 0.02 },
+            { key: "visual_quality_psnr", label: "Visual Quality (PSNR dB)", format: "decimal", goodWhen: "high", threshold: 28 },
+            { key: "protection_score", label: "Protection Score", format: "percent", goodWhen: "high", threshold: 0.7 },
         ],
         configFields: [],
     },
@@ -109,6 +112,7 @@ export const PIPELINE_LAYERS: PipelineLayerConfig[] = [
         verificationMetrics: [
             { key: "flux_latent_disruption", label: "FLUX Latent Disruption", format: "decimal", goodWhen: "high", threshold: 0.01 },
             { key: "artifacts_metric", label: "Inpaint Disruption", format: "decimal", goodWhen: "high", threshold: 1200 },
+            { key: "protection_score", label: "Protection Score", format: "percent", goodWhen: "high", threshold: 0.7 },
         ],
         configFields: [],
     },

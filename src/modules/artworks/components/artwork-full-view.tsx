@@ -399,7 +399,7 @@ export function ArtworkFullView({
                                     jobResult={statusData?.progress || { steps: [] }}
                                     statusDate={artwork.updatedAt}
                                     className="border-0 bg-transparent"
-                                    r2BaseUrl={artwork.url ? new URL(artwork.url).origin : undefined}
+                                    r2BaseUrl="/api/assets"
                                 />
                             </div>
                         )}

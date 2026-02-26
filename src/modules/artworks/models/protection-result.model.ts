@@ -1,4 +1,4 @@
-export type StepStatus = "PENDING" | "PROCESSING" | "PASS" | "FAIL" | "SKIPPED";
+export type StepStatus = "PENDING" | "PROCESSING" | "PASS" | "FAIL" | "SKIPPED" | "ERROR";
 
 export interface VerificationMeta {
     faces_detected?: number;
