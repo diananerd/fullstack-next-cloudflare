@@ -58,8 +58,8 @@ R2_BUCKET_DEV = "drimit-shield-dev-bucket"
 # App Declaration
 app = modal.App("drimit-shield-kernel")
 
-# Reference Simulation
-simulation_engine = modal.Cls.from_name("drimit-shield-simulation", "SimulationEngine")()
+# Reference Simulation (instantiated at runtime, not module load time)
+_SimulationEngineCls = modal.Cls.from_name("drimit-shield-simulation", "SimulationEngine")
 
 # Persistent State
 job_states = modal.Dict.from_name("shield-job-states", create_if_missing=True)
@@ -625,6 +625,9 @@ class ProtectionKernel:
                 job_states[job_id] = {"status": "PROCESSING", "steps": []}
         except:
             pass
+
+        # Instantiate simulation engine at runtime (Modal Cls must be instantiated inside a function)
+        simulation_engine = _SimulationEngineCls()
 
         steps_log: List[StepResult] = []
         
