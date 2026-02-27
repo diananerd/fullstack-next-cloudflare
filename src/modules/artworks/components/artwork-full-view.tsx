@@ -1,4 +1,15 @@
-import { ImageIcon, ImageOff, X, Layers, ShieldCheck, Eye, Sparkles, AlertTriangle, Smartphone, Loader2 } from "lucide-react";
+import {
+    ImageIcon,
+    ImageOff,
+    X,
+    Layers,
+    ShieldCheck,
+    Eye,
+    Sparkles,
+    AlertTriangle,
+    Smartphone,
+    Loader2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -19,9 +30,20 @@ interface ArtworkFullViewProps {
     onClose: () => void;
 }
 
-type VariantType = "original" | "protected" | "flux" | "sdxl" | "semantic"
-    | "identity" | "identity_orig" | "mimicry" | "mimicry_orig"
-    | "editing" | "editing_orig" | "watermark" | "watermark_orig";
+type VariantType =
+    | "original"
+    | "protected"
+    | "flux"
+    | "sdxl"
+    | "semantic"
+    | "identity"
+    | "identity_orig"
+    | "mimicry"
+    | "mimicry_orig"
+    | "editing"
+    | "editing_orig"
+    | "watermark"
+    | "watermark_orig";
 
 export function ArtworkFullView({
     artwork,
@@ -30,9 +52,12 @@ export function ArtworkFullView({
 }: ArtworkFullViewProps) {
     const actions = useArtworkActions(artwork);
     const { isProtected, isProcessing, optimisticStatus } = actions;
-    
+
     // V2: Fetch Status
-    const statusData = useArtworkStatus(artwork.id, artwork.protectionStatus) as any;
+    const statusData = useArtworkStatus(
+        artwork.id,
+        artwork.protectionStatus,
+    ) as any;
     const progress = statusData?.progress; // New V2 Progress
 
     // Report Extraction
@@ -40,10 +65,13 @@ export function ArtworkFullView({
     const report = metadata?.verificationReport;
     // v3: verificationReport is an array of StepResult; v1 legacy: object with keys
     const reportArr: any[] = Array.isArray(report) ? report : [];
-    const hasReport = reportArr.length > 0 || (!!report && !Array.isArray(report) && !report.error);
+    const hasReport =
+        reportArr.length > 0 ||
+        (!!report && !Array.isArray(report) && !report.error);
 
     // v3: per-layer step results
-    const stepByName = (name: string) => reportArr.find((s: any) => s.step_name === name);
+    const stepByName = (name: string) =>
+        reportArr.find((s: any) => s.step_name === name);
     const step1 = stepByName("layer_1_identity");
     const step2 = stepByName("layer_2_mimicry");
     const step3 = stepByName("layer_3_editing");
@@ -60,50 +88,94 @@ export function ArtworkFullView({
     const hasWatermarkOrig = !!step4?.r2_key_original;
 
     // v1 legacy availability (backward compat)
-    const hasFlux = !Array.isArray(report) && hasReport && (!!report?.primary_attack_key || !!report?.primary_attack_url);
-    const hasSDXL = !Array.isArray(report) && hasReport && (!!report?.secondary_attack_key || !!report?.secondary_attack_url);
-    const hasSemantic = !Array.isArray(report) && hasReport && (!!report?.semantic_attack_key || !!report?.semantic_attack_url);
+    const hasFlux =
+        !Array.isArray(report) &&
+        hasReport &&
+        (!!report?.primary_attack_key || !!report?.primary_attack_url);
+    const hasSDXL =
+        !Array.isArray(report) &&
+        hasReport &&
+        (!!report?.secondary_attack_key || !!report?.secondary_attack_url);
+    const hasSemantic =
+        !Array.isArray(report) &&
+        hasReport &&
+        (!!report?.semantic_attack_key || !!report?.semantic_attack_url);
 
     // View state
     // Default to 'original' as requested
-    const [selectedVariant, setSelectedVariant] = useState<VariantType>("original");
+    const [selectedVariant, setSelectedVariant] =
+        useState<VariantType>("original");
     const [imageError, setImageError] = useState(false);
-    
+
     // Default Sidebar State: Open if hasReport AND not mobile (check width > 768px?)
     const [showAudit, setShowAudit] = useState(false);
 
     // Track if protected is genuinely broken (404) to disable the option
     const [protectedBroken, setProtectedBroken] = useState(false);
     // variantBroken (flux, sdxl, semantic)
-    const [variantBroken, setVariantBroken] = useState<Record<string, boolean>>({});
+    const [variantBroken, setVariantBroken] = useState<Record<string, boolean>>(
+        {},
+    );
 
     useEffect(() => {
         if (isOpen) {
             setImageError(false);
             setProtectedBroken(false);
             setVariantBroken({});
-            
+
             // Default to Original
             setSelectedVariant("original");
 
-            // Sidebar logic: Open only if report exists AND wide screen
-            const isDesktop = window.innerWidth >= 768; 
-            setShowAudit(hasReport && isDesktop);
+            // Sidebar always closed by default — user opens it explicitly
+            setShowAudit(false);
         }
     }, [isOpen, hasReport]);
+
+    // Probe all simulation artifact URLs on dialog open — never show a toggle for a 404
+    useEffect(() => {
+        if (!isOpen) return;
+        const pairs: [string, string][] = [
+            step1?.r2_key ? ["identity", `/api/assets/${step1.r2_key}`] : null,
+            step1?.r2_key_original
+                ? ["identity_orig", `/api/assets/${step1.r2_key_original}`]
+                : null,
+            step2?.r2_key ? ["mimicry", `/api/assets/${step2.r2_key}`] : null,
+            step2?.r2_key_original
+                ? ["mimicry_orig", `/api/assets/${step2.r2_key_original}`]
+                : null,
+            step3?.r2_key ? ["editing", `/api/assets/${step3.r2_key}`] : null,
+            step3?.r2_key_original
+                ? ["editing_orig", `/api/assets/${step3.r2_key_original}`]
+                : null,
+            step4?.r2_key ? ["watermark", `/api/assets/${step4.r2_key}`] : null,
+            step4?.r2_key_original
+                ? ["watermark_orig", `/api/assets/${step4.r2_key_original}`]
+                : null,
+        ].filter(Boolean) as [string, string][];
+        for (const [key, url] of pairs) {
+            fetch(url, { method: "HEAD" })
+                .then((r) => {
+                    if (!r.ok)
+                        setVariantBroken((prev) => ({ ...prev, [key]: true }));
+                })
+                .catch(() => {
+                    setVariantBroken((prev) => ({ ...prev, [key]: true }));
+                });
+        }
+    }, [isOpen, step1, step2, step3, step4]);
 
     useEffect(() => {
         // Fallback Logic
         if (selectedVariant === "protected" && protectedBroken) {
-             setSelectedVariant("original");
+            setSelectedVariant("original");
         }
     }, [selectedVariant, protectedBroken]);
 
     // Helpers to resolve URLs
     const getProtectedUrl = () => {
         // Prefer URL from report if available
-        if (report?.protected_image_url) return report.protected_image_url; 
-        
+        if (report?.protected_image_url) return report.protected_image_url;
+
         if (artwork.r2Key) {
             try {
                 // Support both legacy {hash}/original vs new {userId}/{hash}/original structures
@@ -117,36 +189,48 @@ export function ArtworkFullView({
         }
         return "";
     };
-    
+
     // v3 layer artifact URLs (via authenticated asset proxy)
-    const getIdentityUrl = () => step1?.r2_key ? `/api/assets/${step1.r2_key}` : "";
-    const getIdentityOrigUrl = () => step1?.r2_key_original ? `/api/assets/${step1.r2_key_original}` : "";
-    const getMimicryUrl = () => step2?.r2_key ? `/api/assets/${step2.r2_key}` : "";
-    const getMimicryOrigUrl = () => step2?.r2_key_original ? `/api/assets/${step2.r2_key_original}` : "";
-    const getEditingUrl = () => step3?.r2_key ? `/api/assets/${step3.r2_key}` : "";
-    const getEditingOrigUrl = () => step3?.r2_key_original ? `/api/assets/${step3.r2_key_original}` : "";
-    const getWatermarkUrl = () => step4?.r2_key ? `/api/assets/${step4.r2_key}` : "";
-    const getWatermarkOrigUrl = () => step4?.r2_key_original ? `/api/assets/${step4.r2_key_original}` : "";
+    const getIdentityUrl = () =>
+        step1?.r2_key ? `/api/assets/${step1.r2_key}` : "";
+    const getIdentityOrigUrl = () =>
+        step1?.r2_key_original ? `/api/assets/${step1.r2_key_original}` : "";
+    const getMimicryUrl = () =>
+        step2?.r2_key ? `/api/assets/${step2.r2_key}` : "";
+    const getMimicryOrigUrl = () =>
+        step2?.r2_key_original ? `/api/assets/${step2.r2_key_original}` : "";
+    const getEditingUrl = () =>
+        step3?.r2_key ? `/api/assets/${step3.r2_key}` : "";
+    const getEditingOrigUrl = () =>
+        step3?.r2_key_original ? `/api/assets/${step3.r2_key_original}` : "";
+    const getWatermarkUrl = () =>
+        step4?.r2_key ? `/api/assets/${step4.r2_key}` : "";
+    const getWatermarkOrigUrl = () =>
+        step4?.r2_key_original ? `/api/assets/${step4.r2_key_original}` : "";
 
     // v1 legacy (backward compat)
     const getFluxUrl = () => {
         if (!Array.isArray(report)) {
             if (report?.primary_attack_url) return report.primary_attack_url;
-            if (report?.primary_attack_key) return `/api/assets/${report.primary_attack_key}`;
+            if (report?.primary_attack_key)
+                return `/api/assets/${report.primary_attack_key}`;
         }
         return "";
     };
     const getSDXLUrl = () => {
         if (!Array.isArray(report)) {
-            if (report?.secondary_attack_url) return report.secondary_attack_url;
-            if (report?.secondary_attack_key) return `/api/assets/${report.secondary_attack_key}`;
+            if (report?.secondary_attack_url)
+                return report.secondary_attack_url;
+            if (report?.secondary_attack_key)
+                return `/api/assets/${report.secondary_attack_key}`;
         }
         return "";
     };
     const getSemanticUrl = () => {
         if (!Array.isArray(report)) {
             if (report?.semantic_attack_url) return report.semantic_attack_url;
-            if (report?.semantic_attack_key) return `/api/assets/${report.semantic_attack_key}`;
+            if (report?.semantic_attack_key)
+                return `/api/assets/${report.semantic_attack_key}`;
         }
         return "";
     };
@@ -154,30 +238,75 @@ export function ArtworkFullView({
     // Determine what to show based on selectedVariant
     const getActiveUrl = () => {
         switch (selectedVariant) {
-            case "protected": return getProtectedUrl();
+            case "protected":
+                return getProtectedUrl();
             // v3 layer variants
-            case "identity": return getIdentityUrl();
-            case "identity_orig": return getIdentityOrigUrl();
-            case "mimicry": return getMimicryUrl();
-            case "mimicry_orig": return getMimicryOrigUrl();
-            case "editing": return getEditingUrl();
-            case "editing_orig": return getEditingOrigUrl();
-            case "watermark": return getWatermarkUrl();
-            case "watermark_orig": return getWatermarkOrigUrl();
+            case "identity":
+                return getIdentityUrl();
+            case "identity_orig":
+                return getIdentityOrigUrl();
+            case "mimicry":
+                return getMimicryUrl();
+            case "mimicry_orig":
+                return getMimicryOrigUrl();
+            case "editing":
+                return getEditingUrl();
+            case "editing_orig":
+                return getEditingOrigUrl();
+            case "watermark":
+                return getWatermarkUrl();
+            case "watermark_orig":
+                return getWatermarkOrigUrl();
             // v1 legacy
-            case "flux": return getFluxUrl();
-            case "sdxl": return getSDXLUrl();
-            case "semantic": return getSemanticUrl();
+            case "flux":
+                return getFluxUrl();
+            case "sdxl":
+                return getSDXLUrl();
+            case "semantic":
+                return getSemanticUrl();
             case "original":
             default:
                 return artwork.url;
         }
     };
-    
-    const activeUrl = getActiveUrl();
-    const isProtectedReady = !!getProtectedUrl() && optimisticStatus === ProtectionStatus.DONE && !protectedBroken;
 
-    
+    const activeUrl = getActiveUrl();
+    const isProtectedReady =
+        !!getProtectedUrl() &&
+        optimisticStatus === ProtectionStatus.DONE &&
+        !protectedBroken;
+
+    // Derived attack-mode state from selectedVariant
+    const ATTACK_KEYS = ["identity", "mimicry", "editing", "watermark"] as const;
+    type AttackKey = (typeof ATTACK_KEYS)[number];
+    const activeAttack =
+        ATTACK_KEYS.find(
+            (a) => selectedVariant === a || selectedVariant === `${a}_orig`,
+        ) ?? null;
+    const isOnOriginalSide =
+        selectedVariant === "original" ||
+        (selectedVariant as string).endsWith("_orig");
+    const goToOriginalSide = () =>
+        setSelectedVariant(
+            activeAttack ? (`${activeAttack}_orig` as VariantType) : "original",
+        );
+    const goToProtectedSide = () =>
+        setSelectedVariant(
+            activeAttack ? (activeAttack as VariantType) : "protected",
+        );
+    const selectAttack = (attack: AttackKey) => {
+        if (activeAttack === attack) {
+            // Deselect — go back to clean image
+            setSelectedVariant(isOnOriginalSide ? "original" : "protected");
+        } else {
+            setSelectedVariant(
+                isOnOriginalSide
+                    ? (`${attack}_orig` as VariantType)
+                    : (attack as VariantType),
+            );
+        }
+    };
+
     // Add loading state
     const [isImageLoading, setIsImageLoading] = useState(false);
 
@@ -187,12 +316,12 @@ export function ArtworkFullView({
         if (isOpen) {
             setSelectedVariant("original");
             setImageError(false);
-            setVariantBroken({flux: false, sdxl: false, semantic: false});
+            setVariantBroken({ flux: false, sdxl: false, semantic: false });
             setProtectedBroken(false);
             setIsImageLoading(true);
         }
     }, [isOpen, artwork.id]);
-    
+
     // Trigger loading when activeUrl changes
     useEffect(() => {
         setIsImageLoading(true);
@@ -205,26 +334,32 @@ export function ArtworkFullView({
     const handleImageError = () => {
         setIsImageLoading(false);
         if (selectedVariant === "protected") {
-             setProtectedBroken(true);
-             setSelectedVariant("original");
-        }
-        else if (selectedVariant === "flux") {
-             setVariantBroken(prev => ({...prev, flux: true}));
-             setSelectedVariant("original");
-        }
-        else if (selectedVariant === "sdxl") {
-             setVariantBroken(prev => ({...prev, sdxl: true}));
-             setSelectedVariant("original");
-        }
-        else if (selectedVariant === "semantic") {
-            setVariantBroken(prev => ({...prev, semantic: true}));
+            setProtectedBroken(true);
             setSelectedVariant("original");
-        }
-        else if (["identity", "identity_orig", "mimicry", "mimicry_orig", "editing", "editing_orig", "watermark", "watermark_orig"].includes(selectedVariant)) {
-            setVariantBroken(prev => ({...prev, [selectedVariant]: true}));
+        } else if (selectedVariant === "flux") {
+            setVariantBroken((prev) => ({ ...prev, flux: true }));
             setSelectedVariant("original");
-        }
-        else {
+        } else if (selectedVariant === "sdxl") {
+            setVariantBroken((prev) => ({ ...prev, sdxl: true }));
+            setSelectedVariant("original");
+        } else if (selectedVariant === "semantic") {
+            setVariantBroken((prev) => ({ ...prev, semantic: true }));
+            setSelectedVariant("original");
+        } else if (
+            [
+                "identity",
+                "identity_orig",
+                "mimicry",
+                "mimicry_orig",
+                "editing",
+                "editing_orig",
+                "watermark",
+                "watermark_orig",
+            ].includes(selectedVariant)
+        ) {
+            setVariantBroken((prev) => ({ ...prev, [selectedVariant]: true }));
+            setSelectedVariant("original");
+        } else {
             setImageError(true);
         }
     };
@@ -239,219 +374,330 @@ export function ArtworkFullView({
 
                 <div className="flex w-full h-full bg-black overflow-hidden select-none">
                     <div className="relative flex-1 h-full flex items-center justify-center overflow-hidden">
-                        
                         {/* MAIN IMAGE DISPLAY (Unified) */}
                         {!imageError ? (
-                             <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
+                            <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
                                 {isImageLoading && (
                                     <div className="absolute inset-0 flex items-center justify-center z-20">
-                                         <Loader2 className="w-10 h-10 text-white/50 animate-spin" />
+                                        <Loader2 className="w-10 h-10 text-white/50 animate-spin" />
                                     </div>
                                 )}
-                                
+
                                 {/* biome-ignore lint/performance/noImgElement: External/Dynamic URL */}
-                                <img 
-                                    src={activeUrl} 
+                                <img
+                                    src={activeUrl}
                                     alt={selectedVariant}
+                                    onContextMenu={(e) => e.preventDefault()}
+                                    onDragStart={(e) => e.preventDefault()}
                                     className={cn(
-                                        "max-w-full max-h-full object-contain transition-all duration-300", 
+                                        "max-w-full max-h-full object-contain transition-all duration-300",
                                         showAudit ? "scale-90" : "scale-100",
-                                        isImageLoading ? "opacity-0 scale-95 blur-sm" : "opacity-100 blur-0"
-                                    )} 
+                                        isImageLoading
+                                            ? "opacity-0 scale-95 blur-sm"
+                                            : "opacity-100 blur-0",
+                                    )}
                                     onLoad={handleImageLoad}
                                     onError={handleImageError}
                                 />
-                                
-                                {/* VARIANT SWITCHER OVERLAY */}
-                                <div className="absolute bottom-14 left-0 right-0 z-30 flex justify-center pointer-events-none">
-                                    <div className="pointer-events-auto bg-black/60 backdrop-blur-md rounded-full p-1 border border-white/10 flex items-center gap-1 shadow-2xl flex-wrap justify-center max-w-[90vw]">
-                                        {/* Always: Original */}
-                                        <button
-                                            onClick={() => setSelectedVariant("original")}
-                                            className={cn(
-                                                "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                selectedVariant === "original" ? "bg-white text-black" : "text-white/60 hover:text-white hover:bg-white/10"
-                                            )}
-                                        >
-                                            Original
-                                        </button>
 
-                                        {/* Protected final output */}
-                                        {isProtectedReady && (
-                                            <button
-                                                onClick={() => setSelectedVariant("protected")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "protected" ? "bg-emerald-500 text-white" : "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                                                )}
-                                            >
-                                                Protected
-                                            </button>
-                                        )}
+                                {/* VARIANT SWITCHER OVERLAY — unified: attack selector + original/protected toggle */}
+                                <div className="absolute bottom-4 left-0 right-0 z-30 flex justify-center pointer-events-none">
+                                    <div className="pointer-events-auto flex flex-col items-center gap-2 max-w-[92vw]">
 
-                                        {/* v3 layer artifacts */}
-                                        {hasIdentityOrig && !variantBroken["identity_orig"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("identity_orig")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "identity_orig" ? "bg-zinc-500 text-white" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10"
+                                        {/* ── Attack type selector — pick which simulation to compare ── */}
+                                        {isProtectedReady &&
+                                            (hasIdentity ||
+                                                hasIdentityOrig ||
+                                                hasMimicry ||
+                                                hasMimicryOrig ||
+                                                hasEditing ||
+                                                hasEditingOrig ||
+                                                hasWatermark ||
+                                                hasWatermarkOrig) && (
+                                            <div className="bg-black/55 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 shadow-xl flex items-center gap-0.5">
+                                                {/* "RAW" — no attack, shows original or protected image as-is */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setSelectedVariant(
+                                                            isOnOriginalSide
+                                                                ? "original"
+                                                                : "protected",
+                                                        )
+                                                    }
+                                                    className={cn(
+                                                        "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                                        activeAttack === null
+                                                            ? "bg-white/20 text-white"
+                                                            : "text-white/45 hover:text-white hover:bg-white/10",
+                                                    )}
+                                                    title="View image without attack simulation"
+                                                >
+                                                    RAW
+                                                </button>
+                                                {(hasIdentity ||
+                                                    hasIdentityOrig) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            selectAttack(
+                                                                "identity",
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
+                                                            activeAttack ===
+                                                                "identity"
+                                                                ? "bg-white/20 text-white"
+                                                                : "text-white/45 hover:text-white hover:bg-white/10",
+                                                        )}
+                                                        title={
+                                                            String(
+                                                                step1
+                                                                    ?.verification_meta
+                                                                    ?.attack_label ??
+                                                                    "Face Detection",
+                                                            )
+                                                        }
+                                                    >
+                                                        {String(
+                                                            step1
+                                                                ?.verification_meta
+                                                                ?.attack_label ??
+                                                                "Deepfake",
+                                                        )}
+                                                    </button>
                                                 )}
-                                            >
-                                                Identity ↗ Original
-                                            </button>
-                                        )}
-                                        {hasIdentity && !variantBroken["identity"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("identity")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "identity" ? "bg-violet-500 text-white" : "text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
+                                                {(hasMimicry ||
+                                                    hasMimicryOrig) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            selectAttack(
+                                                                "mimicry",
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
+                                                            activeAttack ===
+                                                                "mimicry"
+                                                                ? "bg-white/20 text-white"
+                                                                : "text-white/45 hover:text-white hover:bg-white/10",
+                                                        )}
+                                                        title={
+                                                            String(
+                                                                step2
+                                                                    ?.verification_meta
+                                                                    ?.attack_label ??
+                                                                    "Style Training",
+                                                            )
+                                                        }
+                                                    >
+                                                        {String(
+                                                            step2
+                                                                ?.verification_meta
+                                                                ?.attack_label ??
+                                                                "Style Training",
+                                                        )}
+                                                    </button>
                                                 )}
-                                            >
-                                                Identity ↗ Protected
-                                            </button>
-                                        )}
-                                        {hasMimicryOrig && !variantBroken["mimicry_orig"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("mimicry_orig")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "mimicry_orig" ? "bg-zinc-500 text-white" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10"
+                                                {(hasEditing ||
+                                                    hasEditingOrig) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            selectAttack(
+                                                                "editing",
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
+                                                            activeAttack ===
+                                                                "editing"
+                                                                ? "bg-white/20 text-white"
+                                                                : "text-white/45 hover:text-white hover:bg-white/10",
+                                                        )}
+                                                        title={
+                                                            String(
+                                                                step3
+                                                                    ?.verification_meta
+                                                                    ?.attack_label ??
+                                                                    "AI Editing",
+                                                            )
+                                                        }
+                                                    >
+                                                        {String(
+                                                            step3
+                                                                ?.verification_meta
+                                                                ?.attack_label ??
+                                                                "AI Editing",
+                                                        )}
+                                                    </button>
                                                 )}
-                                            >
-                                                Style ↗ Original
-                                            </button>
-                                        )}
-                                        {hasMimicry && !variantBroken["mimicry"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("mimicry")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "mimicry" ? "bg-purple-500 text-white" : "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                                                {(hasWatermark ||
+                                                    hasWatermarkOrig) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            selectAttack(
+                                                                "watermark",
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
+                                                            activeAttack ===
+                                                                "watermark"
+                                                                ? "bg-white/20 text-white"
+                                                                : "text-white/45 hover:text-white hover:bg-white/10",
+                                                        )}
+                                                        title={
+                                                            String(
+                                                                step4
+                                                                    ?.verification_meta
+                                                                    ?.attack_label ??
+                                                                    "Watermark",
+                                                            )
+                                                        }
+                                                    >
+                                                        {String(
+                                                            step4
+                                                                ?.verification_meta
+                                                                ?.attack_label ??
+                                                                "Watermark",
+                                                        )}
+                                                    </button>
                                                 )}
-                                            >
-                                                Style ↗ Protected
-                                            </button>
-                                        )}
-                                        {hasEditingOrig && !variantBroken["editing_orig"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("editing_orig")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "editing_orig" ? "bg-zinc-500 text-white" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10"
-                                                )}
-                                            >
-                                                Edit ↗ Original
-                                            </button>
-                                        )}
-                                        {hasEditing && !variantBroken["editing"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("editing")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "editing" ? "bg-orange-500 text-white" : "text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
-                                                )}
-                                            >
-                                                Edit ↗ Protected
-                                            </button>
-                                        )}
-                                        {hasWatermarkOrig && !variantBroken["watermark_orig"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("watermark_orig")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "watermark_orig" ? "bg-zinc-500 text-white" : "text-zinc-400 hover:text-zinc-300 hover:bg-zinc-500/10"
-                                                )}
-                                            >
-                                                Watermark ↗ Original
-                                            </button>
-                                        )}
-                                        {hasWatermark && !variantBroken["watermark"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("watermark")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "watermark" ? "bg-blue-500 text-white" : "text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                                                )}
-                                            >
-                                                Watermark ↗ Protected
-                                            </button>
-                                        )}
-
-                                        {/* v1 legacy variants (only shown for old format reports) */}
-                                        {hasFlux && !variantBroken["flux"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("flux")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "flux" ? "bg-indigo-500 text-white" : "text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/10"
-                                                )}
-                                            >Flux Audit</button>
-                                        )}
-                                        {hasSDXL && !variantBroken["sdxl"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("sdxl")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "sdxl" ? "bg-blue-500 text-white" : "text-blue-300 hover:text-blue-200 hover:bg-blue-500/10"
-                                                )}
-                                            >SDXL Audit</button>
-                                        )}
-                                        {hasSemantic && !variantBroken["semantic"] && (
-                                            <button
-                                                onClick={() => setSelectedVariant("semantic")}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all",
-                                                    selectedVariant === "semantic" ? "bg-purple-500 text-white" : "text-purple-300 hover:text-purple-200 hover:bg-purple-500/10"
-                                                )}
-                                            >Semantic</button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Label at bottom */}
-                                <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none">
-                                    <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/5 text-xs text-white/80 font-medium">
-                                        {selectedVariant === "original" && "Original Source"}
-                                        {selectedVariant === "protected" && "Protected Asset (Final Output)"}
-                                        {selectedVariant === "identity_orig" && "Identity Test — Original Image (face detection baseline)"}
-                                        {selectedVariant === "identity" && "Identity Test — Protected Image (face detection disrupted)"}
-                                        {selectedVariant === "mimicry_orig" && "Style Test — Original Image (VAE reconstruction baseline)"}
-                                        {selectedVariant === "mimicry" && "Style Test — Protected Image (VAE reconstruction disrupted)"}
-                                        {selectedVariant === "editing_orig" && "Edit Test — Original Image (AI editing baseline)"}
-                                        {selectedVariant === "editing" && "Edit Test — Protected Image (AI editing disrupted)"}
-                                        {selectedVariant === "watermark_orig" && "Watermark Test — Original Image (no watermark expected)"}
-                                        {selectedVariant === "watermark" && "Watermark Test — Protected Image (watermark decoded)"}
-                                        {selectedVariant === "flux" && "Flux.1-Schnell Attack Simulation"}
-                                        {selectedVariant === "sdxl" && "SDXL-Turbo Attack Simulation"}
-                                        {selectedVariant === "semantic" && "Concept Reconstruction"}
-                                    </div>
-                                </div>
-
-                             </div>
-                        ) : (
-                                <div className="flex flex-col items-center justify-center text-gray-500 gap-4">
-                                    {imageError ? (
-                                        <>
-                                            <ImageOff className="h-24 w-24 text-gray-600" />
-                                            <div className="text-center">
-                                                <p className="text-lg font-medium text-gray-400">
-                                                    Image not found
-                                                </p>
-                                                <p className="text-sm text-gray-600">
-                                                    The requested image could not be
-                                                    loaded.
-                                                </p>
                                             </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ImageIcon className="h-24 w-24 mb-4" />
-                                            <p>No image available</p>
-                                        </>
-                                    )}
+                                        )}
+
+                                        {/* ── Main Toggle: Original vs Protected (context-aware) ── */}
+                                        {isProtectedReady && (
+                                            <div className="bg-black/60 backdrop-blur-md rounded-full p-1 border border-white/10 flex items-center gap-1 shadow-2xl">
+                                                <button
+                                                    type="button"
+                                                    onClick={goToOriginalSide}
+                                                    className={cn(
+                                                        "px-5 py-1.5 rounded-full text-xs font-semibold transition-all",
+                                                        isOnOriginalSide
+                                                            ? "bg-white text-black"
+                                                            : "text-white/60 hover:text-white hover:bg-white/10",
+                                                    )}
+                                                >
+                                                    Original
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={goToProtectedSide}
+                                                    className={cn(
+                                                        "px-5 py-1.5 rounded-full text-xs font-semibold transition-all",
+                                                        !isOnOriginalSide
+                                                            ? "bg-emerald-500 text-white"
+                                                            : "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10",
+                                                    )}
+                                                >
+                                                    Protected
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Legacy v1 variants */}
+                                        {(hasFlux ||
+                                            hasSDXL ||
+                                            hasSemantic) && (
+                                            <div className="bg-black/55 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 shadow-xl flex items-center gap-1">
+                                                {hasFlux &&
+                                                    !variantBroken[
+                                                        "flux"
+                                                    ] && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setSelectedVariant(
+                                                                    "flux",
+                                                                )
+                                                            }
+                                                            className={cn(
+                                                                "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                                                selectedVariant ===
+                                                                    "flux"
+                                                                    ? "bg-indigo-600 text-white"
+                                                                    : "text-white/45 hover:text-white hover:bg-white/10",
+                                                            )}
+                                                        >
+                                                            Flux
+                                                        </button>
+                                                    )}
+                                                {hasSDXL &&
+                                                    !variantBroken[
+                                                        "sdxl"
+                                                    ] && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setSelectedVariant(
+                                                                    "sdxl",
+                                                                )
+                                                            }
+                                                            className={cn(
+                                                                "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                                                selectedVariant ===
+                                                                    "sdxl"
+                                                                    ? "bg-blue-600 text-white"
+                                                                    : "text-white/45 hover:text-white hover:bg-white/10",
+                                                            )}
+                                                        >
+                                                            SDXL
+                                                        </button>
+                                                    )}
+                                                {hasSemantic &&
+                                                    !variantBroken[
+                                                        "semantic"
+                                                    ] && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setSelectedVariant(
+                                                                    "semantic",
+                                                                )
+                                                            }
+                                                            className={cn(
+                                                                "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                                                selectedVariant ===
+                                                                    "semantic"
+                                                                    ? "bg-purple-600 text-white"
+                                                                    : "text-white/45 hover:text-white hover:bg-white/10",
+                                                            )}
+                                                        >
+                                                            Semantic
+                                                        </button>
+                                                    )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center text-gray-500 gap-4">
+                                {imageError ? (
+                                    <>
+                                        <ImageOff className="h-24 w-24 text-gray-600" />
+                                        <div className="text-center">
+                                            <p className="text-lg font-medium text-gray-400">
+                                                Image not found
+                                            </p>
+                                            <p className="text-sm text-gray-600">
+                                                The requested image could not be
+                                                loaded.
+                                            </p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <ImageIcon className="h-24 w-24 mb-4" />
+                                        <p>No image available</p>
+                                    </>
+                                )}
+                            </div>
                         )}
 
                         {/* HUD Overlay within Image Area */}
@@ -470,19 +716,21 @@ export function ArtworkFullView({
                                         <X className="h-4 w-4" />
                                     </Button>
                                     <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-xs font-medium text-white/90 select-none border border-white/5">
-                                         <ArtworkStatusBadge status={optimisticStatus} />
+                                        <ArtworkStatusBadge
+                                            status={optimisticStatus}
+                                        />
                                     </div>
                                 </div>
 
                                 {/* Top-Right: Action Group */}
                                 <div className="flex items-center gap-2 pointer-events-auto">
-                                     <ArtworkActionButtons actions={actions} />
+                                    <ArtworkActionButtons actions={actions} />
                                 </div>
                             </div>
                         </div>
 
-                         {/* Sidebar Toggle Tab - Attached to Layout */}
-                         {hasReport && (
+                        {/* Sidebar Toggle Tab - Attached to Layout */}
+                        {hasReport && (
                             <button
                                 onClick={() => setShowAudit(!showAudit)}
                                 className={cn(
@@ -490,9 +738,13 @@ export function ArtworkFullView({
                                     // Position: Always anchored to the right edge of this container (which shrinks on desktop)
                                     "right-0",
                                     // On mobile, if sidebar is open, this container doesn't shrink, so we shift the button left to keep it visible
-                                    showAudit ? "max-md:translate-x-[-85vw] max-md:sm:translate-x-[-360px]" : "translate-x-0"
+                                    showAudit
+                                        ? "max-md:translate-x-[-85vw] max-md:sm:translate-x-[-360px]"
+                                        : "translate-x-0",
                                 )}
-                                title={showAudit ? "Close Report" : "View Report"}
+                                title={
+                                    showAudit ? "Close Report" : "View Report"
+                                }
                             >
                                 <ShieldCheck className="w-5 h-5" />
                             </button>
@@ -500,25 +752,31 @@ export function ArtworkFullView({
                     </div>
 
                     {/* Sidebar: Audit Report Panel */}
-                    <div className={cn(
-                        "h-full bg-zinc-950 border-l border-white/10 flex flex-col transition-all duration-300 ease-in-out shrink-0",
-                        // Mobile: Absolute overlay
-                        "absolute right-0 top-0 bottom-0 md:relative z-40",
-                        // Width & Visibility Logic
-                        showAudit 
-                            ? "w-[85vw] sm:w-[360px] translate-x-0 opacity-100" 
-                            : "w-[85vw] sm:w-0 translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden md:border-none md:opacity-0"
-                    )}>
+                    <div
+                        className={cn(
+                            "h-full bg-zinc-950 border-l border-white/10 flex flex-col transition-all duration-300 ease-in-out shrink-0",
+                            // Mobile: Absolute overlay
+                            "absolute right-0 top-0 bottom-0 md:relative z-40",
+                            // Width & Visibility Logic
+                            showAudit
+                                ? "w-[85vw] sm:w-[360px] translate-x-0 opacity-100"
+                                : "w-[85vw] sm:w-0 translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden md:border-none md:opacity-0",
+                        )}
+                    >
                         {showAudit && ( // Conditional render content to avoid layout thrashing when width is 0
                             <div className="flex flex-col h-full bg-zinc-950">
                                 <ProtectionAuditTrail
                                     status={artwork.protectionStatus}
-                                    jobResult={statusData?.progress || { steps: [] }}
+                                    jobResult={
+                                        statusData?.progress || { steps: [] }
+                                    }
                                     statusDate={artwork.updatedAt}
                                     className="border-0"
                                     r2BaseUrl="/api/assets"
                                     selectedVariant={selectedVariant}
-                                    onSelectVariant={(v) => setSelectedVariant(v as VariantType)}
+                                    onSelectVariant={(v) =>
+                                        setSelectedVariant(v as VariantType)
+                                    }
                                 />
                             </div>
                         )}

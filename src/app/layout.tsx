@@ -49,7 +49,7 @@ export default function RootLayout({
                 <AnalyticsProvider>
                     <PWAProvider>
                         <main>{children}</main>
-                        <Toaster position="bottom-right" />
+                        <Toaster position="bottom-left" />
                     </PWAProvider>
                 </AnalyticsProvider>
             </body>

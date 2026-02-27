@@ -20,7 +20,10 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     // Live status updates via SSE (replaces polling)
     const liveStatus = useArtworkStatus(artwork.id, artwork.protectionStatus);
     // Destructure new V2 hook return
-    const { status, progress } = typeof liveStatus === 'object' ? liveStatus : { status: liveStatus, progress: null };
+    const { status, progress } =
+        typeof liveStatus === "object"
+            ? liveStatus
+            : { status: liveStatus, progress: null };
 
     // Memoize the live artwork object to prevent unnecessary re-renders of hooks
     const liveArtwork = {
@@ -94,6 +97,8 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                         <img
                             src={displayUrl}
                             alt={artwork.title}
+                            onContextMenu={(e) => e.preventDefault()}
+                            onDragStart={(e) => e.preventDefault()}
                             className={cn(
                                 "w-full h-auto min-h-[12rem] object-cover transition-all duration-500 rounded-lg block",
                                 isProcessing
@@ -133,8 +138,8 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                         {/* Top Row: Status & Actions */}
                         <div className="flex items-start w-full gap-2">
                             <div className="mr-auto">
-                                <ArtworkStatusBadge 
-                                    status={optimisticStatus} 
+                                <ArtworkStatusBadge
+                                    status={optimisticStatus}
                                     className="[&>span]:hidden @[240px]:[&>span]:inline"
                                 />
                             </div>
