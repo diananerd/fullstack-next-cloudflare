@@ -35,7 +35,9 @@ export function parseWorkspaceQuery(
         order: validOrders.includes(params.order as SortOrder)
             ? (params.order as SortOrder)
             : DEFAULT_QUERY.order,
-        visibility: validVisibility.includes(params.visibility as VisibilityFilter)
+        visibility: validVisibility.includes(
+            params.visibility as VisibilityFilter,
+        )
             ? (params.visibility as VisibilityFilter)
             : DEFAULT_QUERY.visibility,
         offset: 0,
@@ -74,8 +76,6 @@ export type CollectionWorkspaceItem = {
 export type WorkspaceItem = ArtworkWorkspaceItem | CollectionWorkspaceItem;
 
 export interface WorkspaceItemsResult {
-    collections: CollectionWorkspaceItem[];
-    artworks: ArtworkWorkspaceItem[];
+    items: WorkspaceItem[];
     hasMore: boolean;
-    artworkTotal: number;
 }

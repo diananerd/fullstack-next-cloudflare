@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { deleteFromR2, type UploadResult, uploadToR2 } from "@/lib/r2";
 import {
     type ProtectionMethodType,
@@ -16,6 +16,8 @@ import {
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { CreditService } from "@/modules/credits/services/credit.service";
 import { Analytics } from "@/lib/analytics";
+import { collectionItems } from "@/modules/social/schemas/collection-item.schema";
+import { collections } from "@/modules/social/schemas/collection.schema";
 
 // Temporary route definition until we have a proper route file
 const DASHBOARD_ROUTE = "/artworks";
@@ -178,6 +180,7 @@ export async function createArtworkAction(formData: FormData) {
         const description = descriptionRaw
             ? (descriptionRaw as string)
             : undefined;
+        const collectionId = (formData.get("collectionId") as string) || null;
         // Default to shield loop if not provided.
         // We will expose this in the UI later, but the backend must support it now.
         const method = (formData.get("method") as string) || "shield";
@@ -250,6 +253,38 @@ export async function createArtworkAction(formData: FormData) {
             console.error(
                 `[CreateArtworkAction] No ID returned from DB insert!`,
             );
+        }
+
+        // If uploaded inside a collection, register it there
+        if (newArtworkId && collectionId) {
+            try {
+                const [maxPos] = await db
+                    .select({ pos: sql<number>`coalesce(max(position), -1)` })
+                    .from(collectionItems)
+                    .where(eq(collectionItems.collectionId, collectionId));
+                await db
+                    .insert(collectionItems)
+                    .values({
+                        collectionId,
+                        artworkId: newArtworkId,
+                        position: (maxPos?.pos ?? -1) + 1,
+                        addedByUserId: user.id,
+                    })
+                    .onConflictDoNothing();
+                await db
+                    .update(collections)
+                    .set({
+                        itemCount: sql`item_count + 1`,
+                        updatedAt: new Date().toISOString(),
+                    })
+                    .where(eq(collections.id, collectionId));
+            } catch (collErr) {
+                console.error(
+                    "[CreateArtworkAction] Failed to add to collection:",
+                    collErr,
+                );
+                // Non-fatal — artwork was created, just not linked
+            }
         }
 
         revalidatePath(DASHBOARD_ROUTE);

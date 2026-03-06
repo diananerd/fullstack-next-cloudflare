@@ -20,11 +20,13 @@ const TITLE_PATTERN = /^[\p{L}\p{N}\s'\-\.,]*$/u;
 interface CreateCollectionDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    collectionId?: string;
 }
 
 export function CreateCollectionDialog({
     open,
     onOpenChange,
+    collectionId,
 }: CreateCollectionDialogProps) {
     const [title, setTitle] = useState("");
     const [error, setError] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export function CreateCollectionDialog({
         if (error) return;
 
         startTransition(async () => {
-            const result = await createCollectionAction(title);
+            const result = await createCollectionAction(title, collectionId);
             if (result.success) {
                 toast.success("Collection created.");
                 setTitle("");
@@ -84,7 +86,10 @@ export function CreateCollectionDialog({
                 <DialogHeader>
                     <DialogTitle>New collection</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-4">
+                <form
+                    onSubmit={handleSubmit}
+                    className="mt-2 flex flex-col gap-4"
+                >
                     <div className="flex flex-col gap-1.5">
                         <Label htmlFor="collection-name">Name</Label>
                         <Input
@@ -132,7 +137,11 @@ export function CreateCollectionDialog({
 }
 
 // FAB trigger — self-contained button + dialog
-export function CreateCollectionFab() {
+export function CreateCollectionFab({
+    collectionId,
+}: {
+    collectionId?: string;
+}) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -145,7 +154,11 @@ export function CreateCollectionFab() {
             >
                 <FolderPlus className="h-5 w-5" />
             </button>
-            <CreateCollectionDialog open={open} onOpenChange={setOpen} />
+            <CreateCollectionDialog
+                open={open}
+                onOpenChange={setOpen}
+                collectionId={collectionId}
+            />
         </>
     );
 }

@@ -10,7 +10,7 @@ interface ArtworkGalleryProps {
 export async function ArtworkGallery({ query }: ArtworkGalleryProps) {
     const result = await getWorkspaceItemsAction(query);
 
-    if (result.collections.length === 0 && result.artworks.length === 0) {
+    if (result.items.length === 0) {
         return (
             <div className="fixed bottom-24 right-20 z-50 pointer-events-none animate-in fade-in duration-1000 delay-500">
                 <div className="flex flex-col items-center animate-bounce">
@@ -25,8 +25,7 @@ export async function ArtworkGallery({ query }: ArtworkGalleryProps) {
 
     return (
         <WorkspaceGrid
-            collections={result.collections}
-            initialArtworks={result.artworks}
+            initialItems={result.items}
             initialHasMore={result.hasMore}
             query={query}
         />

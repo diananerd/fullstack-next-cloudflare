@@ -13,6 +13,7 @@ interface UploadArtworkButtonProps extends ButtonProps {
     showIcon?: boolean;
     method?: string;
     iconClassName?: string;
+    collectionId?: string;
 }
 
 export function UploadArtworkButton({
@@ -23,6 +24,7 @@ export function UploadArtworkButton({
     showIcon = true,
     method,
     iconClassName,
+    collectionId,
     ...props
 }: UploadArtworkButtonProps) {
     const [isPending, startTransition] = useTransition();
@@ -127,6 +129,9 @@ export function UploadArtworkButton({
             if (method) {
                 formData.append("method", method);
             }
+            if (collectionId) {
+                formData.append("collectionId", collectionId);
+            }
 
             startTransition(async () => {
                 try {
@@ -195,7 +200,6 @@ export function UploadArtworkButton({
                     </>
                 )}
             </Button>
-
         </>
     );
 }

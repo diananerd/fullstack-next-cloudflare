@@ -1,11 +1,10 @@
 "use server";
 
-import { and, asc, count, desc, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import { unionAll } from "drizzle-orm/sqlite-core";
 import { getDb } from "@/db";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import type {
-    ArtworkWorkspaceItem,
-    CollectionWorkspaceItem,
     WorkspaceItemsResult,
     WorkspaceQuery,
 } from "@/modules/artworks/models/workspace-item.model";
@@ -16,24 +15,65 @@ import { collectionMembers } from "@/modules/social/schemas/collection-member.sc
 import { collectionPlacements } from "@/modules/social/schemas/collection-placement.schema";
 import { collections } from "@/modules/social/schemas/collection.schema";
 
-function artworkOrder(
-    sort: WorkspaceQuery["sort"],
-    order: WorkspaceQuery["order"],
-) {
-    const dir = order === "asc" ? asc : desc;
-    if (sort === "title") return dir(artworks.title);
-    if (sort === "updatedAt") return dir(artworks.updatedAt);
-    return dir(artworks.createdAt);
-}
+// Shared column shape — all nullable fields must use sql<T> wrappers so
+// both sides of the UNION have identical TypeScript types.
+const ARTWORK_COLS = (db: Awaited<ReturnType<typeof getDb>>) =>
+    db.select({
+        kind: sql<string>`'artwork'`,
+        id: sql<string>`cast(${artworks.id} as text)`,
+        title: artworks.title,
+        createdAt: artworks.createdAt,
+        updatedAt: artworks.updatedAt,
+        visibility: artworks.visibility,
+        // wrap non-null columns in sql<> to widen to string | null for union compat
+        url: sql<string | null>`${artworks.url}`,
+        r2Key: sql<string | null>`${artworks.r2Key}`,
+        width: artworks.width,
+        height: artworks.height,
+        protectionStatus: sql<string | null>`${artworks.protectionStatus}`,
+        itemCount: sql<number | null>`NULL`,
+        role: sql<string | null>`NULL`,
+    });
 
-function collectionOrder(
+const COLLECTION_COLS = (db: Awaited<ReturnType<typeof getDb>>) =>
+    db
+        .select({
+            kind: sql<string>`'collection'`,
+            id: collections.id,
+            title: collections.title,
+            createdAt: collections.createdAt,
+            updatedAt: collections.updatedAt,
+            visibility: collections.visibility,
+            url: sql<string | null>`NULL`,
+            r2Key: sql<string | null>`NULL`,
+            width: sql<number | null>`NULL`,
+            height: sql<number | null>`NULL`,
+            protectionStatus: sql<string | null>`NULL`,
+            itemCount: sql<number | null>`${collections.itemCount}`,
+            role: sql<string | null>`${collectionMembers.role}`,
+        })
+        .from(collectionPlacements)
+        .innerJoin(
+            collections,
+            eq(collectionPlacements.collectionId, collections.id),
+        )
+        .innerJoin(
+            collectionMembers,
+            and(
+                eq(collectionMembers.collectionId, collections.id),
+                eq(collectionMembers.userId, sql.placeholder("_")), // placeholder; .where() sets the real condition
+            ),
+        );
+
+function sortExpr(
     sort: WorkspaceQuery["sort"],
     order: WorkspaceQuery["order"],
 ) {
-    const dir = order === "asc" ? asc : desc;
-    if (sort === "title") return dir(collections.title);
-    if (sort === "updatedAt") return dir(collections.updatedAt);
-    return dir(collections.createdAt);
+    if (sort === "title")
+        return order === "asc" ? sql`title ASC` : sql`title DESC`;
+    if (sort === "updatedAt")
+        return order === "asc" ? sql`updated_at ASC` : sql`updated_at DESC`;
+    return order === "asc" ? sql`created_at ASC` : sql`created_at DESC`;
 }
 
 export async function getWorkspaceItemsAction(
@@ -44,177 +84,110 @@ export async function getWorkspaceItemsAction(
 
     const { collectionId, sort, order, visibility, offset, limit } = query;
 
-    // ── Collections (always full — folders are not paginated) ─────────────────
-    let rawCollections: CollectionWorkspaceItem[] = [];
+    const artworkVisClauses =
+        visibility !== "all" ? [eq(artworks.visibility, visibility)] : [];
+    const collVisClauses =
+        visibility !== "all" ? [eq(collections.visibility, visibility)] : [];
 
-    if (!collectionId) {
-        // Root workspace: via placements contextType=WORKSPACE, contextId=userId
-        const rows = await db
-            .select({
-                id: collections.id,
-                title: collections.title,
-                createdAt: collections.createdAt,
-                updatedAt: collections.updatedAt,
-                visibility: collections.visibility,
-                itemCount: collections.itemCount,
-                role: collectionMembers.role,
-            })
-            .from(collectionPlacements)
-            .innerJoin(
-                collections,
-                eq(collectionPlacements.collectionId, collections.id),
-            )
-            .innerJoin(
-                collectionMembers,
-                and(
-                    eq(collectionMembers.collectionId, collections.id),
-                    eq(collectionMembers.userId, user.id),
-                ),
-            )
-            .where(
-                and(
-                    eq(collectionPlacements.contextType, PlacementContext.WORKSPACE),
-                    eq(collectionPlacements.contextId, user.id),
-                ),
-            )
-            .orderBy(collectionOrder(sort, order));
+    // ── Artwork subquery ──────────────────────────────────────────────────────
+    const artQ = collectionId
+        ? ARTWORK_COLS(db)
+              .from(collectionItems)
+              .innerJoin(artworks, eq(collectionItems.artworkId, artworks.id))
+              .where(
+                  and(
+                      eq(collectionItems.collectionId, collectionId),
+                      ...artworkVisClauses,
+                  ),
+              )
+        : ARTWORK_COLS(db)
+              .from(artworks)
+              .where(and(eq(artworks.userId, user.id), ...artworkVisClauses));
 
-        rawCollections = rows.map((r) => ({
-            kind: "collection",
-            ...r,
-        }));
-    } else {
-        // Inside a collection: sub-collections placed here
-        const rows = await db
-            .select({
-                id: collections.id,
-                title: collections.title,
-                createdAt: collections.createdAt,
-                updatedAt: collections.updatedAt,
-                visibility: collections.visibility,
-                itemCount: collections.itemCount,
-                role: collectionMembers.role,
-            })
-            .from(collectionPlacements)
-            .innerJoin(
-                collections,
-                eq(collectionPlacements.collectionId, collections.id),
-            )
-            .innerJoin(
-                collectionMembers,
-                and(
-                    eq(collectionMembers.collectionId, collections.id),
-                    eq(collectionMembers.userId, user.id),
-                ),
-            )
-            .where(
-                and(
-                    eq(
-                        collectionPlacements.contextType,
-                        PlacementContext.COLLECTION,
-                    ),
-                    eq(collectionPlacements.contextId, collectionId),
-                ),
-            )
-            .orderBy(collectionOrder(sort, order));
+    // ── Collection subquery ───────────────────────────────────────────────────
+    const collPlacementWhere = collectionId
+        ? and(
+              eq(collectionPlacements.contextType, PlacementContext.COLLECTION),
+              eq(collectionPlacements.contextId, collectionId),
+              ...collVisClauses,
+          )
+        : and(
+              eq(collectionPlacements.contextType, PlacementContext.WORKSPACE),
+              eq(collectionPlacements.contextId, user.id),
+              ...collVisClauses,
+          );
 
-        rawCollections = rows.map((r) => ({ kind: "collection", ...r }));
-    }
+    const collQ = db
+        .select({
+            kind: sql<string>`'collection'`,
+            id: collections.id,
+            title: collections.title,
+            createdAt: collections.createdAt,
+            updatedAt: collections.updatedAt,
+            visibility: collections.visibility,
+            url: sql<string | null>`NULL`,
+            r2Key: sql<string | null>`NULL`,
+            width: sql<number | null>`NULL`,
+            height: sql<number | null>`NULL`,
+            protectionStatus: sql<string | null>`NULL`,
+            itemCount: sql<number | null>`${collections.itemCount}`,
+            role: sql<string | null>`${collectionMembers.role}`,
+        })
+        .from(collectionPlacements)
+        .innerJoin(
+            collections,
+            eq(collectionPlacements.collectionId, collections.id),
+        )
+        .innerJoin(
+            collectionMembers,
+            and(
+                eq(collectionMembers.collectionId, collections.id),
+                eq(collectionMembers.userId, user.id),
+            ),
+        )
+        .where(collPlacementWhere);
 
-    // ── Artworks (paginated) ──────────────────────────────────────────────────
-    const buildArtworkWhere = (extra?: ReturnType<typeof and>) => {
-        const clauses = [extra].filter(Boolean) as Parameters<typeof and>;
-        if (visibility === "public")
-            clauses.push(eq(artworks.visibility, "public"));
-        else if (visibility === "private")
-            clauses.push(eq(artworks.visibility, "private"));
-        return clauses.length ? and(...clauses) : undefined;
-    };
+    // ── Unified query: UNION ALL + sort + paginate ────────────────────────────
+    // Fetch limit+1 to detect hasMore without a separate COUNT
+    const rows = await artQ
+        .unionAll(collQ)
+        .orderBy(sortExpr(sort, order))
+        .limit(limit + 1)
+        .offset(offset);
 
-    let rawArtworks: ArtworkWorkspaceItem[] = [];
-    let artworkTotal = 0;
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
 
-    if (!collectionId) {
-        const where = buildArtworkWhere(eq(artworks.userId, user.id));
+    const items = page.map((row) => {
+        if (row.kind === "collection") {
+            return {
+                kind: "collection" as const,
+                id: row.id,
+                title: row.title,
+                createdAt: row.createdAt,
+                updatedAt: row.updatedAt,
+                visibility: row.visibility,
+                itemCount: row.itemCount ?? 0,
+                role: row.role ?? "viewer",
+            };
+        }
+        return {
+            kind: "artwork" as const,
+            id: Number(row.id),
+            title: row.title,
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
+            visibility: row.visibility,
+            url: row.url ?? "",
+            r2Key: row.r2Key ?? "",
+            width: row.width ?? null,
+            height: row.height ?? null,
+            protectionStatus: row.protectionStatus ?? "IDLE",
+            mediaType: "image" as const,
+        };
+    });
 
-        const [{ total }] = await db
-            .select({ total: count() })
-            .from(artworks)
-            .where(where);
-        artworkTotal = total;
-
-        const rows = await db
-            .select()
-            .from(artworks)
-            .where(where)
-            .orderBy(artworkOrder(sort, order))
-            .limit(limit)
-            .offset(offset);
-
-        rawArtworks = rows.map((a) => ({
-            kind: "artwork",
-            id: a.id,
-            title: a.title,
-            createdAt: a.createdAt,
-            updatedAt: a.updatedAt,
-            visibility: a.visibility,
-            url: a.url,
-            r2Key: a.r2Key,
-            width: a.width ?? null,
-            height: a.height ?? null,
-            protectionStatus: a.protectionStatus,
-            mediaType: "image",
-        }));
-    } else {
-        const base = eq(collectionItems.collectionId, collectionId);
-        const visWhere =
-            visibility === "all"
-                ? base
-                : and(base, eq(artworks.visibility, visibility));
-
-        const [{ total }] = await db
-            .select({ total: count() })
-            .from(collectionItems)
-            .innerJoin(artworks, eq(collectionItems.artworkId, artworks.id))
-            .where(visWhere);
-        artworkTotal = total;
-
-        const orderClause =
-            sort === "createdAt" && order === "desc"
-                ? asc(collectionItems.position) // respect manual order by default
-                : artworkOrder(sort, order);
-
-        const rows = await db
-            .select({ artwork: artworks })
-            .from(collectionItems)
-            .innerJoin(artworks, eq(collectionItems.artworkId, artworks.id))
-            .where(visWhere)
-            .orderBy(orderClause)
-            .limit(limit)
-            .offset(offset);
-
-        rawArtworks = rows.map(({ artwork: a }) => ({
-            kind: "artwork",
-            id: a.id,
-            title: a.title,
-            createdAt: a.createdAt,
-            updatedAt: a.updatedAt,
-            visibility: a.visibility,
-            url: a.url,
-            r2Key: a.r2Key,
-            width: a.width ?? null,
-            height: a.height ?? null,
-            protectionStatus: a.protectionStatus,
-            mediaType: "image",
-        }));
-    }
-
-    return {
-        collections: rawCollections,
-        artworks: rawArtworks,
-        hasMore: offset + rawArtworks.length < artworkTotal,
-        artworkTotal,
-    };
+    return { items, hasMore };
 }
 
 // ── Breadcrumb ancestor resolution ───────────────────────────────────────────

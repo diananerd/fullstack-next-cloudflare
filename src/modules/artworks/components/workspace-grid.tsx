@@ -1,45 +1,49 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 import { MasonryGrid } from "@/components/ui/masonry-grid";
 import { ArtworkCard } from "@/modules/artworks/components/artwork-card";
 import type {
-    ArtworkWorkspaceItem,
-    CollectionWorkspaceItem,
+    WorkspaceItem,
     WorkspaceQuery,
 } from "@/modules/artworks/models/workspace-item.model";
 import { getWorkspaceItemsAction } from "@/modules/artworks/actions/get-workspace-items.action";
+import {
+    moveArtworkAction,
+    moveCollectionAction,
+} from "@/modules/artworks/actions/move-item.action";
 import { CollectionCard } from "@/modules/social/components/collection-card";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 import type { Collection } from "@/modules/social/schemas/collection.schema";
 
-type DisplayItem =
-    | { kind: "artwork"; data: ArtworkWorkspaceItem }
-    | { kind: "collection"; data: CollectionWorkspaceItem };
+type DragPayload =
+    | { kind: "artwork"; id: number }
+    | { kind: "collection"; id: string };
 
 interface WorkspaceGridProps {
-    collections: CollectionWorkspaceItem[];
-    initialArtworks: ArtworkWorkspaceItem[];
+    initialItems: WorkspaceItem[];
     initialHasMore: boolean;
     query: WorkspaceQuery;
 }
 
 export function WorkspaceGrid({
-    collections,
-    initialArtworks,
+    initialItems,
     initialHasMore,
     query,
 }: WorkspaceGridProps) {
-    const [artworks, setArtworks] = useState(initialArtworks);
+    const [items, setItems] = useState(initialItems);
     const [hasMore, setHasMore] = useState(initialHasMore);
     const [isLoading, setIsLoading] = useState(false);
+    const [dropTarget, setDropTarget] = useState<string | null>(null);
     const sentinelRef = useRef<HTMLDivElement>(null);
+    const router = useRouter();
 
-    // Reset when query changes (sort/filter/collection)
     useEffect(() => {
-        setArtworks(initialArtworks);
+        setItems(initialItems);
         setHasMore(initialHasMore);
-    }, [initialArtworks, initialHasMore]);
+    }, [initialItems, initialHasMore]);
 
     const loadMore = async () => {
         if (isLoading || !hasMore) return;
@@ -47,9 +51,9 @@ export function WorkspaceGrid({
         try {
             const result = await getWorkspaceItemsAction({
                 ...query,
-                offset: artworks.length,
+                offset: items.length,
             });
-            setArtworks((prev) => [...prev, ...result.artworks]);
+            setItems((prev) => [...prev, ...result.items]);
             setHasMore(result.hasMore);
         } finally {
             setIsLoading(false);
@@ -59,24 +63,64 @@ export function WorkspaceGrid({
     useEffect(() => {
         const sentinel = sentinelRef.current;
         if (!sentinel) return;
-
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting) {
-                    loadMore();
-                }
+                if (entries[0].isIntersecting) loadMore();
             },
             { threshold: 0.1 },
         );
-
         observer.observe(sentinel);
         return () => observer.disconnect();
     });
 
-    const items: DisplayItem[] = [
-        ...collections.map((c): DisplayItem => ({ kind: "collection", data: c })),
-        ...artworks.map((a): DisplayItem => ({ kind: "artwork", data: a })),
-    ];
+    const handleDragStart = (e: React.DragEvent, payload: DragPayload) => {
+        e.dataTransfer.setData("application/json", JSON.stringify(payload));
+        e.dataTransfer.effectAllowed = "move";
+    };
+
+    const handleDrop = async (
+        e: React.DragEvent,
+        targetCollectionId: string,
+    ) => {
+        e.preventDefault();
+        setDropTarget(null);
+
+        const raw = e.dataTransfer.getData("application/json");
+        if (!raw) return;
+
+        let payload: DragPayload;
+        try {
+            payload = JSON.parse(raw);
+        } catch {
+            return;
+        }
+
+        if (payload.kind === "collection" && payload.id === targetCollectionId)
+            return;
+
+        if (payload.kind === "artwork") {
+            const result = await moveArtworkAction(
+                payload.id,
+                query.collectionId ?? null,
+                targetCollectionId,
+            );
+            if (!result.success) {
+                toast.error("Failed to move artwork");
+                return;
+            }
+        } else {
+            const result = await moveCollectionAction(
+                payload.id,
+                targetCollectionId,
+            );
+            if (!result.success) {
+                toast.error("Failed to move collection");
+                return;
+            }
+        }
+
+        router.refresh();
+    };
 
     if (items.length === 0) return null;
 
@@ -85,20 +129,17 @@ export function WorkspaceGrid({
             <MasonryGrid
                 items={items}
                 keyExtractor={(item) =>
-                    item.kind === "artwork"
-                        ? `a-${item.data.id}`
-                        : `c-${item.data.id}`
+                    item.kind === "artwork" ? `a-${item.id}` : `c-${item.id}`
                 }
                 render={(item) => {
                     if (item.kind === "collection") {
-                        // CollectionCard expects Collection shape — map from WorkspaceItem
                         const col = {
-                            id: item.data.id,
-                            title: item.data.title,
-                            createdAt: item.data.createdAt,
-                            updatedAt: item.data.updatedAt,
-                            visibility: item.data.visibility,
-                            itemCount: item.data.itemCount,
+                            id: item.id,
+                            title: item.title,
+                            createdAt: item.createdAt,
+                            updatedAt: item.updatedAt,
+                            visibility: item.visibility,
+                            itemCount: item.itemCount,
                             createdByUserId: "",
                             description: null,
                             coverR2Key: null,
@@ -106,37 +147,78 @@ export function WorkspaceGrid({
                             membershipInheritance: "none",
                         } as Collection;
                         return (
-                            <CollectionCard
-                                collection={col}
-                                role={item.data.role}
-                            />
+                            // biome-ignore lint/a11y/noStaticElementInteractions: drop target
+                            <div
+                                draggable
+                                onDragStart={(e) =>
+                                    handleDragStart(e, {
+                                        kind: "collection",
+                                        id: item.id,
+                                    })
+                                }
+                                onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = "move";
+                                    setDropTarget(item.id);
+                                }}
+                                onDragLeave={(e) => {
+                                    if (
+                                        !e.currentTarget.contains(
+                                            e.relatedTarget as Node,
+                                        )
+                                    ) {
+                                        setDropTarget(null);
+                                    }
+                                }}
+                                onDrop={(e) => handleDrop(e, item.id)}
+                                className={
+                                    dropTarget === item.id
+                                        ? "ring-2 ring-blue-400 rounded-2xl"
+                                        : undefined
+                                }
+                            >
+                                <CollectionCard
+                                    collection={col}
+                                    role={item.role}
+                                />
+                            </div>
                         );
                     }
-                    // Map ArtworkWorkspaceItem → Artwork shape for ArtworkCard
                     const artwork = {
-                        id: item.data.id,
-                        title: item.data.title,
+                        id: item.id,
+                        title: item.title,
                         description: null,
                         userId: "",
-                        r2Key: item.data.r2Key,
-                        url: item.data.url,
+                        r2Key: item.r2Key,
+                        url: item.url,
                         method: "shield",
-                        protectionStatus: item.data.protectionStatus,
+                        protectionStatus: item.protectionStatus,
                         jobId: null,
                         metadata: null,
-                        width: item.data.width,
-                        height: item.data.height,
+                        width: item.width,
+                        height: item.height,
                         size: null,
                         semanticType: "digital_art",
-                        visibility: item.data.visibility,
-                        createdAt: item.data.createdAt,
-                        updatedAt: item.data.updatedAt,
+                        visibility: item.visibility,
+                        createdAt: item.createdAt,
+                        updatedAt: item.updatedAt,
                     } as Artwork;
-                    return <ArtworkCard artwork={artwork} />;
+                    return (
+                        <div
+                            draggable
+                            onDragStart={(e) =>
+                                handleDragStart(e, {
+                                    kind: "artwork",
+                                    id: item.id,
+                                })
+                            }
+                        >
+                            <ArtworkCard artwork={artwork} />
+                        </div>
+                    );
                 }}
             />
 
-            {/* Infinite scroll sentinel */}
             <div ref={sentinelRef} className="h-10" />
 
             {isLoading && (

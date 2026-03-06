@@ -51,12 +51,13 @@ export default async function ArtworksPage({
             </div>
 
             <div className="fixed bottom-6 right-6 flex items-center gap-3 z-50">
-                <CreateCollectionFab />
+                <CreateCollectionFab collectionId={collectionId} />
                 <UploadArtworkButton
                     text=""
                     className="w-14 h-14 rounded-full shadow-xl p-0 bg-black hover:bg-zinc-800 text-white hover:scale-105 transition-all"
                     size="lg"
                     iconClassName="h-10 w-10 scale-125"
+                    collectionId={collectionId}
                 />
             </div>
         </div>

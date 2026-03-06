@@ -19,7 +19,10 @@ import { collections } from "@/modules/social/schemas/collection.schema";
  */
 const TITLE_PATTERN = /^[\p{L}\p{N}\s'\-\.,]+$/u;
 
-export async function createCollectionAction(rawTitle: string) {
+export async function createCollectionAction(
+    rawTitle: string,
+    parentCollectionId?: string | null,
+) {
     const user = await requireAuth();
 
     // Sanitize: trim, collapse internal whitespace
@@ -29,7 +32,10 @@ export async function createCollectionAction(rawTitle: string) {
         return { success: false, error: "Name is required." };
     }
     if (title.length > 50) {
-        return { success: false, error: "Name must be 50 characters or fewer." };
+        return {
+            success: false,
+            error: "Name must be 50 characters or fewer.",
+        };
     }
     if (!TITLE_PATTERN.test(title)) {
         return {
@@ -57,11 +63,13 @@ export async function createCollectionAction(rawTitle: string) {
         grantedByUserId: user.id,
     });
 
-    // Place in the user's workspace so it shows up in /artworks
+    // Place in the parent collection, or the user's workspace root
     await db.insert(collectionPlacements).values({
         collectionId: collection.id,
-        contextType: PlacementContext.WORKSPACE,
-        contextId: user.id,
+        contextType: parentCollectionId
+            ? PlacementContext.COLLECTION
+            : PlacementContext.WORKSPACE,
+        contextId: parentCollectionId ?? user.id,
     });
 
     return { success: true, collectionId: collection.id };
