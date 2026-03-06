@@ -14,7 +14,7 @@ export async function WorkspaceBreadcrumb({
         : [];
 
     return (
-        <nav className="flex items-center gap-1.5 text-sm mt-2 flex-wrap">
+        <nav className="flex items-center gap-1.5 text-sm flex-wrap">
             <Link
                 href="/artworks"
                 className="text-gray-400 hover:text-gray-700 transition-colors flex items-center"

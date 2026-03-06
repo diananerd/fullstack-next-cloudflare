@@ -49,7 +49,7 @@ export function WorkspaceToolbar({
               : CalendarArrowDown;
 
     return (
-        <div className="flex items-center gap-2 px-4 md:px-6 py-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
             {/* Sort field */}
             <select
                 value={sort}

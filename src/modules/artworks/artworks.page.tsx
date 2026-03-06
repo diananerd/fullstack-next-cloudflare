@@ -30,16 +30,19 @@ export default async function ArtworksPage({
                 <p className="text-gray-600 text-sm md:text-base mt-1">
                     Upload, organize and manage your artwork
                 </p>
-                <WorkspaceBreadcrumb collectionId={collectionId} />
             </div>
 
-            <Suspense fallback={null}>
-                <WorkspaceToolbar
-                    sort={query.sort}
-                    order={query.order}
-                    visibility={query.visibility}
-                />
-            </Suspense>
+            {/* Breadcrumb + Filters bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 md:px-6 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
+                <WorkspaceBreadcrumb collectionId={collectionId} />
+                <Suspense fallback={null}>
+                    <WorkspaceToolbar
+                        sort={query.sort}
+                        order={query.order}
+                        visibility={query.visibility}
+                    />
+                </Suspense>
+            </div>
 
             <div className="px-2 pb-6">
                 <Suspense fallback={<ArtworkGallerySkeleton />}>
