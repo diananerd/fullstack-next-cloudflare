@@ -24,6 +24,10 @@ import {
     member as memberSchema,
     invitation as invitationSchema,
 } from "@/modules/profiles/schemas/org-plugin.schema";
+import { collections as collectionsSchema } from "@/modules/social/schemas/collection.schema";
+import { commissions as commissionsSchema } from "@/modules/commissions/schemas/commission.schema";
+import { creditEscrow as creditEscrowSchema } from "@/modules/credits/schemas/credit-escrow.schema";
+import { deleteFolderFromR2 } from "@/lib/r2";
 
 /**
  * Cached auth instance singleton so we don't create a new instance every time
@@ -299,66 +303,77 @@ async function getAuth() {
                 },
                 delete: {
                     before: async (user: any) => {
-                        console.log(
-                            `[AuthHook] Deleting user ${user.email} (${user.id})...`,
-                        );
-                        try {
-                            // Check for stripeCustomerId (using 'any' cast if type definition isn't updated in this scope's context yet,
-                            // though we updated schema so it should be fine if types are regenerated/inferred)
-                            const customerId = (user as any).stripeCustomerId;
+                        const userId: string = user.id;
+                        console.log(`[AuthHook] Deleting user ${user.email} (${userId})`);
 
-                            if (env.STRIPE_SECRET_KEY && customerId) {
-                                console.log(
-                                    `[AuthHook] Deleting Stripe Customer ${customerId}...`,
-                                );
-                                const stripe = getStripe(env.STRIPE_SECRET_KEY);
-                                await stripe.customers.del(customerId);
-                                console.log(
-                                    `[AuthHook] Stripe Customer deleted.`,
-                                );
-                            }
+                        // 1. R2 — wipe entire user directory (original + protected + verification files)
+                        try {
+                            await deleteFolderFromR2(`${userId}/`, env as any);
+                            console.log(`[AuthHook] R2 data deleted for ${userId}`);
                         } catch (err) {
-                            console.error(
-                                `[AuthHook] Failed to delete Stripe Customer:`,
-                                err,
-                            );
+                            console.error(`[AuthHook] Failed to delete R2 data:`, err);
                         }
 
-                        // --- Delete sole-owned orgs (profile cleanup) ---
+                        // 2. Stripe Customer
+                        try {
+                            const safeEnv = env as any;
+                            const customerId = user.stripeCustomerId;
+                            if (safeEnv.STRIPE_SECRET_KEY && customerId) {
+                                const stripe = getStripe(safeEnv.STRIPE_SECRET_KEY);
+                                await stripe.customers.del(customerId);
+                                console.log(`[AuthHook] Stripe Customer deleted`);
+                            }
+                        } catch (err) {
+                            console.error(`[AuthHook] Failed to delete Stripe Customer:`, err);
+                        }
+
+                        // 3. Credit escrow (RESTRICT FK on fromUserId + toUserId)
+                        try {
+                            await db.delete(creditEscrowSchema).where(eq(creditEscrowSchema.fromUserId, userId));
+                            await db.delete(creditEscrowSchema).where(eq(creditEscrowSchema.toUserId, userId));
+                        } catch (err) {
+                            console.error(`[AuthHook] Failed to delete credit escrow:`, err);
+                        }
+
+                        // 4. Commissions as client (RESTRICT FK — cascade handles milestones/payments/messages)
+                        try {
+                            await db.delete(commissionsSchema).where(eq(commissionsSchema.clientUserId, userId));
+                        } catch (err) {
+                            console.error(`[AuthHook] Failed to delete commissions:`, err);
+                        }
+
+                        // 5. Collections created by user (RESTRICT FK — cascade handles items/members/placements)
+                        try {
+                            await db.delete(collectionsSchema).where(eq(collectionsSchema.createdByUserId, userId));
+                        } catch (err) {
+                            console.error(`[AuthHook] Failed to delete collections:`, err);
+                        }
+
+                        // 6. Sole-owned orgs (cascade handles members, portfolio_artworks, invitations)
                         try {
                             const ownedOrgs = await db
                                 .select({ id: memberSchema.organizationId })
                                 .from(memberSchema)
-                                .where(
-                                    and(
-                                        eq(memberSchema.userId, user.id),
-                                        eq(memberSchema.role, "owner"),
-                                    ),
-                                );
+                                .where(and(eq(memberSchema.userId, userId), eq(memberSchema.role, "owner")));
 
                             for (const { id: orgId } of ownedOrgs) {
-                                // Only delete if this user is the sole member
                                 const [otherMember] = await db
                                     .select({ id: memberSchema.id })
                                     .from(memberSchema)
-                                    .where(
-                                        and(
-                                            eq(memberSchema.organizationId, orgId),
-                                            ne(memberSchema.userId, user.id),
-                                        ),
-                                    )
+                                    .where(and(eq(memberSchema.organizationId, orgId), ne(memberSchema.userId, userId)))
                                     .limit(1);
 
                                 if (!otherMember) {
-                                    await db
-                                        .delete(organizationSchema)
-                                        .where(eq(organizationSchema.id, orgId));
+                                    await db.delete(organizationSchema).where(eq(organizationSchema.id, orgId));
                                     console.log(`[AuthHook] Deleted sole-owned org ${orgId}`);
                                 }
                             }
                         } catch (err) {
                             console.error(`[AuthHook] Failed to delete orgs:`, err);
                         }
+
+                        // artworks, creditTransactions, collectionMembers, profileFollows,
+                        // member (org), account, session → all CASCADE on user delete
                     },
                 },
             },
