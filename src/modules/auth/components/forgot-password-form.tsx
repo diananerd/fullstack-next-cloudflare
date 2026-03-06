@@ -57,7 +57,6 @@ export function ForgotPasswordForm({
                 redirectTo: "/reset-password",
             });
 
-
             if (error) {
                 toast.error(error.message || "Failed to send reset email");
                 return;

@@ -4,7 +4,10 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
     prompt: () => Promise<void>;
-    userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+    userChoice: Promise<{
+        outcome: "accepted" | "dismissed";
+        platform: string;
+    }>;
 }
 
 interface PWAContextType {
@@ -20,12 +23,15 @@ const PWAContext = createContext<PWAContextType>({
 });
 
 export function PWAProvider({ children }: { children: React.ReactNode }) {
-    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [deferredPrompt, setDeferredPrompt] =
+        useState<BeforeInstallPromptEvent | null>(null);
     const [isInstalled, setIsInstalled] = useState(false);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+            const isStandalone = window.matchMedia(
+                "(display-mode: standalone)",
+            ).matches;
             if (isStandalone) {
                 setIsInstalled(true);
             }
@@ -40,18 +46,22 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
         };
 
         window.addEventListener("beforeinstallprompt", handler);
-        
+
         const installHandler = () => {
             setIsInstalled(true);
             setDeferredPrompt(null);
             console.log("PWA installed successfully");
         };
-        
+
         window.addEventListener("appinstalled", installHandler);
+
+        const blockContextMenu = (e: MouseEvent) => e.preventDefault();
+        window.addEventListener("contextmenu", blockContextMenu);
 
         return () => {
             window.removeEventListener("beforeinstallprompt", handler);
             window.removeEventListener("appinstalled", installHandler);
+            window.removeEventListener("contextmenu", blockContextMenu);
         };
     }, []);
 
@@ -72,7 +82,9 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <PWAContext.Provider value={{ isInstalled, canInstall: !!deferredPrompt, promptInstall }}>
+        <PWAContext.Provider
+            value={{ isInstalled, canInstall: !!deferredPrompt, promptInstall }}
+        >
             {children}
         </PWAContext.Provider>
     );

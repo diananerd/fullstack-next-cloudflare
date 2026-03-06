@@ -1,4 +1,4 @@
-# Drimit Shield v2: Master Plan
+# Drimit v2: Master Plan
 
 **Status:** Living Document
 **Date:** February 17, 2026
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-Drimit Shield is a comprehensive protection suite for visual assets, designed to safeguard copyrighted works against unauthorized AI utilization. Unlike passive tagging systems, Drimit Shield employs active adversarial perturbations and invisible watermarking to technically enforce usage rights.
+Drimit is a comprehensive protection suite for visual assets, designed to safeguard copyrighted works against unauthorized AI utilization. Unlike passive tagging systems, Drimit employs active adversarial perturbations and invisible watermarking to technically enforce usage rights.
 
 The system empowers artists to upload original works, apply granular protections against specific threats, and receive a rigorous "Protection Report" verifying the resilience of their assets against real-world unauthorized usage vectors.
 
@@ -22,7 +22,7 @@ We operature under the principle of **Verified Resistance**. It is insufficient 
 
 ## 3. Threat Model & Defense Layers
 
-Drimit Shield addresses four primary unauthorized usage vectors. Each vector corresponds to a specific protection layer and validation module.
+Drimit addresses four primary unauthorized usage vectors. Each vector corresponds to a specific protection layer and validation module.
 
 ### Vector A: Unauthorized Image Editing (Inpainting)
 *   **Risk:** Third parties modifying the artwork (e.g., removing objects, changing context, Nudifying) without consent.

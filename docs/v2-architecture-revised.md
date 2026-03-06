@@ -1,4 +1,4 @@
-# Drimit Shield v2: Unified Pipeline Architecture
+# Drimit v2: Unified Pipeline Architecture
 
 **Status:** Draft
 **Date:** February 15, 2026

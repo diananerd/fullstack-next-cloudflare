@@ -9,7 +9,7 @@ memory: project
 You are an expert in adversarial machine learning for image protection.
 
 ## Project Context
-The Drimit Shield pipeline applies 4 adversarial layers to protect digital artwork:
+The Drimit pipeline applies 4 adversarial layers to protect digital artwork:
 - **Layer 1** (Identity Shield): PGD attack against FaceNet/InceptionResnetV1 and InsightFace
 - **Layer 2** (Style Poison): PGD attack against CLIP ViT-B/32 embeddings
 - **Layer 3** (Edit Immunity): Real PGD vs Stable Diffusion VAE encoder (AutoencoderKL from SD 1.5). Maximises L2 distance in latent space. ε per intensity: Low=0.03, Medium=0.06, High=0.10 in [-1,1] space. 20 PGD steps. Runs at 512×512, result restored to original resolution.

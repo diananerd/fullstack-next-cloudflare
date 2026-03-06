@@ -31,7 +31,10 @@ export async function protectArtworkAction(input: ProtectArtworkInput) {
         }
 
         // Validate Credits
-        const eligibility = await checkArtworkProtectionEligibility(user.id, input.pipeline);
+        const eligibility = await checkArtworkProtectionEligibility(
+            user.id,
+            input.pipeline,
+        );
         if (!eligibility.eligible) {
             Analytics.creditsInsufficient(user.id, {
                 balance: eligibility.balance,
@@ -40,7 +43,7 @@ export async function protectArtworkAction(input: ProtectArtworkInput) {
             });
             return {
                 success: false,
-                error: `Insufficient credits. Please recharge your account. (Missing ${eligibility.missing.toFixed(2)} credits)`
+                error: `Insufficient credits. Please recharge your account. (Missing ${eligibility.missing.toFixed(2)} credits)`,
             };
         }
 
@@ -55,7 +58,8 @@ export async function protectArtworkAction(input: ProtectArtworkInput) {
         Analytics.protectionStarted(user.id, {
             artwork_id: input.artworkId,
             layers: (input.pipeline[0]?.config?.layers as string[]) ?? [],
-            intensity: (input.pipeline[0]?.config?.intensity as string) ?? "Medium",
+            intensity:
+                (input.pipeline[0]?.config?.intensity as string) ?? "Medium",
             cost_credits: eligibility.proposedCost,
         });
 
@@ -64,13 +68,18 @@ export async function protectArtworkAction(input: ProtectArtworkInput) {
         // The background cron usually picks it up.
         // To ensure immediate feedback for the user (and to work in dev environments without active crons),
         // we manually trigger the queue processor here.
-        // We use catch to ensure the UI doesn't crash if the queue is busy/fails, 
+        // We use catch to ensure the UI doesn't crash if the queue is busy/fails,
         // as the cron will pick it up later anyway.
         try {
-            console.log("[ProtectArtworkAction] Triggering immediate queue processing...");
+            console.log(
+                "[ProtectArtworkAction] Triggering immediate queue processing...",
+            );
             await PipelineService.processQueue();
         } catch (queueError) {
-            console.warn("[ProtectArtworkAction] Immediate queue processing failed (Cron will handle it):", queueError);
+            console.warn(
+                "[ProtectArtworkAction] Immediate queue processing failed (Cron will handle it):",
+                queueError,
+            );
         }
 
         revalidatePath(DASHBOARD_ROUTE);

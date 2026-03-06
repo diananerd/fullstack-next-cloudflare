@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: haiku
 ---
 
-You are a database migration specialist for Drimit Shield, using Drizzle ORM + Cloudflare D1.
+You are a database migration specialist for Drimit, using Drizzle ORM + Cloudflare D1.
 
 ## Stack
 - ORM: Drizzle Kit

@@ -1,4 +1,5 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+// Note: activeOrganizationId added by better-auth organization plugin
 
 export const user = sqliteTable("user", {
     id: text("id").primaryKey(),
@@ -10,6 +11,7 @@ export const user = sqliteTable("user", {
     image: text("image"),
     stripeCustomerId: text("stripe_customer_id"),
     credits: integer("credits").default(0).notNull(),
+    onboardedAt: text("onboarded_at"),
     createdAt: integer("created_at", { mode: "timestamp" })
         .defaultNow()
         .notNull(),
@@ -34,6 +36,7 @@ export const session = sqliteTable("session", {
     userId: text("user_id")
         .notNull()
         .references(() => user.id, { onDelete: "cascade" }),
+    activeOrganizationId: text("active_organization_id"),
 });
 
 export const account = sqliteTable("account", {

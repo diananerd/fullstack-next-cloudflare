@@ -3,7 +3,7 @@ description: Check PostHog integration health — env vars, recent events flowin
 disable-model-invocation: true
 ---
 
-Check the PostHog analytics integration for Drimit Shield.
+Check the PostHog analytics integration for Drimit.
 
 ## Steps
 

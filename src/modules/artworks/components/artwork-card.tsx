@@ -3,6 +3,7 @@
 import { ImageIcon, ImageOff } from "lucide-react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { FEATURES } from "@/constants/features.constant";
 import { cn } from "@/lib/utils";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 import { useArtworkActions } from "../hooks/use-artwork-actions";
@@ -75,7 +76,9 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     // Display protected if available, otherwise original
     // IMPORTANT: Assuming DONE + r2Key means protected exists is naive.
     // We should fallback on 404 onError.
-    const defaultUrl = getArtworkDisplayUrl(liveArtwork);
+    const defaultUrl = FEATURES.shield
+        ? getArtworkDisplayUrl(liveArtwork)
+        : liveArtwork.url;
     const [displayUrl, setDisplayUrl] = useState(defaultUrl);
 
     useEffect(() => {
@@ -137,13 +140,17 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                     <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
                         {/* Top Row: Status & Actions */}
                         <div className="flex items-start w-full gap-2">
-                            <div className="mr-auto">
-                                <ArtworkStatusBadge
-                                    status={optimisticStatus}
-                                    className="[&>span]:hidden @[240px]:[&>span]:inline"
-                                />
+                            {FEATURES.shield && (
+                                <div className="mr-auto">
+                                    <ArtworkStatusBadge
+                                        status={optimisticStatus}
+                                        className="[&>span]:hidden @[240px]:[&>span]:inline"
+                                    />
+                                </div>
+                            )}
+                            <div className="ml-auto">
+                                <ArtworkActionButtons actions={actions} />
                             </div>
-                            <ArtworkActionButtons actions={actions} />
                         </div>
                     </div>
                 </div>

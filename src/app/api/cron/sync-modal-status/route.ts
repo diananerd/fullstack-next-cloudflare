@@ -1,9 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { FEATURES } from "@/constants/features.constant";
 import { PipelineService } from "@/modules/artworks/services/pipeline.service";
 
 // export const runtime = "edge"; // Disabled for now as Drizzle D1 might need Node runtime or specific edge compat
 
 export async function GET(req: NextRequest) {
+    if (!FEATURES.shield) {
+        return NextResponse.json({ skipped: true }, { status: 200 });
+    }
+
     console.log("[Cron] Job Started");
 
     // 1. Verify Shared Secret

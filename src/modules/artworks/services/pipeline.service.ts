@@ -19,7 +19,10 @@ import { dispatchProtectionJob } from "../utils/dispatch-job";
 import { getProtectionConfig } from "@/lib/protection-config";
 import { deleteFromR2, cleanDirectoryExcept } from "@/lib/r2";
 import { CreditService } from "@/modules/credits/services/credit.service";
-import { PROTECTION_PRICING, DEFAULT_PROCESS_COST } from "@/constants/pricing.constant";
+import {
+    PROTECTION_PRICING,
+    DEFAULT_PROCESS_COST,
+} from "@/constants/pricing.constant";
 import { Analytics } from "@/lib/analytics";
 
 export class PipelineService {
@@ -129,12 +132,10 @@ export class PipelineService {
                 })
                 .where(eq(artworks.id, artworkId));
 
-            console.log(
-                `[Pipeline] Job ${insertedJob.id} queued (SHIELD V2).`,
-            );
+            console.log(`[Pipeline] Job ${insertedJob.id} queued (SHIELD V2).`);
 
             // 6. Trigger Process Queue (Optional immediate attempt)
-            // await this.processQueue(); 
+            // await this.processQueue();
         } catch (error) {
             console.error("[Pipeline] Start failed:", error);
             await db
@@ -176,7 +177,7 @@ export class PipelineService {
                         updatedAt: new Date().toISOString(),
                     })
                     .where(eq(artworkJobs.id, job.id));
-                    
+
                 await db
                     .update(artworks)
                     .set({ protectionStatus: ProtectionStatus.QUEUED })
@@ -292,8 +293,9 @@ export class PipelineService {
                         updatedAt: new Date().toISOString(),
                     })
                     .where(eq(artworkJobs.id, j.id));
-                
-                await db.update(artworks)
+
+                await db
+                    .update(artworks)
                     .set({ protectionStatus: ProtectionStatus.FAILED })
                     .where(eq(artworks.id, j.artworkId));
                 continue;
@@ -305,8 +307,8 @@ export class PipelineService {
 
         // Group by Artworks for Modal Query
         // We assume all are SHIELD method for V2.
-        const artworkIds = validJobs.map(j => String(j.artworkId));
-        const jobMap = new Map(validJobs.map(j => [String(j.artworkId), j]));
+        const artworkIds = validJobs.map((j) => String(j.artworkId));
+        const jobMap = new Map(validJobs.map((j) => [String(j.artworkId), j]));
 
         const config = getProtectionConfig(ProtectionMethod.SHIELD);
         if (!config.statusUrl) return { synced: 0 };
@@ -316,17 +318,22 @@ export class PipelineService {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    ...(config.token ? { Authorization: `Bearer ${config.token}` } : {}),
+                    ...(config.token
+                        ? { Authorization: `Bearer ${config.token}` }
+                        : {}),
                 },
                 body: JSON.stringify({ artwork_ids: artworkIds }),
             });
 
-            if (!response.ok) throw new Error(`Status Check Failed: ${response.status}`);
+            if (!response.ok)
+                throw new Error(`Status Check Failed: ${response.status}`);
 
             const results = await response.json();
             const updates = [];
 
-            for (const [artId, state] of Object.entries(results as Record<string, any>)) {
+            for (const [artId, state] of Object.entries(
+                results as Record<string, any>,
+            )) {
                 const job = jobMap.get(artId);
                 if (!job) continue;
 
@@ -335,87 +342,119 @@ export class PipelineService {
 
                 if (status === "completed") {
                     console.log(`[Pipeline] Job ${job.id} COMPLETED.`);
-                    
+
                     const steps = result.steps || [];
                     const finalUrl = result.final_url;
                     const shieldScore = result.shield_score || 0; // Capture aggregated score
-                    
+
                     // 1. Update Job
                     updates.push(
-                        db.update(artworkJobs).set({
-                            status: JobStatus.COMPLETED,
-                            outputUrl: finalUrl,
-                            result: { steps, shieldScore }, // Store rich result json
-                            currentStep: "COMPLETED",
-                            updatedAt: new Date().toISOString(),
-                        }).where(eq(artworkJobs.id, job.id))
+                        db
+                            .update(artworkJobs)
+                            .set({
+                                status: JobStatus.COMPLETED,
+                                outputUrl: finalUrl,
+                                result: { steps, shieldScore }, // Store rich result json
+                                currentStep: "COMPLETED",
+                                updatedAt: new Date().toISOString(),
+                            })
+                            .where(eq(artworkJobs.id, job.id)),
                     );
 
                     // 2. Finalize Artwork & Charge
-                    const cost = PROTECTION_PRICING[ProtectionMethod.SHIELD]?.cost ?? DEFAULT_PROCESS_COST;
+                    const cost =
+                        PROTECTION_PRICING[ProtectionMethod.SHIELD]?.cost ??
+                        DEFAULT_PROCESS_COST;
                     // Declared outside try so catch can reference it for error reporting
-                    let artwork: Awaited<ReturnType<typeof db.query.artworks.findFirst>> | undefined;
+                    let artwork:
+                        | Awaited<
+                              ReturnType<typeof db.query.artworks.findFirst>
+                          >
+                        | undefined;
 
                     try {
                         artwork = await db.query.artworks.findFirst({
-                             where: eq(artworks.id, job.artworkId)
+                            where: eq(artworks.id, job.artworkId),
                         });
-                        
+
                         // Merge result into artwork metadata for easy frontend access
                         const updatedMetadata = {
-                            ...(artwork?.metadata as any || {}),
+                            ...((artwork?.metadata as any) || {}),
                             shieldScore: shieldScore,
-                            steps_summary: steps.map((s: any) => ({ name: s.step_name, status: s.status })),
-                            completedAt: new Date().toISOString()
+                            steps_summary: steps.map((s: any) => ({
+                                name: s.step_name,
+                                status: s.status,
+                            })),
+                            completedAt: new Date().toISOString(),
                         };
-                        
+
                         if (artwork) {
-                             // Update Metadata on Artwork (includes verificationReport)
-                             const finalMetadata = {
-                                 ...updatedMetadata,
-                                 verificationReport: steps,
-                             };
-                             await db.update(artworks).set({
-                                 metadata: finalMetadata,
-                                 protectionStatus: ProtectionStatus.DONE,
-                                 updatedAt: new Date().toISOString()
-                             }).where(eq(artworks.id, job.artworkId));
+                            // Update Metadata on Artwork (includes verificationReport)
+                            const finalMetadata = {
+                                ...updatedMetadata,
+                                verificationReport: steps,
+                            };
+                            await db
+                                .update(artworks)
+                                .set({
+                                    metadata: finalMetadata,
+                                    protectionStatus: ProtectionStatus.DONE,
+                                    updatedAt: new Date().toISOString(),
+                                })
+                                .where(eq(artworks.id, job.artworkId));
 
-                             void Analytics.protectionCompleted(artwork.userId, {
-                                 artwork_id: job.artworkId,
-                                 shield_score: shieldScore,
-                                 duration_ms: result.total_duration_ms,
-                                 layers_passed: steps.filter((s: any) => s.status === "PASS").length,
-                                 layers_failed: steps.filter((s: any) => s.status === "FAIL").length,
-                             });
+                            void Analytics.protectionCompleted(artwork.userId, {
+                                artwork_id: job.artworkId,
+                                shield_score: shieldScore,
+                                duration_ms: result.total_duration_ms,
+                                layers_passed: steps.filter(
+                                    (s: any) => s.status === "PASS",
+                                ).length,
+                                layers_failed: steps.filter(
+                                    (s: any) => s.status === "FAIL",
+                                ).length,
+                            });
 
-                             await CreditService.chargeCredits(
+                            await CreditService.chargeCredits(
                                 artwork.userId,
                                 cost,
-                                "Drimit Shield Protection",
+                                "Drimit Protection",
                                 `shield_${job.id}`,
-                                { artworkId: job.artworkId }
+                                { artworkId: job.artworkId },
                             );
                         }
                     } catch (e) {
-                        console.error(`[Pipeline] Charge failed for ${job.artworkId}:`, e);
-                        void Analytics.captureException(artwork?.userId ?? "unknown", e, {
-                            action: "charge_credits",
-                            artwork_id: job.artworkId,
-                            job_id: job.id,
-                        });
+                        console.error(
+                            `[Pipeline] Charge failed for ${job.artworkId}:`,
+                            e,
+                        );
+                        void Analytics.captureException(
+                            artwork?.userId ?? "unknown",
+                            e,
+                            {
+                                action: "charge_credits",
+                                artwork_id: job.artworkId,
+                                job_id: job.id,
+                            },
+                        );
                     }
-
                 } else if (status === "failed" || status === "error") {
-                     console.warn(`[Pipeline] Job ${job.id} FAILED: ${state.error}`);
-                     updates.push(
-                        db.update(artworkJobs).set({
-                            status: JobStatus.FAILED,
-                            errorMessage: state.error || "Unknown Error",
-                            updatedAt: new Date().toISOString(),
-                        }).where(eq(artworkJobs.id, job.id))
+                    console.warn(
+                        `[Pipeline] Job ${job.id} FAILED: ${state.error}`,
                     );
-                    const failedArtwork = await db.query.artworks.findFirst({ where: eq(artworks.id, job.artworkId) });
+                    updates.push(
+                        db
+                            .update(artworkJobs)
+                            .set({
+                                status: JobStatus.FAILED,
+                                errorMessage: state.error || "Unknown Error",
+                                updatedAt: new Date().toISOString(),
+                            })
+                            .where(eq(artworkJobs.id, job.id)),
+                    );
+                    const failedArtwork = await db.query.artworks.findFirst({
+                        where: eq(artworks.id, job.artworkId),
+                    });
                     if (failedArtwork?.userId) {
                         void Analytics.protectionFailed(failedArtwork.userId, {
                             artwork_id: job.artworkId,
@@ -423,35 +462,44 @@ export class PipelineService {
                         });
                     }
                     updates.push(
-                         db.update(artworks).set({
-                            protectionStatus: ProtectionStatus.FAILED,
-                            metadata: {
-                                ...(failedArtwork?.metadata as any),
-                                error: state.error
-                            }
-                        }).where(eq(artworks.id, job.artworkId))
+                        db
+                            .update(artworks)
+                            .set({
+                                protectionStatus: ProtectionStatus.FAILED,
+                                metadata: {
+                                    ...(failedArtwork?.metadata as any),
+                                    error: state.error,
+                                },
+                            })
+                            .where(eq(artworks.id, job.artworkId)),
                     );
                 } else {
                     // Running / Processing
                     // Update progress (steps)
                     const steps = state.result?.steps || state.steps;
                     if (steps) {
-                         updates.push(
-                            db.update(artworkJobs).set({
-                                result: steps,
-                                updatedAt: new Date().toISOString(),
-                                ...(status === "processing" ? { status: JobStatus.PROCESSING } : {})
-                            }).where(eq(artworkJobs.id, job.id))
+                        updates.push(
+                            db
+                                .update(artworkJobs)
+                                .set({
+                                    result: steps,
+                                    updatedAt: new Date().toISOString(),
+                                    ...(status === "processing"
+                                        ? { status: JobStatus.PROCESSING }
+                                        : {}),
+                                })
+                                .where(eq(artworkJobs.id, job.id)),
                         );
                     }
                 }
             }
-            
-            await Promise.all(updates);
 
+            await Promise.all(updates);
         } catch (e) {
             console.error("[Pipeline] Sync Error:", e);
-            void Analytics.captureException("system", e, { action: "sync_running_jobs" });
+            void Analytics.captureException("system", e, {
+                action: "sync_running_jobs",
+            });
         }
 
         return { synced: validJobs.length };
@@ -464,10 +512,17 @@ export class PipelineService {
     static async processQueue() {
         const db = await getDb();
 
-        const activeCount = (await db
-            .select({ count: count() })
-            .from(artworkJobs)
-            .where(inArray(artworkJobs.status, [JobStatus.QUEUED, JobStatus.PROCESSING])))[0].count;
+        const activeCount = (
+            await db
+                .select({ count: count() })
+                .from(artworkJobs)
+                .where(
+                    inArray(artworkJobs.status, [
+                        JobStatus.QUEUED,
+                        JobStatus.PROCESSING,
+                    ]),
+                )
+        )[0].count;
 
         const slots = MAX_CONCURRENT_JOBS - activeCount;
         if (slots <= 0) return { dispatched: 0, active: activeCount };
@@ -489,9 +544,9 @@ export class PipelineService {
                 // Optimized: We could join in the select, but for now simple query is fine
                 const artwork = await db.query.artworks.findFirst({
                     where: eq(artworks.id, job.artworkId),
-                    columns: { userId: true }
+                    columns: { userId: true },
                 });
-                
+
                 if (artwork) {
                     await this.dispatchJob(job.id, artwork.userId);
                 }
@@ -500,10 +555,14 @@ export class PipelineService {
             }
         }
 
-        return { dispatched: pendingJobs.length, active: activeCount + pendingJobs.length };
+        return {
+            dispatched: pendingJobs.length,
+            active: activeCount + pendingJobs.length,
+        };
     }
 
     // Deprecated methods
-    static async advancePipelines() { return { advancements: 0 }; }
+    static async advancePipelines() {
+        return { advancements: 0 };
+    }
 }
-

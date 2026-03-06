@@ -4,7 +4,7 @@ argument-hint: [layer-name]
 disable-model-invocation: true
 ---
 
-Add a new protection layer to the Drimit Shield pipeline end-to-end.
+Add a new protection layer to the Drimit pipeline end-to-end.
 
 The Pipeline Contract (`src/constants/pipeline-contract.ts`) drives everything.
 Adding an entry there auto-updates the UI. Only Python needs manual work.

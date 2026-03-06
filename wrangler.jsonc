@@ -39,9 +39,9 @@
     "ai": {
         "binding": "AI"
     },
-    "triggers": {
-        "crons": ["* * * * *"]
-    },
+    // "triggers": {
+    //     "crons": ["* * * * *"]
+    // },
     "kv_namespaces": [
         {
             "binding": "drimit_shield_kv",

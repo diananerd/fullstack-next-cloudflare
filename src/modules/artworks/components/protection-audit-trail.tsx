@@ -392,19 +392,29 @@ export function ProtectionAuditTrail({
                         </p>
 
                         {/* Misuse scenarios (2-3 per layer) */}
-                        {Array.isArray(meta.misuse_cases) && (meta.misuse_cases as string[]).length > 0 && (
-                            <div className="mb-2">
-                                <p className="text-[9px] uppercase tracking-wide text-zinc-600 font-medium mb-1">Simulated misuse scenarios</p>
-                                <ul className="space-y-0.5">
-                                    {(meta.misuse_cases as string[]).map((c, i) => (
-                                        <li key={i} className="flex items-start gap-1.5 text-[10px] text-zinc-400">
-                                            <span className="text-zinc-600 shrink-0 mt-px">→</span>
-                                            <span>{c}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
+                        {Array.isArray(meta.misuse_cases) &&
+                            (meta.misuse_cases as string[]).length > 0 && (
+                                <div className="mb-2">
+                                    <p className="text-[9px] uppercase tracking-wide text-zinc-600 font-medium mb-1">
+                                        Simulated misuse scenarios
+                                    </p>
+                                    <ul className="space-y-0.5">
+                                        {(meta.misuse_cases as string[]).map(
+                                            (c, i) => (
+                                                <li
+                                                    key={i}
+                                                    className="flex items-start gap-1.5 text-[10px] text-zinc-400"
+                                                >
+                                                    <span className="text-zinc-600 shrink-0 mt-px">
+                                                        →
+                                                    </span>
+                                                    <span>{c}</span>
+                                                </li>
+                                            ),
+                                        )}
+                                    </ul>
+                                </div>
+                            )}
 
                         {/* L1 — Identity attack details */}
                         {layerId === "layer_1_identity" && (
@@ -427,7 +437,9 @@ export function ProtectionAuditTrail({
                                         <div className="bg-zinc-800/60 p-1.5 rounded">
                                             <code className="text-[10px] text-zinc-300 block leading-tight break-words whitespace-pre-wrap">
                                                 &quot;
-                                                {meta.generation_prompt as string}
+                                                {
+                                                    meta.generation_prompt as string
+                                                }
                                                 &quot;
                                             </code>
                                         </div>
@@ -514,8 +526,7 @@ export function ProtectionAuditTrail({
                                     meta.attack_steps !== undefined ||
                                     meta.attack_guidance !== undefined) && (
                                     <div className="flex gap-3 text-[10px] py-0.5 flex-wrap">
-                                        {meta.attack_strength !==
-                                            undefined && (
+                                        {meta.attack_strength !== undefined && (
                                             <span className="text-zinc-500">
                                                 strength{" "}
                                                 <span className="text-zinc-300 font-mono">
@@ -535,8 +546,7 @@ export function ProtectionAuditTrail({
                                                 </span>
                                             </span>
                                         )}
-                                        {meta.attack_guidance !==
-                                            undefined && (
+                                        {meta.attack_guidance !== undefined && (
                                             <span className="text-zinc-500">
                                                 cfg{" "}
                                                 <span className="text-zinc-300 font-mono">
@@ -591,8 +601,7 @@ export function ProtectionAuditTrail({
                                                 </span>
                                             </span>
                                         )}
-                                        {meta.attack_guidance !==
-                                            undefined && (
+                                        {meta.attack_guidance !== undefined && (
                                             <span className="text-zinc-500">
                                                 cfg{" "}
                                                 <span className="text-zinc-300 font-mono">
@@ -612,15 +621,17 @@ export function ProtectionAuditTrail({
                                         <div className="bg-zinc-800/60 p-1.5 rounded">
                                             <code className="text-[10px] text-zinc-300 block leading-tight break-words whitespace-pre-wrap">
                                                 &quot;
-                                                {meta.edit_instruction as string}
+                                                {
+                                                    meta.edit_instruction as string
+                                                }
                                                 &quot;
                                             </code>
                                         </div>
                                     </div>
                                 )}
                                 {/* Kontext disruption results */}
-                                {(meta.kontext as any)
-                                    ?.disruption_ratio != null && (
+                                {(meta.kontext as any)?.disruption_ratio !=
+                                    null && (
                                     <div className="flex justify-between text-[10px] py-0.5 mt-0.5">
                                         <span className="text-zinc-500">
                                             Kontext disruption ratio
@@ -628,10 +639,9 @@ export function ProtectionAuditTrail({
                                         <span
                                             className={cn(
                                                 "font-mono",
-                                                (
-                                                    (meta.kontext as any)
-                                                        .disruption_ratio as number
-                                                ) > 2
+                                                ((meta.kontext as any)
+                                                    .disruption_ratio as number) >
+                                                    2
                                                     ? "text-emerald-400"
                                                     : "text-yellow-400",
                                             )}
@@ -646,8 +656,8 @@ export function ProtectionAuditTrail({
                                 )}
                                 {(meta.kontext as any)?.baseline_variance !=
                                     null &&
-                                    (meta.kontext as any)
-                                        ?.protected_variance != null && (
+                                    (meta.kontext as any)?.protected_variance !=
+                                        null && (
                                         <div className="flex justify-between text-[10px] py-0.5">
                                             <span className="text-zinc-500">
                                                 Edit variance (orig → prot)
@@ -675,10 +685,9 @@ export function ProtectionAuditTrail({
                                         <span
                                             className={cn(
                                                 "font-mono",
-                                                (
-                                                    (meta.flux_vae_proxy as any)
-                                                        .disruption_score as number
-                                                ) > 0.01
+                                                ((meta.flux_vae_proxy as any)
+                                                    .disruption_score as number) >
+                                                    0.01
                                                     ? "text-emerald-400"
                                                     : "text-yellow-400",
                                             )}
@@ -735,7 +744,11 @@ export function ProtectionAuditTrail({
                                 )
                                     .filter((item) => item.data)
                                     .map((item) => {
-                                        const sim = (item.data as { similarity?: number } | undefined)?.similarity;
+                                        const sim = (
+                                            item.data as
+                                                | { similarity?: number }
+                                                | undefined
+                                        )?.similarity;
                                         return (
                                             <div
                                                 key={item.label}
@@ -752,12 +765,14 @@ export function ProtectionAuditTrail({
                                                                 ? "text-emerald-400"
                                                                 : sim >= 0.4
                                                                   ? "text-yellow-400"
-                                                                  : item.data?.detected
+                                                                  : item.data
+                                                                          ?.detected
                                                                     ? "text-yellow-600"
                                                                     : "text-zinc-600"
                                                             : item.data?.match
                                                               ? "text-emerald-400"
-                                                              : item.data?.detected
+                                                              : item.data
+                                                                      ?.detected
                                                                 ? "text-yellow-400"
                                                                 : "text-zinc-600",
                                                     )}
@@ -812,7 +827,10 @@ export function ProtectionAuditTrail({
                         {jobResult?.total_duration_ms && (
                             <span>
                                 •{" "}
-                                {(jobResult.total_duration_ms / 1000).toFixed(1)}s total
+                                {(jobResult.total_duration_ms / 1000).toFixed(
+                                    1,
+                                )}
+                                s total
                             </span>
                         )}
                         {isProcessing && <span>• Running…</span>}
@@ -836,7 +854,8 @@ export function ProtectionAuditTrail({
                             variant="secondary"
                             className="animate-pulse text-[10px] bg-blue-900/30 text-blue-400 border-blue-700/30"
                         >
-                            <Loader2 className="w-3 h-3 mr-1 animate-spin" /> Active
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />{" "}
+                            Active
                         </Badge>
                     )}
                 </div>
@@ -861,40 +880,111 @@ export function ProtectionAuditTrail({
                                 // 270° arc: 0% at bottom-left (225°), 100% at bottom-right (315°)
                                 // gap (90°) points straight down.
                                 // SVG has y-axis pointing DOWN, so "over the top" = clockwise = sweep=1
-                                const cx = 100, cy = 88, radius = 68;
-                                const toRad = (d: number) => (d * Math.PI) / 180;
+                                const cx = 100,
+                                    cy = 88,
+                                    radius = 68;
+                                const toRad = (d: number) =>
+                                    (d * Math.PI) / 180;
                                 const startDeg = 225; // standard math angle for 0%
                                 const totalDeg = 270;
-                                const p0x = cx + radius * Math.cos(toRad(startDeg));
-                                const p0y = cy - radius * Math.sin(toRad(startDeg));
-                                const p100x = cx + radius * Math.cos(toRad(startDeg - totalDeg));
-                                const p100y = cy - radius * Math.sin(toRad(startDeg - totalDeg));
+                                const p0x =
+                                    cx + radius * Math.cos(toRad(startDeg));
+                                const p0y =
+                                    cy - radius * Math.sin(toRad(startDeg));
+                                const p100x =
+                                    cx +
+                                    radius *
+                                        Math.cos(toRad(startDeg - totalDeg));
+                                const p100y =
+                                    cy -
+                                    radius *
+                                        Math.sin(toRad(startDeg - totalDeg));
                                 // Track: full 270° arc, sweep=1 (clockwise in SVG = visually over the top)
                                 const trackD = `M ${p0x.toFixed(2)} ${p0y.toFixed(2)} A ${radius} ${radius} 0 1 1 ${p100x.toFixed(2)} ${p100y.toFixed(2)}`;
                                 // Fill: from 0% to score, same clockwise direction
-                                const score = Math.min(99.9, Math.max(0.1, raw));
+                                const score = Math.min(
+                                    99.9,
+                                    Math.max(0.1, raw),
+                                );
                                 const arcDeg = (score / 100) * totalDeg;
                                 const endDeg = startDeg - arcDeg;
-                                const ex = cx + radius * Math.cos(toRad(endDeg));
-                                const ey = cy - radius * Math.sin(toRad(endDeg));
+                                const ex =
+                                    cx + radius * Math.cos(toRad(endDeg));
+                                const ey =
+                                    cy - radius * Math.sin(toRad(endDeg));
                                 const largeArc = arcDeg > 180 ? 1 : 0;
                                 const fillD = `M ${p0x.toFixed(2)} ${p0y.toFixed(2)} A ${radius} ${radius} 0 ${largeArc} 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`;
-                                const gaugeColor = raw >= 80 ? "#34d399" : raw >= 50 ? "#facc15" : "#f87171";
-                                const gaugeLabel = raw >= 80 ? "HIGH PROTECTION" : raw >= 50 ? "MEDIUM PROTECTION" : "LOW PROTECTION";
+                                const gaugeColor =
+                                    raw >= 80
+                                        ? "#34d399"
+                                        : raw >= 50
+                                          ? "#facc15"
+                                          : "#f87171";
+                                const gaugeLabel =
+                                    raw >= 80
+                                        ? "HIGH PROTECTION"
+                                        : raw >= 50
+                                          ? "MEDIUM PROTECTION"
+                                          : "LOW PROTECTION";
                                 return (
-                                    <svg viewBox="0 0 200 152" className="w-full" style={{ display: "block" }}>
+                                    <svg
+                                        viewBox="0 0 200 152"
+                                        className="w-full"
+                                        style={{ display: "block" }}
+                                    >
                                         {/* Track */}
-                                        <path d={trackD} fill="none" stroke="#27272a" strokeWidth="11" strokeLinecap="round" />
+                                        <path
+                                            d={trackD}
+                                            fill="none"
+                                            stroke="#27272a"
+                                            strokeWidth="11"
+                                            strokeLinecap="round"
+                                        />
                                         {/* Fill */}
-                                        <path d={fillD} fill="none" stroke={gaugeColor} strokeWidth="11" strokeLinecap="round" />
+                                        <path
+                                            d={fillD}
+                                            fill="none"
+                                            stroke={gaugeColor}
+                                            strokeWidth="11"
+                                            strokeLinecap="round"
+                                        />
                                         {/* Text group — groupY is the single knob for vertical centering */}
-                                        <g transform={`translate(0, ${cy - 10})`}>
+                                        <g
+                                            transform={`translate(0, ${cy - 10})`}
+                                        >
                                             {/* x shifted +5 right: % is small so textAnchor="middle" pulls the
                                                 whole string left; the offset re-centers the number digits */}
-                                            <text x={cx + 5} y={18} textAnchor="middle" fill={gaugeColor} fontFamily="ui-monospace,monospace" fontSize="48" fontWeight="bold">
-                                                {raw.toFixed(0)}<tspan fontSize="16" dy="-24" dx="3" fill={gaugeColor}>%</tspan>
+                                            <text
+                                                x={cx + 5}
+                                                y={18}
+                                                textAnchor="middle"
+                                                fill={gaugeColor}
+                                                fontFamily="ui-monospace,monospace"
+                                                fontSize="48"
+                                                fontWeight="bold"
+                                            >
+                                                {raw.toFixed(0)}
+                                                <tspan
+                                                    fontSize="16"
+                                                    dy="-24"
+                                                    dx="3"
+                                                    fill={gaugeColor}
+                                                >
+                                                    %
+                                                </tspan>
                                             </text>
-                                            <text x={cx} y={37} textAnchor="middle" fill={gaugeColor} fontFamily="ui-sans-serif,sans-serif" fontSize="6.5" fontWeight="600" letterSpacing="1">{gaugeLabel}</text>
+                                            <text
+                                                x={cx}
+                                                y={37}
+                                                textAnchor="middle"
+                                                fill={gaugeColor}
+                                                fontFamily="ui-sans-serif,sans-serif"
+                                                fontSize="6.5"
+                                                fontWeight="600"
+                                                letterSpacing="1"
+                                            >
+                                                {gaugeLabel}
+                                            </text>
                                         </g>
                                     </svg>
                                 );
@@ -905,15 +995,25 @@ export function ProtectionAuditTrail({
                                     const r = getStepResult(l.id);
                                     const st = r?.status ?? "PENDING";
                                     return (
-                                        <div key={l.id} className="flex justify-between items-center">
-                                            <span className="text-xs text-zinc-400">{l.label}</span>
-                                            <span className={cn(
-                                                "font-mono text-[10px]",
-                                                st === "PASS" ? "text-emerald-400"
-                                                    : st === "FAIL" ? "text-red-400"
-                                                    : st === "SKIPPED" ? "text-zinc-600"
-                                                    : "text-zinc-500",
-                                            )}>
+                                        <div
+                                            key={l.id}
+                                            className="flex justify-between items-center"
+                                        >
+                                            <span className="text-xs text-zinc-400">
+                                                {l.label}
+                                            </span>
+                                            <span
+                                                className={cn(
+                                                    "font-mono text-[10px]",
+                                                    st === "PASS"
+                                                        ? "text-emerald-400"
+                                                        : st === "FAIL"
+                                                          ? "text-red-400"
+                                                          : st === "SKIPPED"
+                                                            ? "text-zinc-600"
+                                                            : "text-zinc-500",
+                                                )}
+                                            >
                                                 {st}
                                             </span>
                                         </div>

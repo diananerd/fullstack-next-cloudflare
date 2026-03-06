@@ -1,4 +1,4 @@
-# Drimit Shield v2: API & Integration Guide
+# Drimit v2: API & Integration Guide
 
 **Status:** Draft
 **Date:** February 12, 2026

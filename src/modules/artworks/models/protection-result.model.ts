@@ -1,14 +1,48 @@
-export type StepStatus = "PENDING" | "PROCESSING" | "PASS" | "FAIL" | "SKIPPED" | "ERROR";
+export type StepStatus =
+    | "PENDING"
+    | "PROCESSING"
+    | "PASS"
+    | "FAIL"
+    | "SKIPPED"
+    | "ERROR";
 
+/** Flat metrics present in all v2/v3 verification_meta objects. */
 export interface VerificationMeta {
+    // Shared
+    status?: string;
+    protection_score?: number;
+    art_type?: string;
+    attack_label?: string;
+    attack_description?: string;
+
+    // L1 — Identity Shield
     faces_detected?: number;
     confidence?: number;
+    confidence_drop?: number;
+    /** v3 dual-run model entries */
+    latest?: Record<string, unknown>;
+    legacy?: Record<string, unknown>;
+
+    // L2 — Style Poison
     style_similarity?: number;
-    decoded_uuid?: string;
+    flux_vae_latent_drift?: number;
+    visual_quality_psnr?: number;
+
+    // L3 — Edit Immunity
+    flux_latent_disruption?: number;
+    artifacts_metric?: number;
+    flux_vae_proxy?: Record<string, unknown>;
+
+    // L4 — Watermark
     watermark_detected?: boolean;
-    match?: boolean;
-    psnr?: number;
-    ssim?: number;
+    decoded_uuid?: string;
+    robustness_score?: number;
+    direct?: { detected?: boolean; match?: boolean };
+    jpeg_80?: { detected?: boolean; match?: boolean };
+    jpeg_60?: { detected?: boolean; match?: boolean };
+    vae_pass?: { detected?: boolean; match?: boolean };
+    bilateral?: { detected?: boolean; match?: boolean };
+    baseline?: { trustmark_detected?: boolean; decoded?: string };
 }
 
 export interface StepResult {

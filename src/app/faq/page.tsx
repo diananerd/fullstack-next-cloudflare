@@ -18,11 +18,7 @@ export default function FAQPage() {
                         href="/"
                         className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                     >
-                        <img
-                            src="/icon.png"
-                            alt="Drimit"
-                            className="h-8 w-8"
-                        />
+                        <img src="/icon.png" alt="Drimit" className="h-8 w-8" />
                         <span className="flex items-center gap-2 text-xl">
                             <span className="font-bold text-gray-900">
                                 Drimit
@@ -49,8 +45,7 @@ export default function FAQPage() {
                         Common Questions
                     </h1>
                     <p className="text-lg text-gray-500 max-w-xl mx-auto">
-                        Everything you need to know about protecting your art
-                        with Drimit.
+                        Everything you need to know about Drimit.
                     </p>
                 </div>
 
@@ -93,8 +88,7 @@ export default function FAQPage() {
                         </h3>
                         <p className="text-gray-600 leading-relaxed">
                             Honesty is our policy: No digital security measure
-                            is unbreakable forever. However, Drimit makes
-                            it{" "}
+                            is unbreakable forever. However, Drimit makes it{" "}
                             <strong>
                                 significantly harder, costlier, and more
                                 frustrating
@@ -143,14 +137,14 @@ export default function FAQPage() {
                             size="lg"
                             className="rounded-full px-8 shadow-blue-200 shadow-lg"
                         >
-                            Start Protecting Your Art
+                            Start for Free
                         </Button>
                     </Link>
                 </div>
             </main>
 
             <footer className="absolute bottom-6 w-full text-center text-gray-400 text-sm">
-                <p>&copy; 2026 Drimit. Protecting your Art.</p>
+                <p>&copy; 2026 Drimit.</p>
             </footer>
         </div>
     );

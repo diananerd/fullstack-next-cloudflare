@@ -17,13 +17,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createArtworkAction } from "../actions/create-artwork.action";
-import { ProtectArtworkDialog } from "./protect-artwork-dialog";
 
 export function CreateArtworkDialog() {
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
-    const [createdArtworkId, setCreatedArtworkId] = useState<number | null>(null);
-    const [showProtection, setShowProtection] = useState(false);
     const router = useRouter();
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -51,11 +48,6 @@ export function CreateArtworkDialog() {
             if (res.success) {
                 toast.success("Artwork uploaded successfully");
                 setOpen(false);
-                if (res.artworkId) {
-                    setCreatedArtworkId(res.artworkId);
-                    // Add a small delay to ensure the first dialog closes smoothly
-                    setTimeout(() => setShowProtection(true), 300);
-                }
                 router.refresh();
             } else {
                 toast.error(res.error || "Failed to upload artwork");
@@ -115,20 +107,12 @@ export function CreateArtworkDialog() {
                                 {isPending && (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 )}
-                                {isPending ? "Uploading..." : "Upload & Protect"}
+                                {isPending ? "Uploading..." : "Upload"}
                             </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
-
-            {createdArtworkId && (
-                <ProtectArtworkDialog 
-                    artworkId={createdArtworkId}
-                    open={showProtection}
-                    onOpenChange={setShowProtection}
-                />
-            )}
         </>
     );
 }

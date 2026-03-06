@@ -7,7 +7,6 @@ import { toast } from "react-hot-toast";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createArtworkAction } from "@/modules/artworks/actions/create-artwork.action";
-import { ProtectArtworkDialog } from "@/modules/artworks/components/protect-artwork-dialog";
 
 interface UploadArtworkButtonProps extends ButtonProps {
     text?: string;
@@ -28,8 +27,6 @@ export function UploadArtworkButton({
 }: UploadArtworkButtonProps) {
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
-    const [createdArtworkId, setCreatedArtworkId] = useState<number | null>(null);
-    const [showProtection, setShowProtection] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleClick = () => {
@@ -138,12 +135,6 @@ export function UploadArtworkButton({
                         toast.success("Artwork uploaded successfully", {
                             id: toastId,
                         });
-                        
-                        // Automatically open protection dialog
-                        if (result.artworkId) {
-                            setCreatedArtworkId(result.artworkId);
-                            setTimeout(() => setShowProtection(true), 300);
-                        }
 
                         router.refresh();
                     } else {
@@ -187,25 +178,24 @@ export function UploadArtworkButton({
                 {...props}
             >
                 {isPending ? (
-                    <Loader2 className={cn("h-5 w-5 animate-spin", iconClassName)} />
+                    <Loader2
+                        className={cn("h-5 w-5 animate-spin", iconClassName)}
+                    />
                 ) : (
-                    showIcon && <Upload className={cn("h-5 w-5", iconClassName)} />
+                    showIcon && (
+                        <Upload className={cn("h-5 w-5", iconClassName)} />
+                    )
                 )}
-                {text !== undefined ? text : (
+                {text !== undefined ? (
+                    text
+                ) : (
                     <>
                         <span className="hidden sm:inline">Upload Artwork</span>
                         <span className="sm:hidden">Upload</span>
                     </>
                 )}
             </Button>
-            
-            {createdArtworkId && (
-                <ProtectArtworkDialog 
-                    artworkId={createdArtworkId}
-                    open={showProtection}
-                    onOpenChange={setShowProtection}
-                />
-            )}
+
         </>
     );
 }

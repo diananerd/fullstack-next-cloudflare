@@ -1,4 +1,4 @@
-# Drimit Shield — Claude Guide
+# Drimit — Claude Guide
 
 ## Regla #1: Pipeline Contract
 **`src/constants/pipeline-contract.ts` es la única fuente de verdad del pipeline.**

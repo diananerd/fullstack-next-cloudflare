@@ -1,0 +1,48 @@
+import { Home } from "lucide-react";
+import Link from "next/link";
+import { resolveCollectionPath } from "@/modules/artworks/actions/get-workspace-items.action";
+
+interface WorkspaceBreadcrumbProps {
+    collectionId?: string;
+}
+
+export async function WorkspaceBreadcrumb({
+    collectionId,
+}: WorkspaceBreadcrumbProps) {
+    const ancestors = collectionId
+        ? await resolveCollectionPath(collectionId)
+        : [];
+
+    return (
+        <nav className="flex items-center gap-1.5 text-sm mt-2 flex-wrap">
+            <Link
+                href="/artworks"
+                className="text-gray-400 hover:text-gray-700 transition-colors flex items-center"
+                aria-label="My Artworks"
+            >
+                <Home className="h-3.5 w-3.5" />
+            </Link>
+            {ancestors.map((seg, i) => {
+                const isLast = i === ancestors.length - 1;
+                const href = `/artworks?collectionId=${seg.id}`;
+                return (
+                    <span key={seg.id} className="flex items-center gap-1.5">
+                        <span className="text-gray-300">/</span>
+                        {isLast ? (
+                            <span className="text-gray-700 font-medium truncate max-w-[160px]">
+                                {seg.title}
+                            </span>
+                        ) : (
+                            <Link
+                                href={href}
+                                className="text-gray-400 hover:text-gray-700 transition-colors truncate max-w-[120px]"
+                            >
+                                {seg.title}
+                            </Link>
+                        )}
+                    </span>
+                );
+            })}
+        </nav>
+    );
+}

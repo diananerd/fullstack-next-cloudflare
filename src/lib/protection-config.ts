@@ -11,13 +11,10 @@ export interface ProtectionConfig {
     defaultConfig?: Record<string, any>;
 }
 
-export const PROTECTION_METHODS_CONFIG: Record<
-    string,
-    ProtectionConfig
-> = {
+export const PROTECTION_METHODS_CONFIG: Record<string, ProtectionConfig> = {
     [ProtectionMethod.SHIELD]: {
         urlEnvVar: "MODAL_KERNEL_API_URL",
-        tokenEnvVar: "MODAL_AUTH_TOKEN", 
+        tokenEnvVar: "MODAL_AUTH_TOKEN",
         statusUrlEnvVar: "MODAL_KERNEL_STATUS_URL",
         description: "V2 Atomic Shield Pipeline",
         defaultConfig: {

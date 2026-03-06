@@ -1,6 +1,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "react-hot-toast";
+import { FEATURES } from "@/constants/features.constant";
 import {
     cancelProtectionAction,
     deleteArtworkAction,
@@ -28,7 +29,9 @@ export function useArtworkActions(artwork: Artwork) {
 
     const handleDownload = async (e?: React.MouseEvent) => {
         e?.stopPropagation();
-        const urlToOpen = getArtworkDisplayUrl(artwork);
+        const urlToOpen = FEATURES.shield
+            ? getArtworkDisplayUrl(artwork)
+            : artwork.url;
         if (!urlToOpen) return;
 
         try {
@@ -60,7 +63,8 @@ export function useArtworkActions(artwork: Artwork) {
                 /* ignore */
             }
 
-            link.download = `${safeTitle}_protected.${extension}`;
+            const suffix = isAnyDone ? "_protected" : "_original";
+            link.download = `${safeTitle}${suffix}.${extension}`;
 
             document.body.appendChild(link);
             link.click();

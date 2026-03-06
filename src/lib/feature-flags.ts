@@ -1,5 +1,5 @@
 /**
- * Feature flag helpers for Drimit Shield.
+ * Feature flag helpers for Drimit.
  *
  * Server-side: `getFeatureFlag(userId, flagKey)` — via analytics.ts /decide
  * Client-side: `useFeatureFlagEnabled(flagKey)` — re-exported from posthog-js/react

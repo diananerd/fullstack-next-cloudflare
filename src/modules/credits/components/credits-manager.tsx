@@ -20,7 +20,8 @@ export function CreditsManager({ balance }: CreditsManagerProps) {
     // Rate: $1 = 1 Credit
     const creditsToBuy = dollars;
 
-    const handleIncrement = () => setDollars((prev) => Math.min(prev + 5, 1000));
+    const handleIncrement = () =>
+        setDollars((prev) => Math.min(prev + 5, 1000));
     const handleDecrement = () => setDollars((prev) => Math.max(prev - 5, 0));
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,14 +54,16 @@ export function CreditsManager({ balance }: CreditsManagerProps) {
                                 Available Balance
                             </h2>
                         </div>
-                        
+
                         <div className="flex items-baseline gap-2 mb-2">
-                             <span className="text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">
+                            <span className="text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight">
                                 ${balance.toFixed(2)}
-                             </span>
-                             <span className="text-xl font-medium text-gray-500">credits</span>
+                            </span>
+                            <span className="text-xl font-medium text-gray-500">
+                                credits
+                            </span>
                         </div>
-                        
+
                         <p className="text-sm text-muted-foreground flex items-center gap-2">
                             <span>Never expires</span>
                         </p>
@@ -74,7 +77,9 @@ export function CreditsManager({ balance }: CreditsManagerProps) {
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-2">
                                 <CreditCard className="h-4 w-4 text-gray-400" />
-                                <h3 className="font-semibold text-gray-900">Add Credits</h3>
+                                <h3 className="font-semibold text-gray-900">
+                                    Add Credits
+                                </h3>
                             </div>
                             <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
                                 Instant Delivery
@@ -94,9 +99,11 @@ export function CreditsManager({ balance }: CreditsManagerProps) {
                                     >
                                         <Minus className="h-4 w-4" />
                                     </Button>
-                                    
+
                                     <div className="relative flex-1">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-lg">$</span>
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-lg">
+                                            $
+                                        </span>
                                         <Input
                                             type="number"
                                             min={0}
@@ -119,7 +126,7 @@ export function CreditsManager({ balance }: CreditsManagerProps) {
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 </div>
-                                
+
                                 {/* Quick Select Pills */}
                                 <div className="flex flex-wrap gap-2 justify-center">
                                     {quickAmounts.map((amt) => (
@@ -128,9 +135,9 @@ export function CreditsManager({ balance }: CreditsManagerProps) {
                                             onClick={() => setDollars(amt)}
                                             className={cn(
                                                 "text-xs px-3 py-1.5 rounded-full border transition-colors font-medium",
-                                                dollars === amt 
-                                                    ? "bg-indigo-600 text-white border-indigo-600" 
-                                                    : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"
+                                                dollars === amt
+                                                    ? "bg-indigo-600 text-white border-indigo-600"
+                                                    : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600",
                                             )}
                                         >
                                             ${amt}
@@ -140,14 +147,20 @@ export function CreditsManager({ balance }: CreditsManagerProps) {
                             </div>
 
                             <div className="space-y-3">
-                                <Button 
-                                    className="w-full bg-indigo-600 hover:bg-indigo-700 font-semibold h-auto py-3 min-h-[3rem] text-sm md:text-base shadow-indigo-100 shadow-lg transition-all" 
+                                <Button
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 font-semibold h-auto py-3 min-h-[3rem] text-sm md:text-base shadow-indigo-100 shadow-lg transition-all"
                                     onClick={() => setOpen(true)}
                                     disabled={dollars < 1 || dollars > 1000}
                                 >
                                     <span className="flex items-center justify-center gap-1 flex-wrap">
-                                        <span className="sm:hidden">Buy {creditsToBuy} Credits (${dollars} USD)</span>
-                                        <span className="hidden sm:inline">Purchase {creditsToBuy} Credits for ${dollars} USD</span>
+                                        <span className="sm:hidden">
+                                            Buy {creditsToBuy} Credits ($
+                                            {dollars} USD)
+                                        </span>
+                                        <span className="hidden sm:inline">
+                                            Purchase {creditsToBuy} Credits for
+                                            ${dollars} USD
+                                        </span>
                                         <ChevronRight className="h-4 w-4 opacity-50 shrink-0" />
                                     </span>
                                 </Button>
@@ -160,11 +173,11 @@ export function CreditsManager({ balance }: CreditsManagerProps) {
                 </div>
             </div>
 
-            <StripePaymentModal 
-                open={open} 
-                onOpenChange={setOpen} 
-                amount={dollars} 
-                credits={creditsToBuy} 
+            <StripePaymentModal
+                open={open}
+                onOpenChange={setOpen}
+                amount={dollars}
+                credits={creditsToBuy}
             />
         </>
     );

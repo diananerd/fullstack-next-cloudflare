@@ -7,6 +7,10 @@ import {
     ProtectionStatus,
     type ProtectionStatusType,
 } from "@/modules/artworks/models/artwork.enum";
+import {
+    ArtworkSemanticType,
+    type ArtworkSemanticTypeValue,
+} from "@/modules/artworks/models/artwork-media.enum";
 import { user } from "@/modules/auth/schemas/auth.schema";
 
 export const artworks = sqliteTable(
@@ -29,10 +33,18 @@ export const artworks = sqliteTable(
             .notNull()
             .default(ProtectionStatus.IDLE),
         jobId: text("job_id"),
-        metadata: text("metadata", { mode: "json" }).$type<Record<string, any>>(),
+        metadata: text("metadata", { mode: "json" }).$type<
+            Record<string, any>
+        >(),
         width: integer("width"),
         height: integer("height"),
         size: integer("size"),
+        // Semantic type — what the work *is* conceptually
+        semanticType: text("semantic_type")
+            .$type<ArtworkSemanticTypeValue>()
+            .default(ArtworkSemanticType.DIGITAL_ART),
+        // Visibility: private (default), public, unlisted
+        visibility: text("visibility").notNull().default("private"),
         createdAt: text("created_at")
             .notNull()
             .$defaultFn(() => new Date().toISOString()),

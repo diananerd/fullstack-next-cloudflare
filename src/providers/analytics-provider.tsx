@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * PostHog analytics provider for Drimit Shield.
+ * PostHog analytics provider for Drimit.
  *
  * Features enabled:
  * - Pageviews (manual, App Router compatible)
@@ -68,11 +68,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
         posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
             api_host:
-                process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.posthog.com",
+                process.env.NEXT_PUBLIC_POSTHOG_HOST ??
+                "https://us.posthog.com",
 
             // ── Pageview / navigation ─────────────────────────────────────────
-            capture_pageview: false,    // manual via PostHogPageView
-            capture_pageleave: true,    // time-on-page signal
+            capture_pageview: false, // manual via PostHogPageView
+            capture_pageleave: true, // time-on-page signal
 
             // ── Performance / Web Vitals ──────────────────────────────────────
             // Captures FCP, LCP, FID, CLS, TTFB automatically

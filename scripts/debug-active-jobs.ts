@@ -1,6 +1,8 @@
-
 import { getDb } from "../src/db"; // Adjust path as needed
-import { artworkJobs, JobStatus } from "../src/modules/artworks/schemas/artwork-job.schema";
+import {
+    artworkJobs,
+    JobStatus,
+} from "../src/modules/artworks/schemas/artwork-job.schema";
 import { inArray, eq } from "drizzle-orm";
 
 async function main() {
@@ -14,16 +16,18 @@ async function main() {
             inArray(artworkJobs.status, [
                 JobStatus.QUEUED,
                 JobStatus.PROCESSING,
-                "uploading" as any 
+                "uploading" as any,
             ]),
         );
 
     console.log(`Found ${activeJobs.length} active jobs.`);
-    
+
     const byMethod: Record<string, number> = {};
     for (const job of activeJobs) {
         byMethod[job.method] = (byMethod[job.method] || 0) + 1;
-        console.log(`- Job ${job.id} [${job.status}] Method: ${job.method} (Updated: ${job.updatedAt})`);
+        console.log(
+            `- Job ${job.id} [${job.status}] Method: ${job.method} (Updated: ${job.updatedAt})`,
+        );
     }
 
     console.log("Summary by Method:", byMethod);

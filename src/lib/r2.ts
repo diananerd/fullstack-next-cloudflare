@@ -74,8 +74,7 @@ export async function uploadToR2(
 
         // Return URL proxied through the application
         // biome-ignore lint/suspicious/noExplicitAny: Env variables not typed in Cloudflare types yet
-        const appUrl =
-            (env as any).NEXT_PUBLIC_APP_URL || "https://drimit.io";
+        const appUrl = (env as any).NEXT_PUBLIC_APP_URL || "https://drimit.io";
         const publicUrl = `${appUrl}/api/assets/${key}`;
 
         return {
@@ -187,7 +186,10 @@ export async function cleanDirectoryExcept(
         let cursor: string | undefined;
         let deletedCount = 0;
 
-        console.log(`[R2] Cleaning directory '${prefix}' except keys:`, keepKeys);
+        console.log(
+            `[R2] Cleaning directory '${prefix}' except keys:`,
+            keepKeys,
+        );
 
         while (truncated) {
             const list = await env.drimit_shield_bucket.list({
@@ -213,7 +215,7 @@ export async function cleanDirectoryExcept(
         }
 
         if (deletedCount > 0) {
-             console.log(`[R2] Cleaned ${deletedCount} files from ${prefix}`);
+            console.log(`[R2] Cleaned ${deletedCount} files from ${prefix}`);
         }
         return true;
     } catch (error) {

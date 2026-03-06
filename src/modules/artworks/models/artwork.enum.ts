@@ -13,7 +13,7 @@ export type ProtectionStatusType =
 
 export const ProtectionMethod = {
     // V2 Unified Standard
-    SHIELD: "shield", 
+    SHIELD: "shield",
 
     // Components (Internal or Advanced usage)
     POISON_IVY: "poison-ivy",

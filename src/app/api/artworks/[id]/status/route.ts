@@ -51,7 +51,7 @@ export async function GET(
                 { status: 404 },
             );
         }
-        
+
         // 2. Get Active/Latest Job for Granular Progress
         const latestJob = await db.query.artworkJobs.findFirst({
             where: eq(artworkJobs.artworkId, artworkId),
@@ -61,20 +61,20 @@ export async function GET(
         // Parse V2 Result if available
         let progress = null;
         if (latestJob) {
-             const result = (latestJob.result as any) || {};
-             progress = {
-                 status: latestJob.status,
-                 currentStep: latestJob.currentStep,
-                 steps: result.steps || [], 
-                 shieldScore: result.shieldScore, // Pass score to frontend
-                 total_duration_ms: result.total_duration_ms,
-                 error: latestJob.errorMessage
-             };
+            const result = (latestJob.result as any) || {};
+            progress = {
+                status: latestJob.status,
+                currentStep: latestJob.currentStep,
+                steps: result.steps || [],
+                shieldScore: result.shieldScore, // Pass score to frontend
+                total_duration_ms: result.total_duration_ms,
+                error: latestJob.errorMessage,
+            };
         }
 
         return NextResponse.json({
             status: artwork.protectionStatus,
-            progress: progress || null
+            progress: progress || null,
         });
     } catch (error) {
         console.error("[StatusAPI] Critical Error:", error);

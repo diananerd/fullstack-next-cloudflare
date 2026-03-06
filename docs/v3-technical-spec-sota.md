@@ -1,4 +1,4 @@
-# Drimit Shield v2: Technical Specification (SOTA & Legacy)
+# Drimit v2: Technical Specification (SOTA & Legacy)
 
 **Status:** Living Document
 **Date:** February 17, 2026
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary: The Dual-Stack Defense
 
-To protect against the full spectrum of generative AI threats in 2026, Drimit Shield implements a **Dual-Stack Defense** strategy. Every protection layer must simultaneously disrupt:
+To protect against the full spectrum of generative AI threats in 2026, Drimit implements a **Dual-Stack Defense** strategy. Every protection layer must simultaneously disrupt:
 1.  **Legacy Models (2022-2024):** Stable Diffusion 1.5, SD 2.1, FaceNet, standard Deepfakes.
 2.  **SOTA Models (2025-2026):** Flux.1, SD3, Midjourney v7, InsightFace (ArcFace), and highly capable inpainting models.
 

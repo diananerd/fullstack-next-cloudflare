@@ -18,14 +18,17 @@ export async function POST(req: NextRequest) {
         }
 
         const db = await getDb();
-        
+
         // --- Authentication Check ---
         const authHeader = req.headers.get("Authorization");
         const token = authHeader?.replace("Bearer ", "");
         const apiKey = process.env.DRIMIT_API_KEY || "drimit-dev-key"; // Fallback for dev
 
         if (!token || token !== apiKey) {
-             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json(
+                { error: "Unauthorized" },
+                { status: 401 },
+            );
         }
 
         // Use crypto.randomUUID for unique ID

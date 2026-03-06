@@ -1,140 +1,156 @@
-import { ChevronRight, ShieldCheck } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { ProtectionDemo } from "@/components/landing/protection-demo";
-import { TypewriterTitle } from "@/components/landing/typewriter-title";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/modules/auth/utils/auth-utils";
+
+/**
+ * Seasonal artwork — swap each season.
+ * License the image, credit the artist, and update this object.
+ * The artwork is the hero of the page.
+ */
+const SEASONAL_ARTWORK = {
+    src: "https://imagedelivery.net/lUOwJskPTk2XKGvtDYvd8w/e26d8bf8-5d25-405a-66f8-6ca414efad00/public",
+    alt: "Sleepy cat — Diana Martínez",
+    artist: "Diana Martínez",
+    username: "diananerd",
+    title: "Sleepy Cat",
+    artistHref: "",
+} satisfies {
+    src: string;
+    alt: string;
+    artist: string;
+    username: string;
+    title: string;
+    artistHref: string;
+};
+
+const hasArtwork = SEASONAL_ARTWORK.src !== "";
 
 export default async function HomePage() {
     const session = await getSession();
 
     return (
-        <div className="relative min-h-screen flex flex-col bg-white selection:bg-blue-100">
-            {/* Background Texture - Grid & Gradient - Fixed Position so it stays while scrolling */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-                <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_50%_200px,#C9EBFF,transparent)]"></div>
-            </div>
+        <div className="relative min-h-[100dvh] flex flex-col bg-stone-900 text-white overflow-hidden">
+            {/* Seasonal Artwork */}
+            {hasArtwork ? (
+                <div className="absolute inset-0">
+                    {/* biome-ignore lint/performance/noImgElement: full-bleed hero image */}
+                    <img
+                        src={SEASONAL_ARTWORK.src}
+                        alt={SEASONAL_ARTWORK.alt}
+                        className="w-full h-full object-cover object-center"
+                        style={{ animation: "slow-zoom 18s ease-in-out infinite alternate" }}
+                    />
+                    {/* vignette — stronger at bottom for text legibility over light-toned art */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/40" />
+                </div>
+            ) : (
+                /* Placeholder until first artwork is licensed */
+                <div className="absolute inset-0 bg-stone-800 flex items-center justify-center">
+                    <span className="text-stone-600 text-sm tracking-widest uppercase select-none">
+                        Artwork coming soon
+                    </span>
+                </div>
+            )}
 
-            {/* Floating Navigation (Simplified) */}
-            <header className="absolute top-0 left-0 right-0 z-50 p-4 md:p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
-                <div className="flex items-center gap-2">
+            {/* Nav */}
+            <header className="relative z-10 px-6 md:px-10 py-5 flex justify-between items-center">
+                <Link
+                    href={session ? "/artworks" : "/"}
+                    className="flex items-center gap-2"
+                >
+                    {/* biome-ignore lint/performance/noImgElement: brand icon */}
+                    <img src="/icon.png" alt="Drimit" className="h-7 w-7" />
+                    <span className="font-semibold tracking-tight">Drimit</span>
+                </Link>
+                {session ? (
                     <Link
-                        href={session ? "/artworks" : "/"}
-                        className="flex items-center gap-2"
+                        href="/artworks"
+                        className="text-sm text-white/60 hover:text-white transition-colors"
                     >
-                        {/* biome-ignore lint/performance/noImgElement: Icon optimization not critical */}
-                        <img
-                            src="/icon.png"
-                            alt="Drimit"
-                            className="h-8 w-8"
-                        />
-                        <span className="flex items-center gap-2 text-xl">
-                            <span className="font-bold text-gray-900">
-                                Drimit
-                            </span>
-                        </span>
+                        My artworks
                     </Link>
-                </div>
-                <div className="flex gap-4">
-                    {session ? (
-                        <Link
-                            href="/artworks"
-                            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                        >
-                            Artworks
-                        </Link>
-                    ) : (
-                        <Link
-                            href="/login"
-                            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                        >
-                            Log In
-                        </Link>
-                    )}
-                </div>
+                ) : (
+                    <Link
+                        href="/login"
+                        className="text-sm text-white/60 hover:text-white transition-colors"
+                    >
+                        Log in
+                    </Link>
+                )}
             </header>
 
-            <main className="relative z-10 max-w-7xl mx-auto px-6 pt-20 md:pt-24 pb-20 flex flex-col items-center text-center animate-in fade-in zoom-in duration-700 slide-in-from-bottom-4">
-                <div className="max-w-4xl mx-auto mb-10">
-                    {/* Badge */}
-                    <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 shadow-sm mb-6 md:mb-8">
-                        <ShieldCheck className="mr-2 h-4 w-4" />
-                        <span className="text-xs md:text-sm">AI Protection</span>
-                    </div>
+            {/* Slogan — just below nav, visually separated */}
+            <div className="relative z-10 px-6 md:px-10 pt-6">
+                <p className="text-2xl md:text-3xl font-medium text-white/80 tracking-tight leading-snug max-w-xs">
+                    A home for your creative work.
+                </p>
+            </div>
 
-                    {/* Protectioning */}
-                    <div className="mb-2 md:mb-6">
-                        <TypewriterTitle />
-                    </div>
-
-                    {/* Subtitle - Shortened for impact */}
-                    <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
-                        Add an <strong>invisible protection layer</strong> that
-                        confuses AI models without changing how your art looks
-                        to humans.
-                    </p>
-                </div>
-
-                {/* THE DEMO IS THE HERO VISUAL */}
-                <div className="w-full relative z-20 mb-10">
-                    <ProtectionDemo hasSession={!!session} />
-                </div>
-
-                {/* CTA Buttons - The logical next step */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
-                    <Link
-                        href={session ? "/artworks" : "/signup"}
-                        className="w-full sm:w-auto"
-                    >
-                        <Button
-                            size="lg"
-                            className="w-full sm:w-auto h-12 md:h-14 px-8 md:pl-20 md:pr-12 text-base md:text-lg rounded-full shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 border-0"
-                        >
-                            {session ? "Go to Artworks" : "Get Started"}
-                            <ChevronRight className="ml-2 h-5 w-5" />
-                        </Button>
-                    </Link>
-                    <Link href="/faq" className="w-full sm:w-auto">
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            className="w-full sm:w-auto h-12 md:h-14 px-8 text-base md:text-lg rounded-full border-gray-300 hover:bg-gray-50 text-gray-700"
-                        >
-                            How it Works
-                        </Button>
-                    </Link>
-                </div>
-            </main>
-
-            {/* Footer Minimal */}
-            <footer className="w-full text-center text-gray-400 text-sm flex flex-col gap-2 pb-8 pt-12 relative z-10">
-                <div className="flex justify-center gap-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    <Link
-                        href="/faq"
-                        className="hover:text-blue-600 transition-colors"
-                    >
-                        FAQ
-                    </Link>
-                    <span>•</span>
-                    {session ? (
-                        <Link
-                            href="/artworks"
-                            className="hover:text-blue-600 transition-colors"
-                        >
-                            Artworks
-                        </Link>
+            {/* Bottom bar — artist credit + CTA */}
+            <div className="relative z-10 mt-auto px-6 md:px-10 pb-8 pt-20 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+                {/* Artist credit */}
+                <div className="text-left">
+                    {hasArtwork && SEASONAL_ARTWORK.artist ? (
+                        <>
+                            <p className="text-white/40 text-xs tracking-wide mb-0.5">
+                                Artwork by
+                            </p>
+                            {session && SEASONAL_ARTWORK.username ? (
+                                <Link
+                                    href={`/@${SEASONAL_ARTWORK.username}`}
+                                    className="text-white/80 text-sm font-medium hover:text-white transition-colors"
+                                >
+                                    {SEASONAL_ARTWORK.artist}
+                                </Link>
+                            ) : SEASONAL_ARTWORK.artistHref ? (
+                                <a
+                                    href={SEASONAL_ARTWORK.artistHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-white/80 text-sm font-medium hover:text-white transition-colors"
+                                >
+                                    {SEASONAL_ARTWORK.artist}
+                                </a>
+                            ) : (
+                                <p className="text-white/80 text-sm font-medium">
+                                    {SEASONAL_ARTWORK.artist}
+                                </p>
+                            )}
+                            {SEASONAL_ARTWORK.title && (
+                                <p className="text-white/40 text-xs italic mt-0.5">
+                                    "{SEASONAL_ARTWORK.title}"
+                                </p>
+                            )}
+                        </>
                     ) : (
-                        <Link
-                            href="/login"
-                            className="hover:text-blue-600 transition-colors"
-                        >
-                            Login
-                        </Link>
+                        <p className="text-white/30 text-xs italic">
+                            A space for artists.
+                        </p>
                     )}
                 </div>
-                <p>© 2026 Drimit. Protecting your Art.</p>
-            </footer>
+
+                {/* CTA */}
+                <div className="self-end sm:self-auto">
+                    <Link href={session ? "/artworks" : "/signup"}>
+                        <Button className="h-10 px-6 rounded-full bg-white text-stone-900 hover:bg-stone-100 text-sm font-medium border-0 shadow-none">
+                            {session ? "Open Drimit" : "Get Started"}
+                            <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+
+            {/* Footer strip */}
+            <div className="relative z-10 px-6 md:px-10 pb-5 flex flex-wrap justify-between items-center gap-3 text-xs text-white/25">
+                <div className="flex items-center gap-4">
+                    <span>© 2026 Drimit</span>
+                    <Link href="#" className="hover:text-white/60 transition-colors">Terms</Link>
+                    <Link href="#" className="hover:text-white/60 transition-colors">Privacy</Link>
+                    <Link href="#" className="hover:text-white/60 transition-colors">Cookies</Link>
+                    <Link href="#" className="hover:text-white/60 transition-colors">Generative AI</Link>
+                </div>
+            </div>
         </div>
     );
 }

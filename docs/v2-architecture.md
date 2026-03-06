@@ -1,4 +1,4 @@
-# Drimit Shield v2: Architecture & Granular Pipeline
+# Drimit v2: Architecture & Granular Pipeline
 
 **Status:** Living Document
 **Date:** February 17, 2026
@@ -8,7 +8,7 @@
 
 ## 1. System Overview
 
-The Drimit Shield architecture is a **Conditional, Atomic Pipeline**. Unlike a rigid assembly line, the protection kernel dynamically adapts to the user's security requirements.
+The Drimit architecture is a **Conditional, Atomic Pipeline**. Unlike a rigid assembly line, the protection kernel dynamically adapts to the user's security requirements.
 
 ### Key Constraints & Requirements
 *   **User Control:** User provides specific flags (`use_identity`, `use_style`, etc.) at job creation.

@@ -36,7 +36,11 @@ export default async function BillingPage({
 
     // We re-fetch balance to be 100% sure it's up to date vs session
     const currentBalance = await CreditService.getBalance(user.id);
-    const transactions = await CreditService.getHistory(user.id, pageSize, offset);
+    const transactions = await CreditService.getHistory(
+        user.id,
+        pageSize,
+        offset,
+    );
     const totalCount = await CreditService.getHistoryCount(user.id);
     const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -53,136 +57,149 @@ export default async function BillingPage({
 
             <div className="px-4 pb-6 md:px-6 space-y-6">
                 {/* Credit Balance Card */}
-            <CreditsManager balance={currentBalance} />
+                <CreditsManager balance={currentBalance} />
 
-            {/* Transaction History */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <History className="h-5 w-5" />
-                        Transaction History
-                    </CardTitle>
-                    <CardDescription>
-                        Recent activity on your account.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Description</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead className="text-right">
-                                    Amount
-                                </TableHead>
-                                <TableHead className="text-right">
-                                    Balance
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {transactions.length === 0 ? (
+                {/* Transaction History */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <History className="h-5 w-5" />
+                            Transaction History
+                        </CardTitle>
+                        <CardDescription>
+                            Recent activity on your account.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={5}
-                                        className="text-center py-8 text-muted-foreground"
-                                    >
-                                        No transactions found.
-                                    </TableCell>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead className="text-right">
+                                        Amount
+                                    </TableHead>
+                                    <TableHead className="text-right">
+                                        Balance
+                                    </TableHead>
                                 </TableRow>
-                            ) : (
-                                transactions.map((tx) => (
-                                    <TableRow key={tx.id}>
-                                        <TableCell className="font-medium whitespace-nowrap first-letter:capitalize">
-                                            {formatDistanceToNow(tx.createdAt, {
-                                                addSuffix: true,
-                                            })}
-                                        </TableCell>
-                                        <TableCell>{tx.description}</TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant="outline"
-                                                className={
-                                                    tx.type === "DEPOSIT" ||
-                                                    tx.type === "BONUS"
-                                                        ? "bg-green-50 text-green-700 border-green-200"
-                                                        : "bg-orange-50 text-orange-700 border-orange-200"
-                                                }
-                                            >
-                                                {tx.type}
-                                            </Badge>
-                                        </TableCell>
+                            </TableHeader>
+                            <TableBody>
+                                {transactions.length === 0 ? (
+                                    <TableRow>
                                         <TableCell
-                                            className={`text-right font-medium ${
-                                                tx.amount > 0
-                                                    ? "text-green-600"
-                                                    : "text-orange-600"
-                                            }`}
+                                            colSpan={5}
+                                            className="text-center py-8 text-muted-foreground"
                                         >
-                                            {tx.amount > 0 ? "+" : ""}
-                                            {tx.amount.toFixed(2)}
-                                        </TableCell>
-                                        <TableCell className="text-right text-muted-foreground">
-                                            {tx.balanceAfter.toFixed(2)}
+                                            No transactions found.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-                {totalPages > 1 && (
-                    <div className="flex items-center justify-end space-x-2 py-4 px-4 text-sm text-muted-foreground border-t">
-                        <div className="mr-auto">
-                            Page {page} of {totalPages}
+                                ) : (
+                                    transactions.map((tx) => (
+                                        <TableRow key={tx.id}>
+                                            <TableCell className="font-medium whitespace-nowrap first-letter:capitalize">
+                                                {formatDistanceToNow(
+                                                    tx.createdAt,
+                                                    {
+                                                        addSuffix: true,
+                                                    },
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {tx.description}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant="outline"
+                                                    className={
+                                                        tx.type ===
+                                                            "PURCHASE" ||
+                                                        tx.type === "BONUS"
+                                                            ? "bg-green-50 text-green-700 border-green-200"
+                                                            : "bg-orange-50 text-orange-700 border-orange-200"
+                                                    }
+                                                >
+                                                    {tx.type}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell
+                                                className={`text-right font-medium ${
+                                                    tx.amount > 0
+                                                        ? "text-green-600"
+                                                        : "text-orange-600"
+                                                }`}
+                                            >
+                                                {tx.amount > 0 ? "+" : ""}
+                                                {tx.amount.toFixed(2)}
+                                            </TableCell>
+                                            <TableCell className="text-right text-muted-foreground">
+                                                {tx.balanceAfter.toFixed(2)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-end space-x-2 py-4 px-4 text-sm text-muted-foreground border-t">
+                            <div className="mr-auto">
+                                Page {page} of {totalPages}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                disabled={page <= 1}
+                            >
+                                <Link
+                                    href={{
+                                        pathname: "/billing",
+                                        query: {
+                                            page: page > 1 ? page - 1 : 1,
+                                        },
+                                    }}
+                                    className={
+                                        page <= 1
+                                            ? "pointer-events-none opacity-50"
+                                            : ""
+                                    }
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Previous
+                                </Link>
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                disabled={page >= totalPages}
+                            >
+                                <Link
+                                    href={{
+                                        pathname: "/billing",
+                                        query: {
+                                            page:
+                                                page < totalPages
+                                                    ? page + 1
+                                                    : totalPages,
+                                        },
+                                    }}
+                                    className={
+                                        page >= totalPages
+                                            ? "pointer-events-none opacity-50"
+                                            : ""
+                                    }
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4" />
+                                </Link>
+                            </Button>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            disabled={page <= 1}
-                        >
-                            <Link
-                                href={{
-                                    pathname: "/billing",
-                                    query: {
-                                        page: page > 1 ? page - 1 : 1,
-                                    },
-                                }}
-                                className={page <= 1 ? "pointer-events-none opacity-50" : ""}
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                                Previous
-                            </Link>
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            disabled={page >= totalPages}
-                        >
-                            <Link
-                                href={{
-                                    pathname: "/billing",
-                                    query: {
-                                        page: page < totalPages ? page + 1 : totalPages,
-                                    },
-                                }}
-                                className={
-                                    page >= totalPages
-                                        ? "pointer-events-none opacity-50"
-                                        : ""
-                                }
-                            >
-                                Next
-                                <ChevronRight className="h-4 w-4" />
-                            </Link>
-                        </Button>
-                    </div>
-                )}
-            </Card>
+                    )}
+                </Card>
+            </div>
         </div>
-      </div>
     );
 }

@@ -31,12 +31,12 @@ export function useArtworkStatus(
     useEffect(() => {
         // V2: Always fetch status on mount to get the detailed job result (steps, logs) even if completed.
         // Then only poll if processing.
-        
+
         let isActive = true;
         const checkStatus = async () => {
-             if (!isActive) return;
+            if (!isActive) return;
 
-             try {
+            try {
                 // Polling the local API which syncs with Modal on-demand
                 const res = await fetch(`/api/artworks/${artworkId}/status`);
                 if (!res.ok) {
@@ -49,7 +49,7 @@ export function useArtworkStatus(
                     status?: ProtectionStatusType | "ERROR";
                     progress?: ProgressData;
                 };
-                
+
                 if (!isActive) return;
 
                 if (data.progress) {
@@ -62,15 +62,15 @@ export function useArtworkStatus(
                             return data.status as ProtectionStatusType;
                         return prev;
                     });
-                     
+
                     const isFinal =
                         data.status === ProtectionStatus.DONE ||
                         data.status === ProtectionStatus.FAILED ||
                         data.status === ProtectionStatus.CANCELED;
 
                     // If status CHANGED to final, refresh router
-                    if (isFinal && (status !== data.status)) {
-                         startTransition(() => {
+                    if (isFinal && status !== data.status) {
+                        startTransition(() => {
                             router.refresh();
                         });
                     }
@@ -90,7 +90,7 @@ export function useArtworkStatus(
 
         let intervalId: NodeJS.Timeout;
         if (isProcessing) {
-             intervalId = setInterval(checkStatus, 15000);
+            intervalId = setInterval(checkStatus, 15000);
         }
 
         return () => {

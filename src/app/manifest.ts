@@ -4,7 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
     return {
         name: "Drimit",
         short_name: "Drimit",
-        description: "Protect your images from generative AI editing.",
+        description:
+            "Your creative toolkit — watermark, organize and manage your digital artwork.",
         start_url: "/?source=pwa",
         display: "standalone",
         background_color: "#ffffff",

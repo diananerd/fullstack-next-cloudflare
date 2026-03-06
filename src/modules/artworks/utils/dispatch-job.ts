@@ -13,7 +13,15 @@ interface DispatchJobInput {
 }
 
 export async function dispatchProtectionJob(input: DispatchJobInput) {
-    const { artworkId, userId, imageUrl, imageR2Key, method, config, isPreview } = input;
+    const {
+        artworkId,
+        userId,
+        imageUrl,
+        imageR2Key,
+        method,
+        config,
+        isPreview,
+    } = input;
 
     // Build the R2 public base URL so the Python kernel can construct
     // publicly-accessible URLs for intermediate artifacts (used by SimulationEngine).
@@ -45,7 +53,9 @@ export async function dispatchProtectionJob(input: DispatchJobInput) {
     // Build Python flags from the Pipeline Contract — contract-driven, no hardcoding.
     // Each layer's pythonFlag is set based on whether its layerKey is in config.layers[].
     // Default: all layers enabled (backward compat when config.layers is absent).
-    const layers = Array.isArray(methodConfig.layers) ? (methodConfig.layers as string[]) : null;
+    const layers = Array.isArray(methodConfig.layers)
+        ? (methodConfig.layers as string[])
+        : null;
     const layerFlagPayload = Object.fromEntries(
         PIPELINE_LAYERS.map((l) => [
             l.pythonFlag,

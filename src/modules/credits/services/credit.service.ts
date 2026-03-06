@@ -4,11 +4,15 @@ import { user } from "@/modules/auth/schemas/auth.schema";
 import { eq, sql, desc, and, gte } from "drizzle-orm";
 
 export type TransactionType =
-    | "DEPOSIT"
-    | "USAGE"
+    | "PURCHASE"
+    | "SERVICE_CHARGE"
     | "REFUND"
     | "BONUS"
-    | "ADJUSTMENT";
+    | "ADJUSTMENT"
+    | "ESCROW_HOLD"
+    | "ESCROW_RELEASE"
+    | "ESCROW_CANCEL"
+    | "EXPIRY";
 
 export class CreditService {
     /**
@@ -33,7 +37,7 @@ export class CreditService {
         amount: number,
         type: Extract<
             TransactionType,
-            "DEPOSIT" | "BONUS" | "REFUND" | "ADJUSTMENT"
+            "PURCHASE" | "BONUS" | "REFUND" | "ADJUSTMENT"
         >,
         description: string,
         metadata?: Record<string, any>,
@@ -42,7 +46,7 @@ export class CreditService {
         console.log(
             `[CreditService] addCredits called for userId=${userId}, amount=${amount}, type=${type}, ref=${referenceId}`,
         );
-        
+
         const db = await getDb();
 
         // Idempotency Check
@@ -50,24 +54,32 @@ export class CreditService {
             const existing = await db
                 .select()
                 .from(creditTransactions)
-                .where(and(
-                    eq(creditTransactions.referenceId, referenceId),
-                    eq(creditTransactions.type, "DEPOSIT") // Ensure we are looking for deposits
-                )) 
+                .where(
+                    and(
+                        eq(creditTransactions.referenceId, referenceId),
+                        eq(creditTransactions.type, "PURCHASE"), // Ensure we are looking for purchases
+                    ),
+                )
                 .limit(1)
                 .get();
 
             if (existing) {
-                console.log(`[CreditService] Transaction with referenceId=${referenceId} already exists. Skipping.`);
-                return existing.balanceAfter; // Return current balance state from that moment, or query current? 
+                console.log(
+                    `[CreditService] Transaction with referenceId=${referenceId} already exists. Skipping.`,
+                );
+                return existing.balanceAfter; // Return current balance state from that moment, or query current?
                 // Better to return clean success, maybe throw specific "AlreadyProcessed" or just return.
                 // For this function signature, returning a number (new balance) is expected.
                 // We'll verify actual current balance to return correct value.
-                const userRec = await db.select({ credits: user.credits }).from(user).where(eq(user.id, userId)).get();
+                const userRec = await db
+                    .select({ credits: user.credits })
+                    .from(user)
+                    .where(eq(user.id, userId))
+                    .get();
                 return userRec?.credits ?? 0;
             }
         }
-        
+
         if (amount <= 0) {
             console.error(`[CreditService] Invalid amount: ${amount}`);
             throw new Error(
@@ -76,9 +88,9 @@ export class CreditService {
         }
 
         try {
-             // STRATEGY: Record First (Audit), Then Grant (Balance)
-             // This prevents "Ghost Credits" (Credits without record).
-             // If granting fails, we have the record to reconcile manually.
+            // STRATEGY: Record First (Audit), Then Grant (Balance)
+            // This prevents "Ghost Credits" (Credits without record).
+            // If granting fails, we have the record to reconcile manually.
 
             console.log(
                 `[CreditService] Recording transaction for userId=${userId} (ref=${referenceId ?? "none"})`,
@@ -88,7 +100,7 @@ export class CreditService {
             await db.insert(creditTransactions).values({
                 userId,
                 amount: amount,
-                balanceAfter: 0, // Placeholder, will update or we can query first. 
+                balanceAfter: 0, // Placeholder, will update or we can query first.
                 // Actually, we usually want balanceAfter to be accurate.
                 // But we haven't updated user yet.
                 // We can fetch current balance, add amount, and store that.
@@ -102,17 +114,18 @@ export class CreditService {
             // (We could do this before insert, but insert is the "Lock")
             // Actually, for accurate history, we want the balance *after* the update.
             // If we use "Insert First", we store a slightly inaccurate "balanceAfter" initially?
-            // Or we update it? 
-            
+            // Or we update it?
+
             // Let's stick to the previous reliable approach but with clearer error handling?
             // No, the safest is Transaction (tx).
             // But tx failed on D1.
-            
+
             // "Insert First" implies we might fail step 2.
             // Let's try to restore the SAGA (Compensating Transaction) but simpler.
-            
-        } catch (e) { throw e; } // Just reset block for tool usage
-        
+        } catch (e) {
+            throw e;
+        } // Just reset block for tool usage
+
         try {
             // 1. Update User (Optimistic Grant)
             const [updatedUser] = await db
@@ -124,10 +137,10 @@ export class CreditService {
                 .where(eq(user.id, userId))
                 .returning({ credits: user.credits });
 
-             if (!updatedUser) throw new Error("User not found");
-             
-             // 2. Record (Audit)
-             try {
+            if (!updatedUser) throw new Error("User not found");
+
+            // 2. Record (Audit)
+            try {
                 await db.insert(creditTransactions).values({
                     userId,
                     amount: amount,
@@ -137,24 +150,35 @@ export class CreditService {
                     metadata,
                     referenceId,
                 });
-             } catch (insertError: any) {
-                 // Check duplicate
-                 const msg = insertError.message || "";
-                 if (msg.includes("UNIQUE") || msg.includes("constraint") || (insertError.code === "SQLITE_CONSTRAINT")) {
-                     console.warn(`[CreditService] Duplicate detected (${referenceId}). Reverting credits...`);
-                     // COMPENSATION
-                     await db.update(user)
-                         .set({ credits: sql`${user.credits} - ${amount}` })
-                         .where(eq(user.id, userId));
-                     
-                     // Return current balance (without the added amount)
-                     const final = await db.select({c: user.credits}).from(user).where(eq(user.id, userId)).get();
-                     return final?.c ?? 0;
-                 }
-                 throw insertError;
-             }
-             
-             return updatedUser.credits;
+            } catch (insertError: any) {
+                // Check duplicate
+                const msg = insertError.message || "";
+                if (
+                    msg.includes("UNIQUE") ||
+                    msg.includes("constraint") ||
+                    insertError.code === "SQLITE_CONSTRAINT"
+                ) {
+                    console.warn(
+                        `[CreditService] Duplicate detected (${referenceId}). Reverting credits...`,
+                    );
+                    // COMPENSATION
+                    await db
+                        .update(user)
+                        .set({ credits: sql`${user.credits} - ${amount}` })
+                        .where(eq(user.id, userId));
+
+                    // Return current balance (without the added amount)
+                    const final = await db
+                        .select({ c: user.credits })
+                        .from(user)
+                        .where(eq(user.id, userId))
+                        .get();
+                    return final?.c ?? 0;
+                }
+                throw insertError;
+            }
+
+            return updatedUser.credits;
         } catch (error) {
             console.error(
                 `[CreditService] Operation failed for userId=${userId}:`,
@@ -188,7 +212,7 @@ export class CreditService {
                 .where(
                     and(
                         eq(creditTransactions.referenceId, referenceId),
-                        eq(creditTransactions.type, "USAGE"),
+                        eq(creditTransactions.type, "SERVICE_CHARGE"),
                     ),
                 )
                 .limit(1)
@@ -235,7 +259,7 @@ export class CreditService {
                 userId,
                 amount: -cost,
                 balanceAfter: updatedUser.credits,
-                type: "USAGE",
+                type: "SERVICE_CHARGE",
                 description,
                 referenceId,
                 metadata,
@@ -274,7 +298,7 @@ export class CreditService {
             .select({ count: sql<number>`count(*)` })
             .from(creditTransactions)
             .where(eq(creditTransactions.userId, userId));
-            
+
         return Number(result[0]?.count) || 0;
     }
 }

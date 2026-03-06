@@ -1,0 +1,81 @@
+export type SortField = "createdAt" | "updatedAt" | "title";
+export type SortOrder = "asc" | "desc";
+export type VisibilityFilter = "all" | "public" | "private";
+
+export interface WorkspaceQuery {
+    collectionId?: string;
+    sort: SortField;
+    order: SortOrder;
+    visibility: VisibilityFilter;
+    offset: number;
+    limit: number;
+}
+
+export const DEFAULT_QUERY: WorkspaceQuery = {
+    sort: "createdAt",
+    order: "desc",
+    visibility: "all",
+    offset: 0,
+    limit: 15,
+};
+
+export function parseWorkspaceQuery(
+    params: Record<string, string | undefined>,
+    collectionId?: string,
+): WorkspaceQuery {
+    const validSorts: SortField[] = ["createdAt", "updatedAt", "title"];
+    const validOrders: SortOrder[] = ["asc", "desc"];
+    const validVisibility: VisibilityFilter[] = ["all", "public", "private"];
+
+    return {
+        collectionId,
+        sort: validSorts.includes(params.sort as SortField)
+            ? (params.sort as SortField)
+            : DEFAULT_QUERY.sort,
+        order: validOrders.includes(params.order as SortOrder)
+            ? (params.order as SortOrder)
+            : DEFAULT_QUERY.order,
+        visibility: validVisibility.includes(params.visibility as VisibilityFilter)
+            ? (params.visibility as VisibilityFilter)
+            : DEFAULT_QUERY.visibility,
+        offset: 0,
+        limit: DEFAULT_QUERY.limit,
+    };
+}
+
+// ── Standard item types ───────────────────────────────────────────────────────
+
+export type ArtworkWorkspaceItem = {
+    kind: "artwork";
+    id: number;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+    visibility: string;
+    url: string;
+    r2Key: string;
+    width: number | null;
+    height: number | null;
+    protectionStatus: string;
+    mediaType: "image";
+};
+
+export type CollectionWorkspaceItem = {
+    kind: "collection";
+    id: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+    visibility: string;
+    itemCount: number;
+    role: string;
+};
+
+export type WorkspaceItem = ArtworkWorkspaceItem | CollectionWorkspaceItem;
+
+export interface WorkspaceItemsResult {
+    collections: CollectionWorkspaceItem[];
+    artworks: ArtworkWorkspaceItem[];
+    hasMore: boolean;
+    artworkTotal: number;
+}

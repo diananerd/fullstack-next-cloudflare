@@ -1,7 +1,7 @@
-# 🛡️ Drimit Shield - AI Art Protection Platform
+# 🛡️ Drimit - AI Art Protection Platform
 
 ## 📋 Executive Summary
-Drimit Shield is a comprehensive full-stack application designed to protect digital artwork from unauthorized AI training. It implements advanced adversarial techniques (Dual-Stack SOTA & Legacy Defense) to disrupt AI models (Stable Diffusion, Flux, InsightFace, CLIP).
+Drimit is a comprehensive full-stack application designed to protect digital artwork from unauthorized AI training. It implements advanced adversarial techniques (Dual-Stack SOTA & Legacy Defense) to disrupt AI models (Stable Diffusion, Flux, InsightFace, CLIP).
 
 The project uses a **hybrid architecture**: 
 - **Frontend & Orchestration**: Next.js 15 on Cloudflare Workers (Edge).

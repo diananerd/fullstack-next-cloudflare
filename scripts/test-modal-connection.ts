@@ -52,8 +52,8 @@ async function main() {
             verify_protection: true, // Explicitly request verification
             config: {
                 intensity: "Medium",
-                apply_poison: true
-            }
+                apply_poison: true,
+            },
         };
 
         const jsonResponse = await fetch(modalUrl, {

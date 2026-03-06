@@ -1,5 +1,5 @@
 /**
- * Server-side analytics for Drimit Shield.
+ * Server-side analytics for Drimit.
  *
  * Uses direct fetch to PostHog batch API — fully compatible with
  * Cloudflare Workers Edge runtime (no posthog-node needed).

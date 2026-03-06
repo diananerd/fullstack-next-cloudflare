@@ -97,19 +97,26 @@ export function ProtectArtworkDialog({
     };
 
     const [step, setStep] = useState<Step>(1);
-    const [watermarkText, setWatermarkText] = useState("DRIMIT SHIELD");
+    const [watermarkText, setWatermarkText] = useState("DRIMIT");
     const [intensity, setIntensity] = useState<string>(
         PIPELINE_GLOBAL_CONFIG.intensity.default,
     );
 
     // Layer flags — driven by PIPELINE_LAYERS contract, no hardcoding
+    // comingSoon layers always start as false and cannot be toggled
     const [layerFlags, setLayerFlags] = useState<Record<string, boolean>>(() =>
         Object.fromEntries(
-            PIPELINE_LAYERS.map((l) => [l.id, l.defaultEnabled]),
+            PIPELINE_LAYERS.map((l) => [
+                l.id,
+                l.comingSoon ? false : l.defaultEnabled,
+            ]),
         ),
     );
-    const toggleLayer = (id: string) =>
+    const toggleLayer = (id: string) => {
+        const layer = PIPELINE_LAYERS.find((l) => l.id === id);
+        if (layer?.comingSoon) return;
         setLayerFlags((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
 
     // Per-layer toggle config values (e.g. legacy proxy support)
     const [configValues, setConfigValues] = useState<Record<string, boolean>>(
@@ -171,11 +178,14 @@ export function ProtectArtworkDialog({
     useEffect(() => {
         if (open) {
             setStep(1);
-            setWatermarkText("DRIMIT SHIELD");
+            setWatermarkText("DRIMIT");
             setIntensity(PIPELINE_GLOBAL_CONFIG.intensity.default);
             setLayerFlags(
                 Object.fromEntries(
-                    PIPELINE_LAYERS.map((l) => [l.id, l.defaultEnabled]),
+                    PIPELINE_LAYERS.map((l) => [
+                        l.id,
+                        l.comingSoon ? false : l.defaultEnabled,
+                    ]),
                 ),
             );
             setConfigValues(
@@ -197,7 +207,7 @@ export function ProtectArtworkDialog({
 
     // Pre-fill watermark from session name
     useEffect(() => {
-        if (session?.user?.name && watermarkText === "DRIMIT SHIELD") {
+        if (session?.user?.name && watermarkText === "DRIMIT") {
             let sanitized = session.user.name.replace(
                 /[^a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑ.,!?-]/g,
                 "",
@@ -276,22 +286,6 @@ export function ProtectArtworkDialog({
             <DialogContent className="flex flex-col sm:max-w-[460px] max-h-[90dvh] overflow-hidden">
                 {step !== 4 ? (
                     <DialogHeader>
-                        {/* Step progress bar */}
-                        <div className="flex items-center gap-1.5 mb-2">
-                            {([1, 2, 3] as const).map((s) => (
-                                <div
-                                    key={s}
-                                    className={cn(
-                                        "h-1 rounded-full transition-all duration-300",
-                                        s < step
-                                            ? "flex-1 bg-primary"
-                                            : s === step
-                                              ? "flex-1 bg-primary"
-                                              : "w-6 bg-muted",
-                                    )}
-                                />
-                            ))}
-                        </div>
                         <DialogTitle>
                             {step === 1 && "Select Protections"}
                             {step === 2 && "Configure"}
@@ -323,18 +317,21 @@ export function ProtectArtworkDialog({
                                     <button
                                         key={layer.id}
                                         type="button"
+                                        disabled={!!layer.comingSoon}
                                         onClick={() => toggleLayer(layer.id)}
                                         className={cn(
                                             "w-full flex items-start gap-3 rounded-lg border p-3.5 text-left transition-all duration-150",
-                                            enabled
-                                                ? "border-primary/40 bg-primary/5"
-                                                : "border-muted bg-muted/10 opacity-55",
+                                            layer.comingSoon
+                                                ? "border-muted bg-muted/10 opacity-40 cursor-not-allowed"
+                                                : enabled
+                                                  ? "border-primary/40 bg-primary/5"
+                                                  : "border-muted bg-muted/10 opacity-55",
                                         )}
                                     >
                                         <div
                                             className={cn(
                                                 "mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md transition-colors",
-                                                enabled
+                                                enabled && !layer.comingSoon
                                                     ? "bg-primary/10 text-primary"
                                                     : "bg-muted text-muted-foreground",
                                             )}
@@ -351,11 +348,17 @@ export function ProtectArtworkDialog({
                                                 {layer.uiDescription}
                                             </p>
                                         </div>
-                                        <Checkbox
-                                            checked={enabled}
-                                            className="mt-0.5 pointer-events-none flex-shrink-0"
-                                            onCheckedChange={() => {}}
-                                        />
+                                        {layer.comingSoon ? (
+                                            <span className="mt-0.5 flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                                                Soon
+                                            </span>
+                                        ) : (
+                                            <Checkbox
+                                                checked={enabled}
+                                                className="mt-0.5 pointer-events-none flex-shrink-0"
+                                                onCheckedChange={() => {}}
+                                            />
+                                        )}
                                     </button>
                                 );
                             })}
@@ -365,35 +368,40 @@ export function ProtectArtworkDialog({
                     {/* ── STEP 2: CONFIGURATION ── */}
                     {step === 2 && (
                         <div className="space-y-5">
-                            {/* Global: Intensity */}
-                            <div className="space-y-2">
-                                <Label className="text-xs font-semibold uppercase text-muted-foreground">
-                                    Protection Intensity
-                                </Label>
-                                <Select
-                                    value={intensity}
-                                    onValueChange={setIntensity}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select intensity" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {PIPELINE_GLOBAL_CONFIG.intensity.options.map(
-                                            (opt) => (
-                                                <SelectItem
-                                                    key={opt.value}
-                                                    value={opt.value}
-                                                >
-                                                    {opt.label}
-                                                </SelectItem>
-                                            ),
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-xs text-muted-foreground">
-                                    {PIPELINE_GLOBAL_CONFIG.intensity.helpText}
-                                </p>
-                            </div>
+                            {/* Global: Intensity — only shown when adversarial layers are active */}
+                            {activeLayers.some((l) => !l.comingSoon) && (
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                                        Protection Intensity
+                                    </Label>
+                                    <Select
+                                        value={intensity}
+                                        onValueChange={setIntensity}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select intensity" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {PIPELINE_GLOBAL_CONFIG.intensity.options.map(
+                                                (opt) => (
+                                                    <SelectItem
+                                                        key={opt.value}
+                                                        value={opt.value}
+                                                    >
+                                                        {opt.label}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        {
+                                            PIPELINE_GLOBAL_CONFIG.intensity
+                                                .helpText
+                                        }
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Per-layer config fields (contract-driven) */}
                             {activeLayers

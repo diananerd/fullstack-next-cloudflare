@@ -1,4 +1,4 @@
-# Drimit Shield v2: Database Schema (Atomic Trail)
+# Drimit v2: Database Schema (Atomic Trail)
 
 **Status:** Draft
 **Date:** February 12, 2026

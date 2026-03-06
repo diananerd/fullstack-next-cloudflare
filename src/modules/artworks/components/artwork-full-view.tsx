@@ -18,6 +18,7 @@ import { useArtworkActions } from "../hooks/use-artwork-actions";
 import { useArtworkStatus } from "../hooks/use-artwork-status";
 import type { Artwork } from "../schemas/artwork.schema";
 // import { getArtworkDisplayUrl } from "../utils/artwork-url"; // Replaced by internal logic
+import { FEATURES } from "@/constants/features.constant";
 import { ArtworkActionButtons } from "./artwork-action-buttons";
 import { ArtworkStatusBadge } from "./artwork-status-badge";
 import { ProtectionAuditTrail } from "./protection-audit-trail"; // V2 Audit Trail
@@ -277,7 +278,12 @@ export function ArtworkFullView({
         !protectedBroken;
 
     // Derived attack-mode state from selectedVariant
-    const ATTACK_KEYS = ["identity", "mimicry", "editing", "watermark"] as const;
+    const ATTACK_KEYS = [
+        "identity",
+        "mimicry",
+        "editing",
+        "watermark",
+    ] as const;
     type AttackKey = (typeof ATTACK_KEYS)[number];
     const activeAttack =
         ATTACK_KEYS.find(
@@ -382,7 +388,6 @@ export function ArtworkFullView({
                                         <Loader2 className="w-10 h-10 text-white/50 animate-spin" />
                                     </div>
                                 )}
-
                                 {/* biome-ignore lint/performance/noImgElement: External/Dynamic URL */}
                                 <img
                                     src={activeUrl}
@@ -399,282 +404,280 @@ export function ArtworkFullView({
                                     onLoad={handleImageLoad}
                                     onError={handleImageError}
                                 />
-
-                                {/* VARIANT SWITCHER OVERLAY — unified: attack selector + original/protected toggle */}
-                                <div className="absolute bottom-4 left-0 right-0 z-30 flex justify-center pointer-events-none">
-                                    <div className="pointer-events-auto flex flex-col items-center gap-2 max-w-[92vw]">
-
-                                        {/* ── Attack type selector — pick which simulation to compare ── */}
-                                        {isProtectedReady &&
-                                            (hasIdentity ||
-                                                hasIdentityOrig ||
-                                                hasMimicry ||
-                                                hasMimicryOrig ||
-                                                hasEditing ||
-                                                hasEditingOrig ||
-                                                hasWatermark ||
-                                                hasWatermarkOrig) && (
-                                            <div className="bg-black/55 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 shadow-xl flex items-center gap-0.5">
-                                                {/* "RAW" — no attack, shows original or protected image as-is */}
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setSelectedVariant(
-                                                            isOnOriginalSide
-                                                                ? "original"
-                                                                : "protected",
-                                                        )
-                                                    }
-                                                    className={cn(
-                                                        "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
-                                                        activeAttack === null
-                                                            ? "bg-white/20 text-white"
-                                                            : "text-white/45 hover:text-white hover:bg-white/10",
-                                                    )}
-                                                    title="View image without attack simulation"
-                                                >
-                                                    RAW
-                                                </button>
-                                                {(hasIdentity ||
-                                                    hasIdentityOrig) && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            selectAttack(
-                                                                "identity",
-                                                            )
-                                                        }
-                                                        className={cn(
-                                                            "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
-                                                            activeAttack ===
-                                                                "identity"
-                                                                ? "bg-white/20 text-white"
-                                                                : "text-white/45 hover:text-white hover:bg-white/10",
-                                                        )}
-                                                        title={
-                                                            String(
-                                                                step1
-                                                                    ?.verification_meta
-                                                                    ?.attack_label ??
-                                                                    "Face Detection",
-                                                            )
-                                                        }
-                                                    >
-                                                        {String(
-                                                            step1
-                                                                ?.verification_meta
-                                                                ?.attack_label ??
-                                                                "Deepfake",
-                                                        )}
-                                                    </button>
-                                                )}
-                                                {(hasMimicry ||
-                                                    hasMimicryOrig) && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            selectAttack(
-                                                                "mimicry",
-                                                            )
-                                                        }
-                                                        className={cn(
-                                                            "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
-                                                            activeAttack ===
-                                                                "mimicry"
-                                                                ? "bg-white/20 text-white"
-                                                                : "text-white/45 hover:text-white hover:bg-white/10",
-                                                        )}
-                                                        title={
-                                                            String(
-                                                                step2
-                                                                    ?.verification_meta
-                                                                    ?.attack_label ??
-                                                                    "Style Training",
-                                                            )
-                                                        }
-                                                    >
-                                                        {String(
-                                                            step2
-                                                                ?.verification_meta
-                                                                ?.attack_label ??
-                                                                "Style Training",
-                                                        )}
-                                                    </button>
-                                                )}
-                                                {(hasEditing ||
-                                                    hasEditingOrig) && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            selectAttack(
-                                                                "editing",
-                                                            )
-                                                        }
-                                                        className={cn(
-                                                            "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
-                                                            activeAttack ===
-                                                                "editing"
-                                                                ? "bg-white/20 text-white"
-                                                                : "text-white/45 hover:text-white hover:bg-white/10",
-                                                        )}
-                                                        title={
-                                                            String(
-                                                                step3
-                                                                    ?.verification_meta
-                                                                    ?.attack_label ??
-                                                                    "AI Editing",
-                                                            )
-                                                        }
-                                                    >
-                                                        {String(
-                                                            step3
-                                                                ?.verification_meta
-                                                                ?.attack_label ??
-                                                                "AI Editing",
-                                                        )}
-                                                    </button>
-                                                )}
-                                                {(hasWatermark ||
+                                {/* VARIANT SWITCHER OVERLAY — shield service only */}
+                                {FEATURES.shield && (
+                                    <div className="absolute bottom-4 left-0 right-0 z-30 flex justify-center pointer-events-none">
+                                        <div className="pointer-events-auto flex flex-col items-center gap-2 max-w-[92vw]">
+                                            {/* ── Attack type selector — pick which simulation to compare ── */}
+                                            {isProtectedReady &&
+                                                (hasIdentity ||
+                                                    hasIdentityOrig ||
+                                                    hasMimicry ||
+                                                    hasMimicryOrig ||
+                                                    hasEditing ||
+                                                    hasEditingOrig ||
+                                                    hasWatermark ||
                                                     hasWatermarkOrig) && (
+                                                    <div className="bg-black/55 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 shadow-xl flex items-center gap-0.5">
+                                                        {/* "RAW" — no attack, shows original or protected image as-is */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setSelectedVariant(
+                                                                    isOnOriginalSide
+                                                                        ? "original"
+                                                                        : "protected",
+                                                                )
+                                                            }
+                                                            className={cn(
+                                                                "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                                                activeAttack ===
+                                                                    null
+                                                                    ? "bg-white/20 text-white"
+                                                                    : "text-white/45 hover:text-white hover:bg-white/10",
+                                                            )}
+                                                            title="View image without attack simulation"
+                                                        >
+                                                            RAW
+                                                        </button>
+                                                        {(hasIdentity ||
+                                                            hasIdentityOrig) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    selectAttack(
+                                                                        "identity",
+                                                                    )
+                                                                }
+                                                                className={cn(
+                                                                    "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
+                                                                    activeAttack ===
+                                                                        "identity"
+                                                                        ? "bg-white/20 text-white"
+                                                                        : "text-white/45 hover:text-white hover:bg-white/10",
+                                                                )}
+                                                                title={String(
+                                                                    step1
+                                                                        ?.verification_meta
+                                                                        ?.attack_label ??
+                                                                        "Face Detection",
+                                                                )}
+                                                            >
+                                                                {String(
+                                                                    step1
+                                                                        ?.verification_meta
+                                                                        ?.attack_label ??
+                                                                        "Deepfake",
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                        {(hasMimicry ||
+                                                            hasMimicryOrig) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    selectAttack(
+                                                                        "mimicry",
+                                                                    )
+                                                                }
+                                                                className={cn(
+                                                                    "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
+                                                                    activeAttack ===
+                                                                        "mimicry"
+                                                                        ? "bg-white/20 text-white"
+                                                                        : "text-white/45 hover:text-white hover:bg-white/10",
+                                                                )}
+                                                                title={String(
+                                                                    step2
+                                                                        ?.verification_meta
+                                                                        ?.attack_label ??
+                                                                        "Style Training",
+                                                                )}
+                                                            >
+                                                                {String(
+                                                                    step2
+                                                                        ?.verification_meta
+                                                                        ?.attack_label ??
+                                                                        "Style Training",
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                        {(hasEditing ||
+                                                            hasEditingOrig) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    selectAttack(
+                                                                        "editing",
+                                                                    )
+                                                                }
+                                                                className={cn(
+                                                                    "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
+                                                                    activeAttack ===
+                                                                        "editing"
+                                                                        ? "bg-white/20 text-white"
+                                                                        : "text-white/45 hover:text-white hover:bg-white/10",
+                                                                )}
+                                                                title={String(
+                                                                    step3
+                                                                        ?.verification_meta
+                                                                        ?.attack_label ??
+                                                                        "AI Editing",
+                                                                )}
+                                                            >
+                                                                {String(
+                                                                    step3
+                                                                        ?.verification_meta
+                                                                        ?.attack_label ??
+                                                                        "AI Editing",
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                        {(hasWatermark ||
+                                                            hasWatermarkOrig) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    selectAttack(
+                                                                        "watermark",
+                                                                    )
+                                                                }
+                                                                className={cn(
+                                                                    "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
+                                                                    activeAttack ===
+                                                                        "watermark"
+                                                                        ? "bg-white/20 text-white"
+                                                                        : "text-white/45 hover:text-white hover:bg-white/10",
+                                                                )}
+                                                                title={String(
+                                                                    step4
+                                                                        ?.verification_meta
+                                                                        ?.attack_label ??
+                                                                        "Watermark",
+                                                                )}
+                                                            >
+                                                                {String(
+                                                                    step4
+                                                                        ?.verification_meta
+                                                                        ?.attack_label ??
+                                                                        "Watermark",
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                            {/* ── Main Toggle: Original vs Protected (context-aware) ── */}
+                                            {isProtectedReady && (
+                                                <div className="bg-black/60 backdrop-blur-md rounded-full p-1 border border-white/10 flex items-center gap-1 shadow-2xl">
                                                     <button
                                                         type="button"
-                                                        onClick={() =>
-                                                            selectAttack(
-                                                                "watermark",
-                                                            )
+                                                        onClick={
+                                                            goToOriginalSide
                                                         }
                                                         className={cn(
-                                                            "px-3 py-1 rounded-full text-[10px] font-medium transition-all truncate max-w-[120px]",
-                                                            activeAttack ===
-                                                                "watermark"
-                                                                ? "bg-white/20 text-white"
-                                                                : "text-white/45 hover:text-white hover:bg-white/10",
+                                                            "px-5 py-1.5 rounded-full text-xs font-semibold transition-all",
+                                                            isOnOriginalSide
+                                                                ? "bg-white text-black"
+                                                                : "text-white/60 hover:text-white hover:bg-white/10",
                                                         )}
-                                                        title={
-                                                            String(
-                                                                step4
-                                                                    ?.verification_meta
-                                                                    ?.attack_label ??
-                                                                    "Watermark",
-                                                            )
-                                                        }
                                                     >
-                                                        {String(
-                                                            step4
-                                                                ?.verification_meta
-                                                                ?.attack_label ??
-                                                                "Watermark",
-                                                        )}
+                                                        Original
                                                     </button>
-                                                )}
-                                            </div>
-                                        )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={
+                                                            goToProtectedSide
+                                                        }
+                                                        className={cn(
+                                                            "px-5 py-1.5 rounded-full text-xs font-semibold transition-all",
+                                                            !isOnOriginalSide
+                                                                ? "bg-emerald-500 text-white"
+                                                                : "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10",
+                                                        )}
+                                                    >
+                                                        Protected
+                                                    </button>
+                                                </div>
+                                            )}
 
-                                        {/* ── Main Toggle: Original vs Protected (context-aware) ── */}
-                                        {isProtectedReady && (
-                                            <div className="bg-black/60 backdrop-blur-md rounded-full p-1 border border-white/10 flex items-center gap-1 shadow-2xl">
-                                                <button
-                                                    type="button"
-                                                    onClick={goToOriginalSide}
-                                                    className={cn(
-                                                        "px-5 py-1.5 rounded-full text-xs font-semibold transition-all",
-                                                        isOnOriginalSide
-                                                            ? "bg-white text-black"
-                                                            : "text-white/60 hover:text-white hover:bg-white/10",
-                                                    )}
-                                                >
-                                                    Original
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={goToProtectedSide}
-                                                    className={cn(
-                                                        "px-5 py-1.5 rounded-full text-xs font-semibold transition-all",
-                                                        !isOnOriginalSide
-                                                            ? "bg-emerald-500 text-white"
-                                                            : "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10",
-                                                    )}
-                                                >
-                                                    Protected
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {/* Legacy v1 variants */}
-                                        {(hasFlux ||
-                                            hasSDXL ||
-                                            hasSemantic) && (
-                                            <div className="bg-black/55 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 shadow-xl flex items-center gap-1">
-                                                {hasFlux &&
-                                                    !variantBroken[
-                                                        "flux"
-                                                    ] && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setSelectedVariant(
-                                                                    "flux",
-                                                                )
-                                                            }
-                                                            className={cn(
-                                                                "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
-                                                                selectedVariant ===
-                                                                    "flux"
-                                                                    ? "bg-indigo-600 text-white"
-                                                                    : "text-white/45 hover:text-white hover:bg-white/10",
-                                                            )}
-                                                        >
-                                                            Flux
-                                                        </button>
-                                                    )}
-                                                {hasSDXL &&
-                                                    !variantBroken[
-                                                        "sdxl"
-                                                    ] && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setSelectedVariant(
-                                                                    "sdxl",
-                                                                )
-                                                            }
-                                                            className={cn(
-                                                                "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
-                                                                selectedVariant ===
-                                                                    "sdxl"
-                                                                    ? "bg-blue-600 text-white"
-                                                                    : "text-white/45 hover:text-white hover:bg-white/10",
-                                                            )}
-                                                        >
-                                                            SDXL
-                                                        </button>
-                                                    )}
-                                                {hasSemantic &&
-                                                    !variantBroken[
-                                                        "semantic"
-                                                    ] && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setSelectedVariant(
-                                                                    "semantic",
-                                                                )
-                                                            }
-                                                            className={cn(
-                                                                "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
-                                                                selectedVariant ===
-                                                                    "semantic"
-                                                                    ? "bg-purple-600 text-white"
-                                                                    : "text-white/45 hover:text-white hover:bg-white/10",
-                                                            )}
-                                                        >
-                                                            Semantic
-                                                        </button>
-                                                    )}
-                                            </div>
-                                        )}
+                                            {/* Legacy v1 variants */}
+                                            {(hasFlux ||
+                                                hasSDXL ||
+                                                hasSemantic) && (
+                                                <div className="bg-black/55 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 shadow-xl flex items-center gap-1">
+                                                    {hasFlux &&
+                                                        !variantBroken[
+                                                            "flux"
+                                                        ] && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setSelectedVariant(
+                                                                        "flux",
+                                                                    )
+                                                                }
+                                                                className={cn(
+                                                                    "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                                                    selectedVariant ===
+                                                                        "flux"
+                                                                        ? "bg-indigo-600 text-white"
+                                                                        : "text-white/45 hover:text-white hover:bg-white/10",
+                                                                )}
+                                                            >
+                                                                Flux
+                                                            </button>
+                                                        )}
+                                                    {hasSDXL &&
+                                                        !variantBroken[
+                                                            "sdxl"
+                                                        ] && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setSelectedVariant(
+                                                                        "sdxl",
+                                                                    )
+                                                                }
+                                                                className={cn(
+                                                                    "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                                                    selectedVariant ===
+                                                                        "sdxl"
+                                                                        ? "bg-blue-600 text-white"
+                                                                        : "text-white/45 hover:text-white hover:bg-white/10",
+                                                                )}
+                                                            >
+                                                                SDXL
+                                                            </button>
+                                                        )}
+                                                    {hasSemantic &&
+                                                        !variantBroken[
+                                                            "semantic"
+                                                        ] && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setSelectedVariant(
+                                                                        "semantic",
+                                                                    )
+                                                                }
+                                                                className={cn(
+                                                                    "px-3 py-1 rounded-full text-[10px] font-medium transition-all",
+                                                                    selectedVariant ===
+                                                                        "semantic"
+                                                                        ? "bg-purple-600 text-white"
+                                                                        : "text-white/45 hover:text-white hover:bg-white/10",
+                                                                )}
+                                                            >
+                                                                Semantic
+                                                            </button>
+                                                        )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}{" "}
+                                {/* end FEATURES.shield variant switcher */}
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center text-gray-500 gap-4">
@@ -715,11 +718,13 @@ export function ArtworkFullView({
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
-                                    <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-xs font-medium text-white/90 select-none border border-white/5">
-                                        <ArtworkStatusBadge
-                                            status={optimisticStatus}
-                                        />
-                                    </div>
+                                    {FEATURES.shield && (
+                                        <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-xs font-medium text-white/90 select-none border border-white/5">
+                                            <ArtworkStatusBadge
+                                                status={optimisticStatus}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Top-Right: Action Group */}
@@ -730,7 +735,7 @@ export function ArtworkFullView({
                         </div>
 
                         {/* Sidebar Toggle Tab - Attached to Layout */}
-                        {hasReport && (
+                        {FEATURES.shield && hasReport && (
                             <button
                                 onClick={() => setShowAudit(!showAudit)}
                                 className={cn(
@@ -751,36 +756,40 @@ export function ArtworkFullView({
                         )}
                     </div>
 
-                    {/* Sidebar: Audit Report Panel */}
-                    <div
-                        className={cn(
-                            "h-full bg-zinc-950 border-l border-white/10 flex flex-col transition-all duration-300 ease-in-out shrink-0",
-                            // Mobile: Absolute overlay
-                            "absolute right-0 top-0 bottom-0 md:relative z-40",
-                            // Width & Visibility Logic
-                            showAudit
-                                ? "w-[85vw] sm:w-[360px] translate-x-0 opacity-100"
-                                : "w-[85vw] sm:w-0 translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden md:border-none md:opacity-0",
-                        )}
-                    >
-                        {showAudit && ( // Conditional render content to avoid layout thrashing when width is 0
-                            <div className="flex flex-col h-full bg-zinc-950">
-                                <ProtectionAuditTrail
-                                    status={artwork.protectionStatus}
-                                    jobResult={
-                                        statusData?.progress || { steps: [] }
-                                    }
-                                    statusDate={artwork.updatedAt}
-                                    className="border-0"
-                                    r2BaseUrl="/api/assets"
-                                    selectedVariant={selectedVariant}
-                                    onSelectVariant={(v) =>
-                                        setSelectedVariant(v as VariantType)
-                                    }
-                                />
-                            </div>
-                        )}
-                    </div>
+                    {/* Sidebar: Audit Report Panel — shield service only */}
+                    {FEATURES.shield && (
+                        <div
+                            className={cn(
+                                "h-full bg-zinc-950 border-l border-white/10 flex flex-col transition-all duration-300 ease-in-out shrink-0",
+                                // Mobile: Absolute overlay
+                                "absolute right-0 top-0 bottom-0 md:relative z-40",
+                                // Width & Visibility Logic
+                                showAudit
+                                    ? "w-[85vw] sm:w-[360px] translate-x-0 opacity-100"
+                                    : "w-[85vw] sm:w-0 translate-x-full md:translate-x-0 md:w-0 md:overflow-hidden md:border-none md:opacity-0",
+                            )}
+                        >
+                            {showAudit && (
+                                <div className="flex flex-col h-full bg-zinc-950">
+                                    <ProtectionAuditTrail
+                                        status={artwork.protectionStatus}
+                                        jobResult={
+                                            statusData?.progress || {
+                                                steps: [],
+                                            }
+                                        }
+                                        statusDate={artwork.updatedAt}
+                                        className="border-0"
+                                        r2BaseUrl="/api/assets"
+                                        selectedVariant={selectedVariant}
+                                        onSelectVariant={(v) =>
+                                            setSelectedVariant(v as VariantType)
+                                        }
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
