@@ -23,16 +23,7 @@ export default async function ArtworksPage({
 
     return (
         <div className="w-full">
-            <div className="px-4 pt-6 pb-2 md:px-6 md:pt-6">
-                <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-                    My Artworks
-                </h1>
-                <p className="text-gray-600 text-sm md:text-base mt-1">
-                    Upload, organize and manage your artwork
-                </p>
-            </div>
-
-            {/* Breadcrumb + Filters bar */}
+            {/* Breadcrumb + Filters bar — sticky at the top */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 md:px-6 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
                 <WorkspaceBreadcrumb collectionId={collectionId} />
                 <Suspense fallback={null}>
@@ -42,6 +33,15 @@ export default async function ArtworksPage({
                         visibility={query.visibility}
                     />
                 </Suspense>
+            </div>
+
+            <div className="px-4 pt-6 pb-2 md:px-6 md:pt-6">
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                    My Artworks
+                </h1>
+                <p className="text-gray-600 text-sm md:text-base mt-1">
+                    Upload, organize and manage your artwork
+                </p>
             </div>
 
             <div className="px-2 pb-6">
