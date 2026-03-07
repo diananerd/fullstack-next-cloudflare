@@ -57,7 +57,7 @@ export function ArtworkFullView({
     // V2: Fetch Status
     const statusData = useArtworkStatus(
         artwork.id,
-        artwork.protectionStatus,
+        artwork.protectionStatus ?? "idle",
     ) as any;
     const progress = statusData?.progress; // New V2 Progress
 
@@ -721,7 +721,9 @@ export function ArtworkFullView({
                                     {FEATURES.shield && (
                                         <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-xs font-medium text-white/90 select-none border border-white/5">
                                             <ArtworkStatusBadge
-                                                status={optimisticStatus}
+                                                status={
+                                                    optimisticStatus ?? "idle"
+                                                }
                                             />
                                         </div>
                                     )}
@@ -772,7 +774,9 @@ export function ArtworkFullView({
                             {showAudit && (
                                 <div className="flex flex-col h-full bg-zinc-950">
                                     <ProtectionAuditTrail
-                                        status={artwork.protectionStatus}
+                                        status={
+                                            artwork.protectionStatus ?? "idle"
+                                        }
                                         jobResult={
                                             statusData?.progress || {
                                                 steps: [],

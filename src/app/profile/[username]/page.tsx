@@ -6,7 +6,10 @@ import { getDb } from "@/db";
 import { artworks } from "@/modules/artworks/schemas/artwork.schema";
 import { user as userSchema } from "@/modules/auth/schemas/auth.schema";
 import { getSession } from "@/modules/auth/utils/auth-utils";
-import { member, organization } from "@/modules/profiles/schemas/org-plugin.schema";
+import {
+    member,
+    organization,
+} from "@/modules/profiles/schemas/org-plugin.schema";
 
 export default async function ProfilePage(props: {
     params: Promise<{ username: string }>;
@@ -44,7 +47,12 @@ export default async function ProfilePage(props: {
         const [ownerMember] = await db
             .select({ userId: member.userId })
             .from(member)
-            .where(and(eq(member.organizationId, org.id), eq(member.role, "owner")))
+            .where(
+                and(
+                    eq(member.organizationId, org.id),
+                    eq(member.role, "owner"),
+                ),
+            )
             .limit(1);
         ownerUserId = ownerMember?.userId ?? null;
     } else {
@@ -116,7 +124,9 @@ export default async function ProfilePage(props: {
                         </h1>
                         <p className="text-sm text-stone-400">@{slug}</p>
                         {bio && (
-                            <p className="text-sm text-stone-500 mt-1 max-w-md">{bio}</p>
+                            <p className="text-sm text-stone-500 mt-1 max-w-md">
+                                {bio}
+                            </p>
                         )}
                         {websiteUrl && (
                             <a
@@ -133,7 +143,9 @@ export default async function ProfilePage(props: {
 
                 {/* Artworks */}
                 {userArtworks.length === 0 ? (
-                    <p className="text-sm text-stone-400">No public artworks yet.</p>
+                    <p className="text-sm text-stone-400">
+                        No public artworks yet.
+                    </p>
                 ) : (
                     <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 space-y-3">
                         {userArtworks.map((artwork) => (
@@ -143,7 +155,7 @@ export default async function ProfilePage(props: {
                             >
                                 {/* biome-ignore lint/performance/noImgElement: artwork thumbnail */}
                                 <img
-                                    src={artwork.url}
+                                    src={artwork.url ?? undefined}
                                     alt={artwork.title}
                                     className="w-full object-cover"
                                     loading="lazy"

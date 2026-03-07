@@ -19,8 +19,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // Only run auth check on protected routes
-    const isProtected = PROTECTED_PREFIXES.some((prefix) =>
-        pathname === prefix || pathname.startsWith(`${prefix}/`),
+    const isProtected = PROTECTED_PREFIXES.some(
+        (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
     );
     if (!isProtected) {
         return NextResponse.next();

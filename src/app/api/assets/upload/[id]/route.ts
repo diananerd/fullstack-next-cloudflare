@@ -24,9 +24,11 @@ export async function PUT(
             );
 
         const db = await getDb();
-        const artwork = await db.query.artworks.findFirst({
-            where: eq(artworks.id, parseInt(id)),
-        });
+        const [artwork] = await db
+            .select()
+            .from(artworks)
+            .where(eq(artworks.id, id))
+            .limit(1);
 
         if (!artwork)
             return NextResponse.json(

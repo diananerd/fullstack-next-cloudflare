@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Organization } from "@/modules/profiles/schemas/org-plugin.schema";
-import { createProfileAction, updateProfileAction } from "@/modules/profiles/actions/profile.action";
+import {
+    createProfileAction,
+    updateProfileAction,
+} from "@/modules/profiles/actions/profile.action";
 
 // ── Create form (no org yet) ──────────────────────────────────────────────────
 
@@ -25,7 +28,9 @@ export function CreateProfileForm() {
         const s = val.toLowerCase().replace(/[^a-z0-9\-]/g, "");
         setSlug(s);
         if (s.length > 0 && !SLUG_PATTERN.test(s))
-            setSlugError("Letters, numbers, hyphens only. No leading/trailing hyphens.");
+            setSlugError(
+                "Letters, numbers, hyphens only. No leading/trailing hyphens.",
+            );
         else setSlugError(null);
     };
 
@@ -60,10 +65,15 @@ export function CreateProfileForm() {
 
             <div className="flex flex-col gap-1.5">
                 <Label htmlFor="profile-slug">
-                    Handle <span className="text-muted-foreground font-normal">(@username)</span>
+                    Handle{" "}
+                    <span className="text-muted-foreground font-normal">
+                        (@username)
+                    </span>
                 </Label>
                 <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-sm">drimit.io/@</span>
+                    <span className="text-muted-foreground text-sm">
+                        drimit.io/@
+                    </span>
                     <Input
                         id="profile-slug"
                         placeholder="diananerd"
@@ -73,12 +83,16 @@ export function CreateProfileForm() {
                         className="flex-1"
                     />
                 </div>
-                {slugError && <p className="text-xs text-red-500">{slugError}</p>}
+                {slugError && (
+                    <p className="text-xs text-red-500">{slugError}</p>
+                )}
             </div>
 
             <Button
                 type="submit"
-                disabled={isPending || !name.trim() || !slug.trim() || !!slugError}
+                disabled={
+                    isPending || !name.trim() || !slug.trim() || !!slugError
+                }
             >
                 {isPending ? "Creating…" : "Create profile"}
             </Button>
@@ -111,7 +125,12 @@ export function ProfileEditForm({ org }: ProfileEditFormProps) {
         if (!name.trim()) return;
 
         startTransition(async () => {
-            const result = await updateProfileAction(org.id, { name, bio, websiteUrl, visibility });
+            const result = await updateProfileAction(org.id, {
+                name,
+                bio,
+                websiteUrl,
+                visibility,
+            });
             if (result.success) {
                 toast.success("Profile saved.");
                 router.refresh();
@@ -151,7 +170,9 @@ export function ProfileEditForm({ org }: ProfileEditFormProps) {
                     maxLength={300}
                     rows={3}
                 />
-                <p className="text-xs text-muted-foreground">{bio.length}/300</p>
+                <p className="text-xs text-muted-foreground">
+                    {bio.length}/300
+                </p>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -180,7 +201,10 @@ export function ProfileEditForm({ org }: ProfileEditFormProps) {
             </div>
 
             <div className="flex justify-end">
-                <Button type="submit" disabled={isPending || !isDirty || !name.trim()}>
+                <Button
+                    type="submit"
+                    disabled={isPending || !isDirty || !name.trim()}
+                >
                     {isPending ? "Saving…" : "Save changes"}
                 </Button>
             </div>

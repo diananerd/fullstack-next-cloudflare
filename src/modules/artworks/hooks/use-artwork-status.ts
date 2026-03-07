@@ -15,7 +15,7 @@ export type ProgressData = {
 };
 
 export function useArtworkStatus(
-    artworkId: number,
+    artworkId: string,
     initialStatus: ProtectionStatusType,
 ) {
     const [status, setStatus] = useState<ProtectionStatusType>(initialStatus);

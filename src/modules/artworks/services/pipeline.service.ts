@@ -1,6 +1,6 @@
 import { eq, inArray, and, asc, desc, count, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { artworks } from "../schemas/artwork.schema";
+import { workspaceItems as artworks } from "../schemas/workspace-item.schema";
 import {
     artworkJobs,
     JobStatus,
@@ -31,7 +31,7 @@ export class PipelineService {
      * V2 Refactor: Always starts a Unified Shield Pipeline.
      */
     static async startPipeline(
-        artworkId: number,
+        artworkId: string,
         userId: string,
         // Config is passed, but method is implied as SHIELD for V2,
         // though we support passing it for future proofing.
@@ -40,9 +40,11 @@ export class PipelineService {
         const db = await getDb();
 
         // 1. Validate Artwork State
-        const artwork = await db.query.artworks.findFirst({
-            where: eq(artworks.id, artworkId),
-        });
+        const [artwork] = await db
+            .select()
+            .from(artworks)
+            .where(eq(artworks.id, artworkId))
+            .limit(1);
 
         if (!artwork) throw new Error("Artwork not found");
 
@@ -115,7 +117,7 @@ export class PipelineService {
                     method: ProtectionMethod.SHIELD, // Enforce Shield
                     config: mainConfig,
                     stepOrder: 0,
-                    inputUrl: artwork.url,
+                    inputUrl: artwork.url ?? "",
                     status: JobStatus.PENDING,
                     createdAt: now,
                     updatedAt: now,
@@ -154,7 +156,7 @@ export class PipelineService {
      * Resumes or Restarts a pipeline.
      */
     static async resumePipeline(
-        artworkId: number,
+        artworkId: string,
         userId: string,
     ): Promise<void> {
         // Simplified Resume: Just restart the last job if failed/stuck
@@ -201,17 +203,18 @@ export class PipelineService {
 
         // Fetch artwork r2Key so Python can derive the correct output path prefix.
         // Convention: {userId}/{sha256}/original.ext → output goes to {userId}/{sha256}/
-        const artwork = await db.query.artworks.findFirst({
-            where: eq(artworks.id, job.artworkId),
-            columns: { r2Key: true },
-        });
+        const [artwork] = await db
+            .select({ r2Key: artworks.r2Key })
+            .from(artworks)
+            .where(eq(artworks.id, job.artworkId))
+            .limit(1);
 
         try {
             const externalId = await dispatchProtectionJob({
                 artworkId: job.artworkId,
                 userId: userId,
                 imageUrl: job.inputUrl,
-                imageR2Key: artwork?.r2Key,
+                imageR2Key: artwork?.r2Key ?? undefined,
                 method: job.method as ProtectionMethodType,
                 config: job.config,
             });
@@ -253,7 +256,7 @@ export class PipelineService {
      * Main Orchestration: Sync Statuses
      * V2 Refactor: Optimized for multiple artworks in one batch.
      */
-    static async syncRunningJobs(targetArtworkId?: number) {
+    static async syncRunningJobs(targetArtworkId?: string) {
         const db = await getDb();
 
         const conditions = [
@@ -366,16 +369,14 @@ export class PipelineService {
                         PROTECTION_PRICING[ProtectionMethod.SHIELD]?.cost ??
                         DEFAULT_PROCESS_COST;
                     // Declared outside try so catch can reference it for error reporting
-                    let artwork:
-                        | Awaited<
-                              ReturnType<typeof db.query.artworks.findFirst>
-                          >
-                        | undefined;
+                    let artwork: typeof artworks.$inferSelect | undefined;
 
                     try {
-                        artwork = await db.query.artworks.findFirst({
-                            where: eq(artworks.id, job.artworkId),
-                        });
+                        [artwork] = await db
+                            .select()
+                            .from(artworks)
+                            .where(eq(artworks.id, job.artworkId))
+                            .limit(1);
 
                         // Merge result into artwork metadata for easy frontend access
                         const updatedMetadata = {
@@ -452,9 +453,11 @@ export class PipelineService {
                             })
                             .where(eq(artworkJobs.id, job.id)),
                     );
-                    const failedArtwork = await db.query.artworks.findFirst({
-                        where: eq(artworks.id, job.artworkId),
-                    });
+                    const [failedArtwork] = await db
+                        .select()
+                        .from(artworks)
+                        .where(eq(artworks.id, job.artworkId))
+                        .limit(1);
                     if (failedArtwork?.userId) {
                         void Analytics.protectionFailed(failedArtwork.userId, {
                             artwork_id: job.artworkId,
@@ -542,10 +545,11 @@ export class PipelineService {
             try {
                 // Fetch userId from artwork relation for dispatch
                 // Optimized: We could join in the select, but for now simple query is fine
-                const artwork = await db.query.artworks.findFirst({
-                    where: eq(artworks.id, job.artworkId),
-                    columns: { userId: true },
-                });
+                const [artwork] = await db
+                    .select({ userId: artworks.userId })
+                    .from(artworks)
+                    .where(eq(artworks.id, job.artworkId))
+                    .limit(1);
 
                 if (artwork) {
                     await this.dispatchJob(job.id, artwork.userId);

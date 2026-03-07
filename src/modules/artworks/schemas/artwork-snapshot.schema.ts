@@ -21,7 +21,7 @@ export const artworkSnapshots = sqliteTable(
     "artwork_snapshots",
     {
         id: integer("id").primaryKey({ autoIncrement: true }),
-        artworkId: integer("artwork_id")
+        artworkId: text("artwork_id")
             .notNull()
             .references(() => artworks.id, { onDelete: "cascade" }),
         // Optional link to prior snapshot (singly-linked version chain)

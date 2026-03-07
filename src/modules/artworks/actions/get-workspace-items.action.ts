@@ -1,96 +1,13 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { workspaceItems } from "@/modules/artworks/schemas/workspace-item.schema";
 import type {
     WorkspaceItemsResult,
     WorkspaceQuery,
 } from "@/modules/artworks/models/workspace-item.model";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
-import { PlacementContext } from "@/modules/social/models/collection.enum";
-import { collectionItems } from "@/modules/social/schemas/collection-item.schema";
-import { collectionMembers } from "@/modules/social/schemas/collection-member.schema";
-import { collectionPlacements } from "@/modules/social/schemas/collection-placement.schema";
-import { collections } from "@/modules/social/schemas/collection.schema";
-
-// Infer result row type from the artwork SELECT shape.
-type UnifiedRow = {
-    kind: string;
-    id: string;
-    title: string;
-    createdAt: string;
-    updatedAt: string;
-    visibility: string;
-    url: string | null;
-    r2Key: string | null;
-    width: number | null;
-    height: number | null;
-    protectionStatus: string | null;
-    itemCount: number | null;
-    role: string | null;
-};
-
-function sortExpr(
-    sort: WorkspaceQuery["sort"],
-    order: WorkspaceQuery["order"],
-) {
-    if (sort === "title")
-        return order === "asc" ? sql`title ASC` : sql`title DESC`;
-    if (sort === "updatedAt")
-        return order === "asc" ? sql`updated_at ASC` : sql`updated_at DESC`;
-    return order === "asc" ? sql`created_at ASC` : sql`created_at DESC`;
-}
-
-/** Build the collection subquery for a given context (root workspace or inside a collection). */
-function buildCollQ(
-    db: Awaited<ReturnType<typeof getDb>>,
-    userId: string,
-    collectionId: string | undefined,
-    collVisClauses: ReturnType<typeof eq>[],
-) {
-    const ctxWhere = collectionId
-        ? and(
-              eq(collectionPlacements.contextType, PlacementContext.COLLECTION),
-              eq(collectionPlacements.contextId, collectionId),
-              ...collVisClauses,
-          )
-        : and(
-              eq(collectionPlacements.contextType, PlacementContext.WORKSPACE),
-              eq(collectionPlacements.contextId, userId),
-              ...collVisClauses,
-          );
-
-    return db
-        .select({
-            kind: sql<string>`'collection'`,
-            id: collections.id,
-            title: collections.title,
-            createdAt: collections.createdAt,
-            updatedAt: collections.updatedAt,
-            visibility: collections.visibility,
-            url: sql<string | null>`NULL`,
-            r2Key: sql<string | null>`NULL`,
-            width: sql<number | null>`NULL`,
-            height: sql<number | null>`NULL`,
-            protectionStatus: sql<string | null>`NULL`,
-            itemCount: sql<number | null>`${collections.itemCount}`,
-            role: sql<string | null>`${collectionMembers.role}`,
-        })
-        .from(collectionPlacements)
-        .innerJoin(
-            collections,
-            eq(collectionPlacements.collectionId, collections.id),
-        )
-        .innerJoin(
-            collectionMembers,
-            and(
-                eq(collectionMembers.collectionId, collections.id),
-                eq(collectionMembers.userId, userId),
-            ),
-        )
-        .where(ctxWhere);
-}
 
 export async function getWorkspaceItemsAction(
     query: WorkspaceQuery,
@@ -100,75 +17,39 @@ export async function getWorkspaceItemsAction(
 
     const { collectionId, sort, order, visibility, offset, limit } = query;
 
-    const artworkVisClauses =
-        visibility !== "all" ? [eq(artworks.visibility, visibility)] : [];
-    const collVisClauses =
-        visibility !== "all" ? [eq(collections.visibility, visibility)] : [];
+    const orderExpr =
+        sort === "title"
+            ? order === "asc"
+                ? asc(workspaceItems.title)
+                : desc(workspaceItems.title)
+            : sort === "updatedAt"
+              ? order === "asc"
+                  ? asc(workspaceItems.updatedAt)
+                  : desc(workspaceItems.updatedAt)
+              : order === "asc"
+                ? asc(workspaceItems.createdAt)
+                : desc(workspaceItems.createdAt);
 
-    const collQ = buildCollQ(db, user.id, collectionId, collVisClauses);
+    const whereClauses = [
+        eq(workspaceItems.userId, user.id),
+        collectionId
+            ? eq(workspaceItems.parentId, collectionId)
+            : isNull(workspaceItems.parentId),
+        ...(visibility !== "all"
+            ? [eq(workspaceItems.visibility, visibility)]
+            : []),
+    ];
 
-    // ── UNION ALL: artworks (paginated) + collections (all, pre-sort) ─────────
-    // Each branch is its own query; TypeScript infers the correct type per branch.
-    const rowsRaw: UnifiedRow[] = collectionId
-        ? // Inside a collection: artworks via collection_items JOIN artworks
-          await db
-              .select({
-                  kind: sql<string>`'artwork'`,
-                  id: sql<string>`cast(${artworks.id} as text)`,
-                  title: artworks.title,
-                  createdAt: artworks.createdAt,
-                  updatedAt: artworks.updatedAt,
-                  visibility: artworks.visibility,
-                  url: sql<string | null>`${artworks.url}`,
-                  r2Key: sql<string | null>`${artworks.r2Key}`,
-                  width: artworks.width,
-                  height: artworks.height,
-                  protectionStatus: sql<
-                      string | null
-                  >`${artworks.protectionStatus}`,
-                  itemCount: sql<number | null>`NULL`,
-                  role: sql<string | null>`NULL`,
-              })
-              .from(collectionItems)
-              .innerJoin(artworks, eq(collectionItems.artworkId, artworks.id))
-              .where(
-                  and(
-                      eq(collectionItems.collectionId, collectionId),
-                      ...artworkVisClauses,
-                  ),
-              )
-              .unionAll(collQ)
-              .orderBy(sortExpr(sort, order))
-              .limit(limit + 1)
-              .offset(offset)
-        : // Workspace root: artworks directly
-          await db
-              .select({
-                  kind: sql<string>`'artwork'`,
-                  id: sql<string>`cast(${artworks.id} as text)`,
-                  title: artworks.title,
-                  createdAt: artworks.createdAt,
-                  updatedAt: artworks.updatedAt,
-                  visibility: artworks.visibility,
-                  url: sql<string | null>`${artworks.url}`,
-                  r2Key: sql<string | null>`${artworks.r2Key}`,
-                  width: artworks.width,
-                  height: artworks.height,
-                  protectionStatus: sql<
-                      string | null
-                  >`${artworks.protectionStatus}`,
-                  itemCount: sql<number | null>`NULL`,
-                  role: sql<string | null>`NULL`,
-              })
-              .from(artworks)
-              .where(and(eq(artworks.userId, user.id), ...artworkVisClauses))
-              .unionAll(collQ)
-              .orderBy(sortExpr(sort, order))
-              .limit(limit + 1)
-              .offset(offset);
+    const rows = await db
+        .select()
+        .from(workspaceItems)
+        .where(and(...whereClauses))
+        .orderBy(orderExpr)
+        .limit(limit + 1)
+        .offset(offset);
 
-    const hasMore = rowsRaw.length > limit;
-    const page = hasMore ? rowsRaw.slice(0, limit) : rowsRaw;
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
 
     const items = page.map((row) => {
         if (row.kind === "collection") {
@@ -179,13 +60,13 @@ export async function getWorkspaceItemsAction(
                 createdAt: row.createdAt,
                 updatedAt: row.updatedAt,
                 visibility: row.visibility,
-                itemCount: row.itemCount ?? 0,
-                role: row.role ?? "viewer",
+                itemCount: row.itemCount,
+                role: "owner",
             };
         }
         return {
             kind: "artwork" as const,
-            id: Number(row.id),
+            id: row.id,
             title: row.title,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
@@ -211,29 +92,23 @@ export async function resolveCollectionPath(
     let currentId: string | null = collectionId;
 
     for (let depth = 0; depth < 10 && currentId; depth++) {
-        const [coll] = await db
-            .select({ id: collections.id, title: collections.title })
-            .from(collections)
-            .where(eq(collections.id, currentId))
-            .limit(1);
-        if (!coll) break;
-        path.unshift(coll);
-
-        const [parent] = await db
-            .select({ contextId: collectionPlacements.contextId })
-            .from(collectionPlacements)
+        const [node] = await db
+            .select({
+                id: workspaceItems.id,
+                title: workspaceItems.title,
+                parentId: workspaceItems.parentId,
+            })
+            .from(workspaceItems)
             .where(
                 and(
-                    eq(collectionPlacements.collectionId, currentId),
-                    eq(
-                        collectionPlacements.contextType,
-                        PlacementContext.COLLECTION,
-                    ),
+                    eq(workspaceItems.id, currentId),
+                    eq(workspaceItems.kind, "collection"),
                 ),
             )
             .limit(1);
-
-        currentId = parent?.contextId ?? null;
+        if (!node) break;
+        path.unshift({ id: node.id, title: node.title });
+        currentId = node.parentId ?? null;
     }
 
     return path;

@@ -6,5 +6,10 @@ export default async function Page({
     searchParams: Promise<Record<string, string | undefined>>;
 }) {
     const params = await searchParams;
-    return <ArtworksPage searchParams={searchParams} collectionId={params.collectionId} />;
+    return (
+        <ArtworksPage
+            searchParams={searchParams}
+            collectionId={params.collectionId}
+        />
+    );
 }

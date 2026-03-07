@@ -4,7 +4,10 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getDb } from "@/db";
 import { getAuthInstance, requireAuth } from "@/modules/auth/utils/auth-utils";
-import { member, organization } from "@/modules/profiles/schemas/org-plugin.schema";
+import {
+    member,
+    organization,
+} from "@/modules/profiles/schemas/org-plugin.schema";
 import { session as sessionSchema } from "@/modules/auth/schemas/auth.schema";
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9\-]{0,48}[a-z0-9]$|^[a-z0-9]{1,2}$/;
@@ -31,7 +34,8 @@ export async function createProfileAction(name: string, slug: string) {
         .from(organization)
         .where(eq(organization.slug, trimmedSlug))
         .limit(1);
-    if (existing) return { success: false, error: "That handle is already taken." };
+    if (existing)
+        return { success: false, error: "That handle is already taken." };
 
     const orgId = crypto.randomUUID();
     await db.insert(organization).values({
@@ -51,7 +55,9 @@ export async function createProfileAction(name: string, slug: string) {
 
     // Set as active org in the current session
     const auth = await getAuthInstance();
-    const currentSession = await auth.api.getSession({ headers: await headers() });
+    const currentSession = await auth.api.getSession({
+        headers: await headers(),
+    });
     if (currentSession?.session?.id) {
         await db
             .update(sessionSchema)
@@ -62,12 +68,15 @@ export async function createProfileAction(name: string, slug: string) {
     return { success: true, slug: trimmedSlug };
 }
 
-export async function updateProfileAction(orgId: string, data: {
-    name: string;
-    bio: string;
-    websiteUrl: string;
-    visibility: string;
-}) {
+export async function updateProfileAction(
+    orgId: string,
+    data: {
+        name: string;
+        bio: string;
+        websiteUrl: string;
+        visibility: string;
+    },
+) {
     const user = await requireAuth();
     const db = await getDb();
 

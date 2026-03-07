@@ -16,7 +16,7 @@ export const portfolioArtworks = sqliteTable(
         organizationId: text("organization_id")
             .notNull()
             .references(() => organization.id, { onDelete: "cascade" }),
-        artworkId: integer("artwork_id")
+        artworkId: text("artwork_id")
             .notNull()
             .references(() => artworks.id, { onDelete: "cascade" }),
         isFeatured: integer("is_featured", { mode: "boolean" })

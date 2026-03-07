@@ -62,7 +62,7 @@ const LAYER_ICON_MAP: Record<
 };
 
 interface ProtectArtworkDialogProps {
-    artworkId: number;
+    artworkId: string;
     children?: React.ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;

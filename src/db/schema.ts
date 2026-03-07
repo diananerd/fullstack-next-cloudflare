@@ -1,4 +1,5 @@
 export { artworks } from "@/modules/artworks/schemas/artwork.schema";
+export { workspaceItems } from "@/modules/artworks/schemas/workspace-item.schema";
 export {
     artworkArtists,
     ArtworkRole,

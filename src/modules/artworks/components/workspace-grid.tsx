@@ -19,7 +19,7 @@ import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 import type { Collection } from "@/modules/social/schemas/collection.schema";
 
 type DragPayload =
-    | { kind: "artwork"; id: number }
+    | { kind: "artwork"; id: string }
     | { kind: "collection"; id: string };
 
 interface WorkspaceGridProps {

@@ -1,8 +1,18 @@
 "use client";
 
-import { ArrowDownAZ, ArrowUpAZ, CalendarArrowDown, CalendarArrowUp, Clock } from "lucide-react";
+import {
+    ArrowDownAZ,
+    ArrowUpAZ,
+    CalendarArrowDown,
+    CalendarArrowUp,
+    Clock,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { SortField, SortOrder, VisibilityFilter } from "@/modules/artworks/models/workspace-item.model";
+import type {
+    SortField,
+    SortOrder,
+    VisibilityFilter,
+} from "@/modules/artworks/models/workspace-item.model";
 
 const SORT_LABELS: Record<SortField, string> = {
     createdAt: "Date added",
@@ -37,7 +47,8 @@ export function WorkspaceToolbar({
         router.push(`${pathname}?${params.toString()}`);
     };
 
-    const toggleOrder = () => update("order", order === "desc" ? "asc" : "desc");
+    const toggleOrder = () =>
+        update("order", order === "desc" ? "asc" : "desc");
 
     const OrderIcon =
         sort === "title"
@@ -79,11 +90,13 @@ export function WorkspaceToolbar({
                 onChange={(e) => update("visibility", e.target.value)}
                 className="h-7 text-xs rounded-md border border-gray-200 bg-white px-2 text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300"
             >
-                {(Object.keys(VISIBILITY_LABELS) as VisibilityFilter[]).map((v) => (
-                    <option key={v} value={v}>
-                        {VISIBILITY_LABELS[v]}
-                    </option>
-                ))}
+                {(Object.keys(VISIBILITY_LABELS) as VisibilityFilter[]).map(
+                    (v) => (
+                        <option key={v} value={v}>
+                            {VISIBILITY_LABELS[v]}
+                        </option>
+                    ),
+                )}
             </select>
         </div>
     );

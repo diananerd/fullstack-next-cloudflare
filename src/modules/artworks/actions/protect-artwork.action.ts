@@ -10,7 +10,7 @@ import { Analytics } from "@/lib/analytics";
 const DASHBOARD_ROUTE = "/artworks";
 
 export type ProtectArtworkInput = {
-    artworkId: number;
+    artworkId: string;
     pipeline: {
         method: ProtectionMethodType;
         config?: Record<string, any>;

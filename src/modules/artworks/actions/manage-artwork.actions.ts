@@ -5,13 +5,13 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
 import { deleteFromR2, deleteFolderFromR2 } from "@/lib/r2";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { workspaceItems as artworks } from "@/modules/artworks/schemas/workspace-item.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { PipelineService } from "../services/pipeline.service";
 
 const DASHBOARD_ROUTE = "/artworks";
 
-export async function deleteArtworkAction(artworkId: number) {
+export async function deleteArtworkAction(artworkId: string) {
     try {
         const user = await requireAuth();
         const db = await getDb();
@@ -51,7 +51,7 @@ export async function deleteArtworkAction(artworkId: number) {
     }
 }
 
-export async function cancelProtectionAction(artworkId: number) {
+export async function cancelProtectionAction(artworkId: string) {
     try {
         const user = await requireAuth();
         const db = await getDb();
@@ -79,7 +79,7 @@ export async function cancelProtectionAction(artworkId: number) {
     }
 }
 
-export async function retryProtectionAction(artworkId: number) {
+export async function retryProtectionAction(artworkId: string) {
     try {
         const user = await requireAuth();
 

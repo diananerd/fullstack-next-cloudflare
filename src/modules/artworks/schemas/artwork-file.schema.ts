@@ -35,7 +35,7 @@ export const artworkFiles = sqliteTable(
     "artwork_files",
     {
         id: integer("id").primaryKey({ autoIncrement: true }),
-        artworkId: integer("artwork_id")
+        artworkId: text("artwork_id")
             .notNull()
             .references(() => artworks.id, { onDelete: "cascade" }),
         role: text("role")

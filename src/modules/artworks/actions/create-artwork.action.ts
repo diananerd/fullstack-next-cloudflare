@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { deleteFromR2, type UploadResult, uploadToR2 } from "@/lib/r2";
 import {
     type ProtectionMethodType,
@@ -10,14 +10,12 @@ import {
     type ProtectionStatusType,
 } from "@/modules/artworks/models/artwork.enum";
 import {
-    artworks,
+    workspaceItems,
     insertArtworkSchema,
-} from "@/modules/artworks/schemas/artwork.schema";
+} from "@/modules/artworks/schemas/workspace-item.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { CreditService } from "@/modules/credits/services/credit.service";
 import { Analytics } from "@/lib/analytics";
-import { collectionItems } from "@/modules/social/schemas/collection-item.schema";
-import { collections } from "@/modules/social/schemas/collection.schema";
 
 // Temporary route definition until we have a proper route file
 const DASHBOARD_ROUTE = "/artworks";
@@ -34,9 +32,9 @@ async function checkDuplicateHash(userId: string, hash: string) {
     try {
         // Fetch all uploads by this user to guarantee uniqueness
         const userUploads = await db
-            .select({ metadata: artworks.metadata })
-            .from(artworks)
-            .where(eq(artworks.userId, userId));
+            .select({ metadata: workspaceItems.metadata })
+            .from(workspaceItems)
+            .where(eq(workspaceItems.userId, userId));
 
         // Check if any of them match the hash
         const isDuplicate = userUploads.some((artwork) => {
@@ -189,9 +187,11 @@ export async function createArtworkAction(formData: FormData) {
         // We let Zod parse it, but we need to supply the R2 data
 
         const artworkData = {
+            kind: "artwork" as const,
             title: title || "Untitled",
             description: description,
             userId: user.id,
+            parentId: collectionId ?? null,
             r2Key: uploadResult.key,
             url: uploadResult.url,
             protectionStatus: ProtectionStatus.IDLE,
@@ -205,16 +205,17 @@ export async function createArtworkAction(formData: FormData) {
         const validatedData = insertArtworkSchema.parse(artworkData);
         // Explicit cast to fix Drizzle type inference issue with Zod optional enums
         const safeData = {
+            kind: "artwork" as const,
             title: validatedData.title,
             description: validatedData.description,
             userId: validatedData.userId,
+            parentId: validatedData.parentId ?? null,
             r2Key: validatedData.r2Key,
             url: validatedData.url,
             metadata: validatedData.metadata,
             protectionStatus: ProtectionStatus.IDLE,
             size: validatedData.size,
             method: validatedData.method as ProtectionMethodType,
-            // Explicitly exclude ID
         };
 
         const db = await getDb();
@@ -226,9 +227,9 @@ export async function createArtworkAction(formData: FormData) {
         let result: any;
         try {
             result = await db
-                .insert(artworks)
+                .insert(workspaceItems)
                 .values(safeData)
-                .returning({ insertedId: artworks.id });
+                .returning({ insertedId: workspaceItems.id });
 
             console.log(
                 `[CreateArtworkAction] DB Insert Success. Result: ${JSON.stringify(result)}`,
@@ -255,35 +256,21 @@ export async function createArtworkAction(formData: FormData) {
             );
         }
 
-        // If uploaded inside a collection, register it there
+        // Update itemCount on parent collection node
         if (newArtworkId && collectionId) {
             try {
-                const [maxPos] = await db
-                    .select({ pos: sql<number>`coalesce(max(position), -1)` })
-                    .from(collectionItems)
-                    .where(eq(collectionItems.collectionId, collectionId));
                 await db
-                    .insert(collectionItems)
-                    .values({
-                        collectionId,
-                        artworkId: newArtworkId,
-                        position: (maxPos?.pos ?? -1) + 1,
-                        addedByUserId: user.id,
-                    })
-                    .onConflictDoNothing();
-                await db
-                    .update(collections)
+                    .update(workspaceItems)
                     .set({
                         itemCount: sql`item_count + 1`,
                         updatedAt: new Date().toISOString(),
                     })
-                    .where(eq(collections.id, collectionId));
+                    .where(eq(workspaceItems.id, collectionId));
             } catch (collErr) {
                 console.error(
-                    "[CreateArtworkAction] Failed to add to collection:",
+                    "[CreateArtworkAction] Failed to update collection itemCount:",
                     collErr,
                 );
-                // Non-fatal — artwork was created, just not linked
             }
         }
 

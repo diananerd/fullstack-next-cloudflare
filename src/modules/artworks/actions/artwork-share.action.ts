@@ -8,7 +8,7 @@ import { requireAuth } from "@/modules/auth/utils/auth-utils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async function assertOwner(artworkId: number, userId: string) {
+async function assertOwner(artworkId: string, userId: string) {
     const db = await getDb();
     const row = await db
         .select({ userId: artworks.userId })
@@ -22,7 +22,7 @@ async function assertOwner(artworkId: number, userId: string) {
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
 
-export async function getArtworkShareDataAction(artworkId: number) {
+export async function getArtworkShareDataAction(artworkId: string) {
     try {
         const currentUser = await requireAuth();
         const db = await getDb();
@@ -67,7 +67,7 @@ export async function getArtworkShareDataAction(artworkId: number) {
 }
 
 export async function updateArtworkDetailsAction(
-    artworkId: number,
+    artworkId: string,
     data: { title?: string; description?: string },
 ) {
     try {
@@ -95,7 +95,7 @@ export async function updateArtworkDetailsAction(
 }
 
 export async function updateArtworkVisibilityAction(
-    artworkId: number,
+    artworkId: string,
     visibility: "private" | "public" | "unlisted",
 ) {
     try {
@@ -117,7 +117,7 @@ export async function updateArtworkVisibilityAction(
 }
 
 export async function searchUsersForShareAction(
-    artworkId: number,
+    artworkId: string,
     query: string,
 ) {
     try {
@@ -159,7 +159,7 @@ export async function searchUsersForShareAction(
 }
 
 export async function addArtworkAccessAction(
-    artworkId: number,
+    artworkId: string,
     targetUserId: string,
     role: string,
 ) {
@@ -191,7 +191,7 @@ export async function addArtworkAccessAction(
 }
 
 export async function removeArtworkAccessAction(
-    artworkId: number,
+    artworkId: string,
     targetUserId: string,
 ) {
     try {

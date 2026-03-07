@@ -29,10 +29,10 @@ export const artworkRelations = sqliteTable(
     "artwork_relations",
     {
         id: integer("id").primaryKey({ autoIncrement: true }),
-        sourceArtworkId: integer("source_artwork_id")
+        sourceArtworkId: text("source_artwork_id")
             .notNull()
             .references(() => artworks.id, { onDelete: "cascade" }),
-        targetArtworkId: integer("target_artwork_id")
+        targetArtworkId: text("target_artwork_id")
             .notNull()
             .references(() => artworks.id, { onDelete: "restrict" }),
         relationType: text("relation_type")

@@ -17,7 +17,7 @@ export const collectionItems = sqliteTable(
             .notNull()
             .references(() => collections.id, { onDelete: "cascade" }),
         // One of artworkId OR externalUrl must be set — enforced at app layer
-        artworkId: integer("artwork_id").references(() => artworks.id, {
+        artworkId: text("artwork_id").references(() => artworks.id, {
             onDelete: "cascade",
         }),
         externalUrl: text("external_url"),

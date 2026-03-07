@@ -49,7 +49,7 @@ export function parseWorkspaceQuery(
 
 export type ArtworkWorkspaceItem = {
     kind: "artwork";
-    id: number;
+    id: string;
     title: string;
     createdAt: string;
     updatedAt: string;

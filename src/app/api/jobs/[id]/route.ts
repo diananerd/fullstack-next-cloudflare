@@ -33,13 +33,7 @@ export async function GET(
         // Since my previous route returned artwork.id as job_id, I should treat it as Artwork ID basically.
         // Let's support both if possible? Or strictly Artwork ID for now as implementation detail.
 
-        const artworkId = parseInt(id);
-        if (isNaN(artworkId)) {
-            return NextResponse.json(
-                { error: "Invalid ID format" },
-                { status: 400 },
-            );
-        }
+        const artworkId = id;
 
         const db = await getDb();
 
@@ -55,13 +49,15 @@ export async function GET(
 
         if (!job) {
             // Maybe it's just uploaded but not started?
-            const artwork = await db.query.artworks.findFirst({
-                where: eq(artworks.id, artworkId),
-            });
+            const [artwork] = await db
+                .select()
+                .from(artworks)
+                .where(eq(artworks.id, artworkId))
+                .limit(1);
             if (artwork) {
                 return NextResponse.json({
-                    id: String(artwork.id),
-                    status: artwork.protectionStatus.toUpperCase(),
+                    id: artwork.id,
+                    status: (artwork.protectionStatus ?? "IDLE").toUpperCase(),
                     progress: 0,
                     logs: [],
                     result: {},

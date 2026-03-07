@@ -19,7 +19,10 @@ interface ArtworkCardProps {
 
 export function ArtworkCard({ artwork }: ArtworkCardProps) {
     // Live status updates via SSE (replaces polling)
-    const liveStatus = useArtworkStatus(artwork.id, artwork.protectionStatus);
+    const liveStatus = useArtworkStatus(
+        artwork.id,
+        artwork.protectionStatus ?? "idle",
+    );
     // Destructure new V2 hook return
     const { status, progress } =
         typeof liveStatus === "object"
@@ -44,7 +47,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
     // Deep Linking: Sync URL with Modal State
     // Use Hash from r2Key as identifier.
     // Handle both {hash}/... (legacy) and {userId}/{hash}/... (new)
-    const r2KeyParts = artwork.r2Key.split("/");
+    const r2KeyParts = (artwork.r2Key ?? "").split("/");
     const artworkHash =
         r2KeyParts.length >= 2
             ? r2KeyParts[r2KeyParts.length - 2]
@@ -143,7 +146,7 @@ export function ArtworkCard({ artwork }: ArtworkCardProps) {
                             {FEATURES.shield && (
                                 <div className="mr-auto">
                                     <ArtworkStatusBadge
-                                        status={optimisticStatus}
+                                        status={optimisticStatus ?? "idle"}
                                         className="[&>span]:hidden @[240px]:[&>span]:inline"
                                     />
                                 </div>

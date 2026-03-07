@@ -52,13 +52,13 @@ export const Analytics = {
     // ── Artwork funnel ────────────────────────────────────────────────────────
     artworkUploaded: (
         userId: string,
-        props: { artwork_id: number; size_bytes: number; mime_type: string },
+        props: { artwork_id: string; size_bytes: number; mime_type: string },
     ) => capture(userId, "artwork_uploaded", props),
 
     protectionStarted: (
         userId: string,
         props: {
-            artwork_id: number;
+            artwork_id: string;
             layers: string[];
             intensity: string;
             cost_credits: number;
@@ -68,7 +68,7 @@ export const Analytics = {
     protectionCompleted: (
         userId: string,
         props: {
-            artwork_id: number;
+            artwork_id: string;
             shield_score?: number;
             duration_ms?: number;
             layers_passed: number;
@@ -78,7 +78,7 @@ export const Analytics = {
 
     protectionFailed: (
         userId: string,
-        props: { artwork_id: number; error: string },
+        props: { artwork_id: string; error: string },
     ) => capture(userId, "protection_failed", props),
 
     // ── Credits ───────────────────────────────────────────────────────────────

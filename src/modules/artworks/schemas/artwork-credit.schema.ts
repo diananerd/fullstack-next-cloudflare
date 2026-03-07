@@ -26,7 +26,7 @@ export const artworkCredits = sqliteTable(
     "artwork_credits",
     {
         id: integer("id").primaryKey({ autoIncrement: true }),
-        artworkId: integer("artwork_id")
+        artworkId: text("artwork_id")
             .notNull()
             .references(() => artworks.id, { onDelete: "cascade" }),
         // userId is nullable: allows crediting external people not on the platform

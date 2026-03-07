@@ -3,7 +3,7 @@ import type { ProtectionMethodType } from "@/modules/artworks/models/artwork.enu
 import { PIPELINE_LAYERS } from "@/constants/pipeline-contract";
 
 interface DispatchJobInput {
-    artworkId: number;
+    artworkId: string;
     userId: string;
     imageUrl: string;
     imageR2Key?: string; // R2 key of the original: {userId}/{sha256}/original.ext

@@ -48,7 +48,7 @@ export const artworkArtists = sqliteTable(
     "artwork_artists",
     {
         id: integer("id").primaryKey({ autoIncrement: true }),
-        artworkId: integer("artwork_id")
+        artworkId: text("artwork_id")
             .notNull()
             .references(() => artworks.id, { onDelete: "cascade" }),
         userId: text("user_id")
@@ -76,7 +76,7 @@ export const artworkArtists = sqliteTable(
 );
 
 export const insertArtworkArtistSchema = createInsertSchema(artworkArtists, {
-    artworkId: z.number().int().positive(),
+    artworkId: z.string().min(1),
     userId: z.string().min(1),
     role: z.string().min(1).max(64),
     note: z.string().max(500).optional(),

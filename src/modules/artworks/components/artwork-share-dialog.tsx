@@ -195,7 +195,7 @@ export function ArtworkShareDialog({
     const searchRef = useRef<HTMLDivElement>(null);
 
     // ── Derived ──────────────────────────────────────────────────────────────
-    const r2KeyParts = artwork.r2Key.split("/");
+    const r2KeyParts = (artwork.r2Key ?? "").split("/");
     const artworkHash =
         r2KeyParts.length >= 2
             ? r2KeyParts[r2KeyParts.length - 2]

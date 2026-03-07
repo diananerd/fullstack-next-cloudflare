@@ -2,8 +2,12 @@
 @import "tw-animate-css";
 
 @keyframes slow-zoom {
-    from { transform: scale(1); }
-    to   { transform: scale(1.08); }
+    from {
+        transform: scale(1);
+    }
+    to {
+        transform: scale(1.08);
+    }
 }
 
 @custom-variant dark (&:is(.dark *));

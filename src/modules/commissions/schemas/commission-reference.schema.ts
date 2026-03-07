@@ -9,7 +9,7 @@ export const commissionReferenceArtworks = sqliteTable(
         commissionId: text("commission_id")
             .notNull()
             .references(() => commissions.id, { onDelete: "cascade" }),
-        artworkId: integer("artwork_id").references(() => artworks.id, {
+        artworkId: text("artwork_id").references(() => artworks.id, {
             onDelete: "set null",
         }),
         externalUrl: text("external_url"),

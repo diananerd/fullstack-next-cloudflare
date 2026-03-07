@@ -19,5 +19,5 @@ export function getArtworkDisplayUrl(artwork: Artwork): string {
     }
 
     // Fallback to original
-    return artwork.url;
+    return artwork.url ?? "";
 }

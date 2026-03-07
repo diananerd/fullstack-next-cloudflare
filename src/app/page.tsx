@@ -39,7 +39,10 @@ export default async function HomePage() {
                         src={SEASONAL_ARTWORK.src}
                         alt={SEASONAL_ARTWORK.alt}
                         className="w-full h-full object-cover object-center"
-                        style={{ animation: "slow-zoom 18s ease-in-out infinite alternate" }}
+                        style={{
+                            animation:
+                                "slow-zoom 18s ease-in-out infinite alternate",
+                        }}
                     />
                     {/* vignette — stronger at bottom for text legibility over light-toned art */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/40" />
@@ -145,10 +148,30 @@ export default async function HomePage() {
             <div className="relative z-10 px-6 md:px-10 pb-5 flex flex-wrap justify-between items-center gap-3 text-xs text-white/25">
                 <div className="flex items-center gap-4">
                     <span>© 2026 Drimit</span>
-                    <Link href="#" className="hover:text-white/60 transition-colors">Terms</Link>
-                    <Link href="#" className="hover:text-white/60 transition-colors">Privacy</Link>
-                    <Link href="#" className="hover:text-white/60 transition-colors">Cookies</Link>
-                    <Link href="#" className="hover:text-white/60 transition-colors">Generative AI</Link>
+                    <Link
+                        href="#"
+                        className="hover:text-white/60 transition-colors"
+                    >
+                        Terms
+                    </Link>
+                    <Link
+                        href="#"
+                        className="hover:text-white/60 transition-colors"
+                    >
+                        Privacy
+                    </Link>
+                    <Link
+                        href="#"
+                        className="hover:text-white/60 transition-colors"
+                    >
+                        Cookies
+                    </Link>
+                    <Link
+                        href="#"
+                        className="hover:text-white/60 transition-colors"
+                    >
+                        Generative AI
+                    </Link>
                 </div>
             </div>
         </div>

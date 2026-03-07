@@ -20,7 +20,7 @@ export const artworkJobs = sqliteTable(
     "artwork_jobs",
     {
         id: integer("id").primaryKey({ autoIncrement: true }),
-        artworkId: integer("artwork_id")
+        artworkId: text("artwork_id")
             .notNull()
             .references(() => artworks.id, { onDelete: "cascade" }),
 
