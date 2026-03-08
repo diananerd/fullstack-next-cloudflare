@@ -45,11 +45,19 @@ export const RELATION_TYPES = {
     /** collection → artwork | collection  (membership / sub-collection) */
     CONTAINS: "contains",
 
-    // ── Provenance ───────────────────────────────────────────────────────────
+    // ── Provenance & derivation (credit tree / revenue split roots) ───────────
     /** artwork → artwork  (protected version → original) */
     VERSION_OF: "version_of",
-    /** artwork → artwork  (fan-art → original, prompt → response) */
+    /** artwork → artwork  (fan-art → original; weight = royalty fraction 0-1) */
     DERIVED_FROM: "derived_from",
+    /** artwork → artwork  (explicit remix; weight = royalty fraction 0-1) */
+    REMIX_OF: "remix_of",
+    /** artwork → artwork  (samples audio/visual content; weight = royalty fraction) */
+    SAMPLE_OF: "sample_of",
+    /** artwork → artwork  (book→film, painting→sculpture; weight = royalty fraction) */
+    ADAPTATION_OF: "adaptation_of",
+    /** artwork → artwork  (same work, different language/medium; weight = royalty fraction) */
+    TRANSLATION_OF: "translation_of",
     /** artwork → artwork | collection  (episode → series, page → book) */
     PART_OF: "part_of",
 

@@ -2,6 +2,7 @@
 export { nodes } from "@/modules/nodes/schemas/node.schema";
 export { nodeRelations } from "@/modules/nodes/schemas/node-relation.schema";
 export { nodeAccess } from "@/modules/nodes/schemas/node-access.schema";
+export { nodeCreditSplits } from "@/modules/nodes/schemas/node-credit-split.schema";
 
 // ── Node subtypes ─────────────────────────────────────────────────────────────
 // Artwork (table: artworks)

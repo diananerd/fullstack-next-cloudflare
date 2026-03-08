@@ -59,6 +59,8 @@ export const nodes = sqliteTable(
         index("idx_nodes_workspace_type").on(table.workspaceId, table.type),
         index("idx_nodes_visibility").on(table.visibility),
         index("idx_nodes_type").on(table.type),
+        // Discovery queries: "all public artworks", "all public profiles"
+        index("idx_nodes_type_visibility").on(table.type, table.visibility),
     ],
 );
 

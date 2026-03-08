@@ -1,4 +1,4 @@
-import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { nodes } from "@/modules/nodes/schemas/node.schema";
 import { organization } from "@/modules/profiles/schemas/org-plugin.schema";
 
@@ -28,6 +28,12 @@ export const profileNodes = sqliteTable(
         orgId: text("org_id")
             .notNull()
             .references(() => organization.id, { onDelete: "cascade" }),
+
+        // Denormalized counters — updated via server actions, not DB triggers.
+        // These avoid expensive COUNT aggregates on node_relations at read time.
+        artworkCount: integer("artwork_count").notNull().default(0),
+        followerCount: integer("follower_count").notNull().default(0),
+        followingCount: integer("following_count").notNull().default(0),
     },
     (table) => [
         uniqueIndex("profile_nodes_org_id_unique").on(table.orgId),

@@ -1,5 +1,6 @@
 import {
     index,
+    integer,
     real,
     sqliteTable,
     text,
@@ -56,6 +57,18 @@ export const nodeRelations = sqliteTable(
         // UNIQUE constraint is on (from, to, type, slot).
         slot: text("slot").notNull().default(""),
 
+        // Attribution / credit weight for this edge (0.0 – 1.0).
+        // On `creates` edges: creator's share of credit (all creators of a work should sum to 1.0).
+        // On `derived_from` / `remix_of` / `sample_of` edges: royalty fraction flowing upstream.
+        // NULL = unspecified / irrelevant for this edge type.
+        weight: real("weight"),
+
+        // Time-bounded edges (ISO 8601 strings).
+        // NULL = no start/end constraint (permanent relationship).
+        // Use for: licenses with expiry, temporary collaborations, residencies, etc.
+        validFrom: text("valid_from"),
+        validUntil: text("valid_until"),
+
         // Relation-specific data: ML score, license terms, transaction ref, role, etc.
         metadata: text("metadata", { mode: "json" }).$type<
             Record<string, unknown>
@@ -82,10 +95,16 @@ export const nodeRelations = sqliteTable(
             table.type,
             table.position,
         ),
-        // "Which nodes point to this one?" (reverse traversal)
-        index("idx_node_relations_to_type").on(table.toId, table.type),
+        // "Which nodes point to this one?" — reverse traversal with recency sort
+        index("idx_node_relations_to_type_created").on(
+            table.toId,
+            table.type,
+            table.createdAt,
+        ),
         // Type-scoped full-graph queries
         index("idx_node_relations_type").on(table.type),
+        // Active-only queries (temporal filtering: WHERE valid_until IS NULL OR valid_until > now)
+        index("idx_node_relations_valid_until").on(table.validUntil),
     ],
 );
 
