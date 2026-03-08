@@ -4,6 +4,7 @@ import { getDiscoverItemsAction } from "@/modules/artworks/actions/get-discover-
 import { WorkspaceToolbar } from "@/modules/artworks/components/workspace-toolbar";
 import { ArtworkGallerySkeleton } from "@/modules/artworks/components/artwork-gallery.skeleton";
 import { DiscoverGrid } from "@/modules/artworks/components/discover-grid";
+import type { DiscoverItem } from "@/modules/artworks/actions/get-discover-items.action";
 
 export default async function DiscoverPage({
     searchParams,

@@ -2,15 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MasonryGrid } from "@/components/ui/masonry-grid";
-import { PublicArtworkCard } from "@/modules/artworks/components/public-artwork-card";
-import type { ArtworkWorkspaceItem } from "@/modules/artworks/models/workspace-item.model";
+import { DiscoverArtworkCard } from "@/modules/artworks/components/discover-artwork-card";
 import {
     getDiscoverItemsAction,
+    type DiscoverItem,
     type DiscoverQuery,
 } from "@/modules/artworks/actions/get-discover-items.action";
 
 interface DiscoverGridProps {
-    initialItems: ArtworkWorkspaceItem[];
+    initialItems: DiscoverItem[];
     initialHasMore: boolean;
     query: DiscoverQuery;
 }
@@ -65,7 +65,7 @@ export function DiscoverGrid({
             <MasonryGrid
                 items={items}
                 keyExtractor={(item) => `a-${item.id}`}
-                render={(item) => <PublicArtworkCard item={item} />}
+                render={(item) => <DiscoverArtworkCard item={item} />}
             />
             <div ref={sentinelRef} className="h-10" />
             {isLoading && (
