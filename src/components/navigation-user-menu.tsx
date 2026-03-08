@@ -8,7 +8,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -55,15 +54,12 @@ export function NavigationUserMenu({ user, profileSlug }: NavigationUserMenuProp
                 </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                {profileSlug ? (
-                    <DropdownMenuItem asChild>
-                        <Link href={`/@${profileSlug}`} className="cursor-pointer font-medium">
-                            {displayName}
-                        </Link>
-                    </DropdownMenuItem>
-                ) : (
-                    <DropdownMenuLabel>{displayName}</DropdownMenuLabel>
-                )}
+                <DropdownMenuItem
+                    className="cursor-pointer font-medium"
+                    onClick={() => router.push(profileSlug ? `/@${profileSlug}` : "/artworks")}
+                >
+                    {displayName}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                     <Link href="/artworks" className="cursor-pointer">
