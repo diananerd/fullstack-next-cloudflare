@@ -134,18 +134,19 @@ export function WorkspaceGrid({
                 render={(item) => {
                     if (item.kind === "collection") {
                         const col = {
+                            kind: "collection" as const,
                             id: item.id,
                             title: item.title,
                             createdAt: item.createdAt,
                             updatedAt: item.updatedAt,
                             visibility: item.visibility,
                             itemCount: item.itemCount,
-                            createdByUserId: "",
+                            userId: "",
+                            createdBy: "",
+                            workspaceId: null,
                             description: null,
-                            coverR2Key: null,
-                            coverUrl: null,
-                            membershipInheritance: "none",
-                        } as Collection;
+                            coverImageUrl: null,
+                        } satisfies Collection;
                         return (
                             // biome-ignore lint/a11y/noStaticElementInteractions: drop target
                             <div

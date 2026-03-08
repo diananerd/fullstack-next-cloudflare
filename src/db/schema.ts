@@ -1,27 +1,38 @@
-// Hypergraph core
-export { entities } from "@/modules/artworks/schemas/entity.schema";
-export { entityRelations } from "@/modules/artworks/schemas/entity-relation.schema";
-export { collectionNodes } from "@/modules/artworks/schemas/collection-node.schema";
-export { workspaces } from "@/modules/profiles/schemas/workspace.schema";
-// Artworks subtype (table name: artworks)
-export { artworks } from "@/modules/artworks/schemas/artwork.schema";
+// ── Universal graph core ──────────────────────────────────────────────────────
+export { nodes } from "@/modules/nodes/schemas/node.schema";
+export { nodeRelations } from "@/modules/nodes/schemas/node-relation.schema";
+export { nodeAccess } from "@/modules/nodes/schemas/node-access.schema";
+
+// ── Node subtypes ─────────────────────────────────────────────────────────────
+// Artwork (table: artworks)
 export { workspaceItems } from "@/modules/artworks/schemas/workspace-item.schema";
 export {
-    artworkArtists,
-    ArtworkRole,
-} from "@/modules/artworks/schemas/artwork-artist.schema";
-export { artworkJobs } from "@/modules/artworks/schemas/artwork-job.schema";
-export { artworkAccess } from "@/modules/artworks/schemas/artwork-access.schema";
-// Multi-file support (replaces single url/r2Key for new uploads)
-export { artworkFiles } from "@/modules/artworks/schemas/artwork-file.schema";
-// Participation credits — semantic attribution (who was involved, in what role)
-// Distinct from: artwork_artists (legacy), artwork_access (permissions), credit_transactions (payment)
-export { artworkCredits } from "@/modules/artworks/schemas/artwork-credit.schema";
-// Semantic relationships between artworks (derived_from, part_of, references, etc.)
+    artworks,
+    insertArtworkSchema,
+    selectArtworkSchema,
+    updateArtworkSchema,
+} from "@/modules/artworks/schemas/artwork.schema";
+// Collection
+export { collectionNodes } from "@/modules/artworks/schemas/collection-node.schema";
+// Profile (1:1 with better-auth organization)
+export { profileNodes } from "@/modules/profiles/schemas/profile-node.schema";
+
+// ── Compat re-exports (keep old names working) ────────────────────────────────
+export { entities } from "@/modules/artworks/schemas/entity.schema";
+export { entityRelations } from "@/modules/artworks/schemas/entity-relation.schema";
 export { artworkRelations } from "@/modules/artworks/schemas/artwork-relation.schema";
-// Immutable version snapshots
+export { artworkAccess } from "@/modules/artworks/schemas/artwork-access.schema";
+
+// ── Workspace scoping ─────────────────────────────────────────────────────────
+export { workspaces } from "@/modules/profiles/schemas/workspace.schema";
+
+// ── Satellite operational tables ─────────────────────────────────────────────
+export { artworkJobs } from "@/modules/artworks/schemas/artwork-job.schema";
+export { artworkFiles } from "@/modules/artworks/schemas/artwork-file.schema";
+export { artworkCredits } from "@/modules/artworks/schemas/artwork-credit.schema";
 export { artworkSnapshots } from "@/modules/artworks/schemas/artwork-snapshot.schema";
 
+// ── Auth (better-auth) ────────────────────────────────────────────────────────
 export {
     account,
     session,
@@ -29,30 +40,18 @@ export {
     verification,
 } from "@/modules/auth/schemas/auth.schema";
 
-// Credits — prepaid platform currency (non-redeemable, non-fiat)
+// ── Credits — prepaid platform currency ──────────────────────────────────────
 export { creditTransactions } from "@/modules/credits/schemas/credit.schema";
 export { creditEscrow } from "@/modules/credits/schemas/credit-escrow.schema";
 
-// Profiles
+// ── Profiles (better-auth org plugin) ────────────────────────────────────────
 export {
     organization,
     member,
     invitation,
 } from "@/modules/profiles/schemas/org-plugin.schema";
-export { portfolioArtworks } from "@/modules/profiles/schemas/portfolio-artwork.schema";
 
-// Social — Collections (replaces boards)
-export { profileFollows } from "@/modules/social/schemas/profile-follow.schema";
-export {
-    collections,
-    CollectionVisibility,
-    MembershipInheritance,
-} from "@/modules/social/schemas/collection.schema";
-export { collectionMembers } from "@/modules/social/schemas/collection-member.schema";
-export { collectionItems } from "@/modules/social/schemas/collection-item.schema";
-export { collectionPlacements } from "@/modules/social/schemas/collection-placement.schema";
-
-// Commissions
+// ── Commissions ───────────────────────────────────────────────────────────────
 export {
     commissions,
     CommissionStatus,
@@ -68,5 +67,5 @@ export {
 export { commissionMessages } from "@/modules/commissions/schemas/commission-message.schema";
 export { commissionReferenceArtworks } from "@/modules/commissions/schemas/commission-reference.schema";
 
-// RBAC — Configurable permission policies
+// ── RBAC ──────────────────────────────────────────────────────────────────────
 export { resourceRolePolicies } from "@/modules/rbac/schemas/resource-role-policy.schema";

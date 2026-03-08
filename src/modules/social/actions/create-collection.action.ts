@@ -1,16 +1,13 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
-import {
-    AccessSource,
-    CollectionRole,
-    CollectionVisibility,
-    PlacementContext,
-} from "@/modules/social/models/collection.enum";
-import { collectionMembers } from "@/modules/social/schemas/collection-member.schema";
-import { collectionPlacements } from "@/modules/social/schemas/collection-placement.schema";
-import { collections } from "@/modules/social/schemas/collection.schema";
+import { nodes } from "@/modules/nodes/schemas/node.schema";
+import { nodeRelations } from "@/modules/nodes/schemas/node-relation.schema";
+import { collectionNodes } from "@/modules/artworks/schemas/collection-node.schema";
+import { RELATION_TYPES } from "@/constants/relation-types";
+import { member } from "@/modules/profiles/schemas/org-plugin.schema";
 
 /**
  * Allowed characters: Unicode letters (incl. accents), digits, spaces,
@@ -25,7 +22,6 @@ export async function createCollectionAction(
 ) {
     const user = await requireAuth();
 
-    // Sanitize: trim, collapse internal whitespace
     const title = rawTitle.trim().replace(/\s+/g, " ");
 
     if (title.length === 0) {
@@ -46,31 +42,52 @@ export async function createCollectionAction(
 
     const db = await getDb();
 
-    const [collection] = await db
-        .insert(collections)
-        .values({
-            title,
-            createdByUserId: user.id,
-            visibility: CollectionVisibility.PRIVATE,
-        })
-        .returning({ id: collections.id });
+    // Resolve the user's active profile (first org membership found)
+    const [membership] = await db
+        .select({ organizationId: member.organizationId })
+        .from(member)
+        .where(eq(member.userId, user.id))
+        .limit(1);
 
-    await db.insert(collectionMembers).values({
-        collectionId: collection.id,
-        userId: user.id,
-        role: CollectionRole.OWNER,
-        sourceType: AccessSource.DIRECT,
-        grantedByUserId: user.id,
+    const collectionId = crypto.randomUUID();
+
+    // 1. Create base node
+    await db.insert(nodes).values({
+        id: collectionId,
+        type: "collection",
+        createdBy: user.id,
+        visibility: "private",
     });
 
-    // Place in the parent collection, or the user's workspace root
-    await db.insert(collectionPlacements).values({
-        collectionId: collection.id,
-        contextType: parentCollectionId
-            ? PlacementContext.COLLECTION
-            : PlacementContext.WORKSPACE,
-        contextId: parentCollectionId ?? user.id,
+    // 2. Create collection subtype
+    await db.insert(collectionNodes).values({
+        id: collectionId,
+        name: title,
     });
 
-    return { success: true, collectionId: collection.id };
+    // 3. Link to parent collection via CONTAINS edge (if nested)
+    if (parentCollectionId) {
+        await db.insert(nodeRelations).values({
+            fromId: parentCollectionId,
+            toId: collectionId,
+            type: RELATION_TYPES.CONTAINS,
+            createdBy: user.id,
+        });
+    }
+
+    // 4. If user has a profile, mark as curated by them
+    if (membership) {
+        // profile_nodes.id === organization.id === node.id
+        await db
+            .insert(nodeRelations)
+            .values({
+                fromId: membership.organizationId,
+                toId: collectionId,
+                type: RELATION_TYPES.CURATES,
+                createdBy: user.id,
+            })
+            .onConflictDoNothing();
+    }
+
+    return { success: true, collectionId };
 }

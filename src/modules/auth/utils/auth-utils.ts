@@ -24,7 +24,8 @@ import {
     member as memberSchema,
     invitation as invitationSchema,
 } from "@/modules/profiles/schemas/org-plugin.schema";
-import { collections as collectionsSchema } from "@/modules/social/schemas/collection.schema";
+import { nodes as nodesSchema } from "@/modules/nodes/schemas/node.schema";
+import { profileNodes as profileNodesSchema } from "@/modules/profiles/schemas/profile-node.schema";
 import { commissions as commissionsSchema } from "@/modules/commissions/schemas/commission.schema";
 import { creditEscrow as creditEscrowSchema } from "@/modules/credits/schemas/credit-escrow.schema";
 import { deleteFolderFromR2 } from "@/lib/r2";
@@ -290,6 +291,18 @@ async function getAuth() {
                                 createdAt: new Date(),
                             });
 
+                            // Create the graph node for this profile
+                            await db.insert(nodesSchema).values({
+                                id: orgId,
+                                type: "profile",
+                                createdBy: user.id,
+                                visibility: "public",
+                            });
+                            await db.insert(profileNodesSchema).values({
+                                id: orgId,
+                                orgId,
+                            });
+
                             console.log(
                                 `[AuthHook] ✅ Profile created: @${slug} (org ${orgId}) for user ${user.id}`,
                             );
@@ -372,24 +385,9 @@ async function getAuth() {
                             );
                         }
 
-                        // 5. Collections created by user (RESTRICT FK — cascade handles items/members/placements)
-                        try {
-                            await db
-                                .delete(collectionsSchema)
-                                .where(
-                                    eq(
-                                        collectionsSchema.createdByUserId,
-                                        userId,
-                                    ),
-                                );
-                        } catch (err) {
-                            console.error(
-                                `[AuthHook] Failed to delete collections:`,
-                                err,
-                            );
-                        }
+                        // 5. Collections/artworks created by user now cascade via nodes.created_by FK.
 
-                        // 6. Sole-owned orgs (cascade handles members, portfolio_artworks, invitations)
+                        // 6. Sole-owned orgs (cascade handles members, invitations)
                         try {
                             const ownedOrgs = await db
                                 .select({ id: memberSchema.organizationId })
@@ -434,8 +432,9 @@ async function getAuth() {
                             );
                         }
 
-                        // artworks, creditTransactions, collectionMembers, profileFollows,
-                        // member (org), account, session → all CASCADE on user delete
+                        // nodes (artworks, collections, profiles), node_relations,
+                        // creditTransactions, member (org), account, session
+                        // → all CASCADE on user delete
                     },
                 },
             },

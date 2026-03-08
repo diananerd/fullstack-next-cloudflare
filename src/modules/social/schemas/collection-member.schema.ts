@@ -1,58 +1,25 @@
-import {
-    index,
-    integer,
-    sqliteTable,
-    text,
-    uniqueIndex,
-} from "drizzle-orm/sqlite-core";
-import { user } from "@/modules/auth/schemas/auth.schema";
-import { collections } from "@/modules/social/schemas/collection.schema";
-import {
-    AccessSource,
+/**
+ * `collection_members` has been superseded by node_relations type 'member_of'.
+ * profile --[member_of]--> collection  (with role in metadata)
+ *
+ * This file is kept as a compat stub so existing imports don't break at compile time.
+ */
+export type CollectionMember = {
+    id: number;
+    collectionId: string;
+    userId: string;
+    role: string;
+    sourceType: string;
+    sourceId: string | null;
+    grantedByUserId: string | null;
+    expiresAt: string | null;
+    grantedAt: string;
+};
+export type NewCollectionMember = Omit<CollectionMember, "id" | "grantedAt">;
+
+export {
     CollectionRole,
-    type AccessSourceValue,
+    AccessSource,
     type CollectionRoleValue,
+    type AccessSourceValue,
 } from "@/modules/social/models/collection.enum";
-
-export const collectionMembers = sqliteTable(
-    "collection_members",
-    {
-        id: integer("id").primaryKey({ autoIncrement: true }),
-        collectionId: text("collection_id")
-            .notNull()
-            .references(() => collections.id, { onDelete: "cascade" }),
-        userId: text("user_id")
-            .notNull()
-            .references(() => user.id, { onDelete: "cascade" }),
-        role: text("role")
-            .$type<CollectionRoleValue>()
-            .notNull()
-            .default(CollectionRole.VIEWER),
-        // How this grant was created — for audit and revocation by source
-        sourceType: text("source_type")
-            .$type<AccessSourceValue>()
-            .notNull()
-            .default(AccessSource.DIRECT),
-        // organizationId (for org-sourced access) or commissionId — nullable
-        sourceId: text("source_id"),
-        grantedByUserId: text("granted_by_user_id").references(() => user.id, {
-            onDelete: "set null",
-        }),
-        // Optional expiry — null = permanent
-        expiresAt: text("expires_at"),
-        grantedAt: text("granted_at")
-            .notNull()
-            .$defaultFn(() => new Date().toISOString()),
-    },
-    (table) => [
-        uniqueIndex("collection_members_unique").on(
-            table.collectionId,
-            table.userId,
-        ),
-        index("idx_collection_members_collection").on(table.collectionId),
-        index("idx_collection_members_user").on(table.userId),
-    ],
-);
-
-export type CollectionMember = typeof collectionMembers.$inferSelect;
-export type NewCollectionMember = typeof collectionMembers.$inferInsert;

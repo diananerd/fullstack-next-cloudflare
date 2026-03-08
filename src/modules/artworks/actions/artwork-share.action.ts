@@ -55,7 +55,7 @@ export async function getArtworkShareDataAction(artworkId: string) {
             })
             .from(artworkAccess)
             .leftJoin(user, eq(artworkAccess.userId, user.id))
-            .where(eq(artworkAccess.artworkId, artworkId));
+            .where(eq(artworkAccess.nodeId, artworkId));
 
         return {
             success: true as const,
@@ -183,7 +183,7 @@ export async function addArtworkAccessAction(
         await db
             .insert(artworkAccess)
             .values({
-                artworkId,
+                nodeId: artworkId,
                 userId: targetUserId,
                 role: role as any,
                 sourceType: "direct",
@@ -191,7 +191,7 @@ export async function addArtworkAccessAction(
                 grantedAt: new Date().toISOString(),
             })
             .onConflictDoUpdate({
-                target: [artworkAccess.artworkId, artworkAccess.userId],
+                target: [artworkAccess.nodeId, artworkAccess.userId],
                 set: { role: role as any },
             });
 
@@ -215,7 +215,7 @@ export async function removeArtworkAccessAction(
             .delete(artworkAccess)
             .where(
                 and(
-                    eq(artworkAccess.artworkId, artworkId),
+                    eq(artworkAccess.nodeId, artworkId),
                     eq(artworkAccess.userId, targetUserId),
                 ),
             );
