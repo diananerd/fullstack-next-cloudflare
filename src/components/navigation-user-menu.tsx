@@ -55,15 +55,15 @@ export function NavigationUserMenu({ user, profileSlug }: NavigationUserMenuProp
                 </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                    {profileSlug ? (
-                        <Link href={`/@${profileSlug}`} className="hover:underline">
+                {profileSlug ? (
+                    <DropdownMenuItem asChild>
+                        <Link href={`/@${profileSlug}`} className="cursor-pointer font-medium">
                             {displayName}
                         </Link>
-                    ) : (
-                        displayName
-                    )}
-                </DropdownMenuLabel>
+                    </DropdownMenuItem>
+                ) : (
+                    <DropdownMenuLabel>{displayName}</DropdownMenuLabel>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                     <Link href="/artworks" className="cursor-pointer">
