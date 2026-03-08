@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Download, MoreVertical } from "lucide-react";
+import { Bookmark, Download, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { ArtworkFullView } from "@/modules/artworks/components/artwork-full-view";
@@ -10,19 +10,18 @@ import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 
 interface PublicArtworkCardProps {
     item: ArtworkWorkspaceItem;
-    /** Whether the visitor is authenticated — gates "Save to board". */
     isLoggedIn?: boolean;
+    /** Profile base path for share URL, e.g. "/@username". */
+    profilePath?: string;
 }
 
 export function PublicArtworkCard({
     item,
     isLoggedIn = false,
+    profilePath,
 }: PublicArtworkCardProps) {
     const [open, setOpen] = useState(false);
-    const [menuOpen, setMenuOpen] = useState(false);
     const [saveOpen, setSaveOpen] = useState(false);
-
-    const hasMenu = item.allowDownload || isLoggedIn;
 
     const artwork: Artwork = {
         id: item.id,
@@ -49,7 +48,6 @@ export function PublicArtworkCard({
 
     const handleDownload = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        setMenuOpen(false);
         if (!item.url) return;
         try {
             toast.loading("Downloading...", { id: "dl" });
@@ -70,6 +68,26 @@ export function PublicArtworkCard({
         }
     };
 
+    const handleShare = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const r2KeyParts = (item.r2Key ?? "").split("/");
+        const artworkHash =
+            r2KeyParts.length >= 2
+                ? r2KeyParts[r2KeyParts.length - 2]
+                : r2KeyParts[0];
+        const base = profilePath ?? "";
+        const url = `${window.location.origin}${base}?artwork=${artworkHash}`;
+        navigator.clipboard.writeText(url).then(
+            () => toast.success("Link copied"),
+            () => toast.error("Could not copy link"),
+        );
+    };
+
+    const btn =
+        "h-7 w-7 flex items-center justify-center rounded-full bg-black/30 text-white/80 hover:bg-black/50 transition-colors";
+
+    const hasActions = isLoggedIn || item.allowDownload;
+
     return (
         <>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: card click */}
@@ -89,70 +107,44 @@ export function PublicArtworkCard({
                     onDragStart={(e) => e.preventDefault()}
                 />
 
-                {/* Gradient scrim */}
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 
-                {hasMenu && (
+                {hasActions && (
                     <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
-                        <div className="flex justify-end">
-                            {/* biome-ignore lint/a11y/noStaticElementInteractions: menu */}
-                            {/* biome-ignore lint/a11y/useKeyWithClickEvents: menu */}
-                            <div
-                                className="pointer-events-auto relative"
-                                onClick={(e) => e.stopPropagation()}
-                            >
+                        {/* biome-ignore lint/a11y/noStaticElementInteractions: action container */}
+                        {/* biome-ignore lint/a11y/useKeyWithClickEvents: action container */}
+                        <div
+                            className="flex justify-end gap-1 pointer-events-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {isLoggedIn && (
                                 <button
                                     type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setMenuOpen((v) => !v);
-                                    }}
-                                    className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors opacity-0 group-hover:opacity-100"
-                                    aria-label="Options"
+                                    title="Save to board"
+                                    onClick={(e) => { e.stopPropagation(); setSaveOpen(true); }}
+                                    className={btn}
                                 >
-                                    <MoreVertical className="h-3.5 w-3.5" />
+                                    <Bookmark className="h-4 w-4" />
                                 </button>
-
-                                {menuOpen && (
-                                    <>
-                                        {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop */}
-                                        {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop */}
-                                        <div
-                                            className="fixed inset-0 z-10"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setMenuOpen(false);
-                                            }}
-                                        />
-                                        <div className="absolute top-full right-0 mt-1 w-40 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-20 text-sm">
-                                            {isLoggedIn && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setMenuOpen(false);
-                                                        setSaveOpen(true);
-                                                    }}
-                                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
-                                                >
-                                                    <Bookmark className="h-3.5 w-3.5" />
-                                                    Save to board
-                                                </button>
-                                            )}
-                                            {item.allowDownload && (
-                                                <button
-                                                    type="button"
-                                                    onClick={handleDownload}
-                                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
-                                                >
-                                                    <Download className="h-3.5 w-3.5" />
-                                                    Download
-                                                </button>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            )}
+                            {item.allowDownload && (
+                                <button
+                                    type="button"
+                                    title="Download"
+                                    onClick={handleDownload}
+                                    className={btn}
+                                >
+                                    <Download className="h-4 w-4" />
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                title="Share"
+                                onClick={handleShare}
+                                className={btn}
+                            >
+                                <Share2 className="h-4 w-4" />
+                            </button>
                         </div>
                     </div>
                 )}

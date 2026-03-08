@@ -15,13 +15,14 @@ import { ArtworkStatusBadge } from "./artwork-status-badge";
 
 interface ArtworkCardProps {
     artwork: Artwork;
-    /** Pass the current parent collection ID so "Move to folder" knows where we are. */
     currentCollectionId?: string | null;
+    profilePath?: string;
 }
 
 export function ArtworkCard({
     artwork,
     currentCollectionId,
+    profilePath,
 }: ArtworkCardProps) {
     // Live status updates via SSE (replaces polling)
     const liveStatus = useArtworkStatus(
@@ -160,6 +161,7 @@ export function ArtworkCard({
                                 <ArtworkActionButtons
                                     actions={actions}
                                     currentCollectionId={currentCollectionId}
+                                    profilePath={profilePath}
                                 />
                             </div>
                         </div>

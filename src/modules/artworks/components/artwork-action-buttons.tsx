@@ -6,10 +6,12 @@ import {
     Loader2,
     Lock,
     LockOpen,
+    Share2,
     Shield,
     Trash2,
     XCircle,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import {
     AlertDialog,
     AlertDialogContent,
@@ -27,14 +29,16 @@ import { useState } from "react";
 
 interface ArtworkActionButtonsProps {
     actions: ReturnType<typeof useArtworkActions>;
-    /** Current parent collection ID, if the artwork is inside a collection. */
     currentCollectionId?: string | null;
+    /** Profile base path for share URL, e.g. "/@username". */
+    profilePath?: string;
     children?: React.ReactNode;
 }
 
 export function ArtworkActionButtons({
     actions,
     currentCollectionId,
+    profilePath,
     children,
 }: ArtworkActionButtonsProps) {
     const {
@@ -59,15 +63,30 @@ export function ArtworkActionButtons({
         executeDelete();
     };
 
-    const btnBase =
-        "h-7 w-7 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+    const handleShare = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const r2KeyParts = (artwork.r2Key ?? "").split("/");
+        const artworkHash =
+            r2KeyParts.length >= 2
+                ? r2KeyParts[r2KeyParts.length - 2]
+                : r2KeyParts[0];
+        const base = profilePath ?? "";
+        const url = `${window.location.origin}${base}?artwork=${artworkHash}`;
+        navigator.clipboard.writeText(url).then(
+            () => toast.success("Link copied"),
+            () => toast.error("Could not copy link"),
+        );
+    };
+
+    const btn =
+        "h-7 w-7 flex items-center justify-center rounded-full bg-black/30 text-white/80 hover:bg-black/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
     return (
         <>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: action container */}
             {/* biome-ignore lint/a11y/useKeyWithClickEvents: action container */}
             <div
-                className="pointer-events-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="pointer-events-auto flex items-center gap-1"
                 onClick={stopProp}
             >
                 {FEATURES.shield &&
@@ -75,12 +94,9 @@ export function ArtworkActionButtons({
                         <button
                             type="button"
                             title="Cancel protection"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancel(e);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); handleCancel(e); }}
                             disabled={isPending}
-                            className={btnBase}
+                            className={btn}
                         >
                             <XCircle className="h-4 w-4 text-orange-300" />
                         </button>
@@ -88,12 +104,9 @@ export function ArtworkActionButtons({
                         <button
                             type="button"
                             title={artwork.protectionStatus === "done" ? "Reprocess" : "Protect"}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setProtectOpen(true);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); setProtectOpen(true); }}
                             disabled={isPending}
-                            className={btnBase}
+                            className={btn}
                         >
                             <Shield className="h-4 w-4" />
                         </button>
@@ -102,12 +115,9 @@ export function ArtworkActionButtons({
                 <button
                     type="button"
                     title="Move to folder"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setMoveOpen(true);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); setMoveOpen(true); }}
                     disabled={isPending}
-                    className={btnBase}
+                    className={btn}
                 >
                     <FolderInput className="h-4 w-4" />
                 </button>
@@ -115,12 +125,9 @@ export function ArtworkActionButtons({
                 <button
                     type="button"
                     title={artwork.visibility === "public" ? "Make private" : "Make public"}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleVisibilityChange(e);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); handleVisibilityChange(e); }}
                     disabled={isPending}
-                    className={btnBase}
+                    className={btn}
                 >
                     {artwork.visibility === "public" ? (
                         <LockOpen className="h-4 w-4" />
@@ -132,25 +139,28 @@ export function ArtworkActionButtons({
                 <button
                     type="button"
                     title="Download"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownload(e);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); handleDownload(e); }}
                     disabled={isPending}
-                    className={btnBase}
+                    className={btn}
                 >
                     <Download className="h-4 w-4" />
                 </button>
 
                 <button
                     type="button"
+                    title="Share"
+                    onClick={handleShare}
+                    className={btn}
+                >
+                    <Share2 className="h-4 w-4" />
+                </button>
+
+                <button
+                    type="button"
                     title="Delete"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteOpen(true);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); setDeleteOpen(true); }}
                     disabled={isPending}
-                    className="h-7 w-7 flex items-center justify-center rounded-md bg-black/30 text-red-400 hover:bg-red-500/40 hover:text-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="h-7 w-7 flex items-center justify-center rounded-full bg-black/30 text-red-400 hover:bg-red-500/40 hover:text-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                     {isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -179,9 +189,7 @@ export function ArtworkActionButtons({
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                 <AlertDialogContent onClick={stopProp}>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            Are you absolutely sure?
-                        </AlertDialogTitle>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
                             This action cannot be undone. This will permanently
                             delete the artwork and its protected variants from
@@ -189,10 +197,7 @@ export function ArtworkActionButtons({
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setDeleteOpen(false)}
-                        >
+                        <Button variant="outline" onClick={() => setDeleteOpen(false)}>
                             Cancel
                         </Button>
                         <Button
@@ -200,9 +205,7 @@ export function ArtworkActionButtons({
                             onClick={handleDeleteConfirm}
                             disabled={isPending}
                         >
-                            {isPending && (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
+                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Delete
                         </Button>
                     </AlertDialogFooter>

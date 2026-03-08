@@ -78,6 +78,7 @@ export function PublicWorkspaceGrid({
                         <PublicArtworkCard
                             item={item}
                             isLoggedIn={isLoggedIn}
+                            profilePath={basePath}
                         />
                     ) : null
                 }
