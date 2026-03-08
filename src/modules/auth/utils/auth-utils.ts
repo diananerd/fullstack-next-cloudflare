@@ -26,6 +26,7 @@ import {
 } from "@/modules/profiles/schemas/org-plugin.schema";
 import { nodes as nodesSchema } from "@/modules/nodes/schemas/node.schema";
 import { profileNodes as profileNodesSchema } from "@/modules/profiles/schemas/profile-node.schema";
+import { collectionNodes as collectionNodesSchema } from "@/modules/artworks/schemas/collection-node.schema";
 import { commissions as commissionsSchema } from "@/modules/commissions/schemas/commission.schema";
 import { creditEscrow as creditEscrowSchema } from "@/modules/credits/schemas/credit-escrow.schema";
 import { deleteFolderFromR2 } from "@/lib/r2";
@@ -301,6 +302,20 @@ async function getAuth() {
                             await db.insert(profileNodesSchema).values({
                                 id: orgId,
                                 orgId,
+                            });
+
+                            // Auto-create "Favorites" board for every new user
+                            const favoritesId = crypto.randomUUID();
+                            await db.insert(nodesSchema).values({
+                                id: favoritesId,
+                                type: "collection",
+                                createdBy: user.id,
+                                visibility: "private",
+                            });
+                            await db.insert(collectionNodesSchema).values({
+                                id: favoritesId,
+                                name: "Favorites",
+                                itemCount: 0,
                             });
 
                             console.log(
