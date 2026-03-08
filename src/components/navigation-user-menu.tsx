@@ -21,9 +21,10 @@ interface NavigationUserMenuProps {
         email?: string | null;
         image?: string | null;
     };
+    profileSlug?: string;
 }
 
-export function NavigationUserMenu({ user }: NavigationUserMenuProps) {
+export function NavigationUserMenu({ user, profileSlug }: NavigationUserMenuProps) {
     const router = useRouter();
 
     const handleLogout = async () => {
@@ -54,7 +55,15 @@ export function NavigationUserMenu({ user }: NavigationUserMenuProps) {
                 </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{displayName}</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                    {profileSlug ? (
+                        <Link href={`/@${profileSlug}`} className="hover:underline">
+                            {displayName}
+                        </Link>
+                    ) : (
+                        displayName
+                    )}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                     <Link href="/artworks" className="cursor-pointer">

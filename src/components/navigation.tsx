@@ -1,10 +1,34 @@
+import { and, eq } from "drizzle-orm";
 import Image from "next/image";
 import Link from "next/link";
+import { getDb } from "@/db";
 import { getCurrentUser } from "@/modules/auth/utils/auth-utils";
+import {
+    member,
+    organization,
+} from "@/modules/profiles/schemas/org-plugin.schema";
 import { NavigationUserMenu } from "./navigation-user-menu";
 
 export async function Navigation() {
     const user = await getCurrentUser();
+
+    let profileSlug: string | undefined;
+    if (user) {
+        const db = await getDb();
+        const [org] = await db
+            .select({ slug: organization.slug })
+            .from(organization)
+            .innerJoin(
+                member,
+                and(
+                    eq(member.organizationId, organization.id),
+                    eq(member.userId, user.id),
+                    eq(member.role, "owner"),
+                ),
+            )
+            .limit(1);
+        profileSlug = org?.slug;
+    }
 
     return (
         <nav className="border-b bg-white sticky top-0 z-50">
@@ -34,7 +58,7 @@ export async function Navigation() {
                         </Link>
                     </div>
                     <div className="flex items-center gap-4">
-                        {user && <NavigationUserMenu user={user} />}
+                        {user && <NavigationUserMenu user={user} profileSlug={profileSlug} />}
                     </div>
                 </div>
             </div>
