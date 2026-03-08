@@ -15,6 +15,7 @@ interface PublicWorkspaceGridProps {
     initialItems: WorkspaceItem[];
     initialHasMore: boolean;
     query: WorkspaceQuery;
+    basePath: string;
 }
 
 export function PublicWorkspaceGrid({
@@ -22,6 +23,7 @@ export function PublicWorkspaceGrid({
     initialItems,
     initialHasMore,
     query,
+    basePath,
 }: PublicWorkspaceGridProps) {
     const [items, setItems] = useState(initialItems);
     const [hasMore, setHasMore] = useState(initialHasMore);
@@ -72,7 +74,7 @@ export function PublicWorkspaceGrid({
                 }
                 render={(item) =>
                     item.kind === "collection" ? (
-                        <CollectionCard item={item} />
+                        <CollectionCard item={item} basePath={basePath} />
                     ) : (
                         <PublicArtworkCard item={item} />
                     )

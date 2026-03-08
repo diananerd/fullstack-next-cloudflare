@@ -72,9 +72,10 @@ export async function updateProfileAction(
     orgId: string,
     data: {
         name: string;
-        bio: string;
-        websiteUrl: string;
-        visibility: string;
+        slug?: string;
+        bio?: string;
+        websiteUrl?: string;
+        visibility?: string;
     },
 ) {
     const user = await requireAuth();
@@ -95,14 +96,33 @@ export async function updateProfileAction(
     if (!name || name.length > 80)
         return { success: false, error: "Name must be 1–80 characters." };
 
+    const updateData: Record<string, unknown> = { name };
+
+    if (data.slug !== undefined) {
+        const slug = data.slug.trim().toLowerCase();
+        if (!SLUG_PATTERN.test(slug))
+            return {
+                success: false,
+                error: "Handle: lowercase letters, numbers, and hyphens only. Must start and end with a letter or number.",
+            };
+        const [existing] = await db
+            .select({ id: organization.id })
+            .from(organization)
+            .where(eq(organization.slug, slug))
+            .limit(1);
+        if (existing && existing.id !== orgId)
+            return { success: false, error: "That handle is already taken." };
+        updateData.slug = slug;
+    }
+
+    if (data.bio !== undefined) updateData.bio = data.bio.trim() || null;
+    if (data.websiteUrl !== undefined)
+        updateData.websiteUrl = data.websiteUrl.trim() || null;
+    if (data.visibility !== undefined) updateData.visibility = data.visibility;
+
     await db
         .update(organization)
-        .set({
-            name,
-            bio: data.bio.trim() || null,
-            websiteUrl: data.websiteUrl.trim() || null,
-            visibility: data.visibility,
-        })
+        .set(updateData)
         .where(eq(organization.id, orgId));
 
     return { success: true };

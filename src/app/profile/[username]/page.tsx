@@ -1,5 +1,4 @@
 import { and, eq } from "drizzle-orm";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getDb } from "@/db";
@@ -14,6 +13,7 @@ import { WorkspaceBreadcrumb } from "@/modules/artworks/components/workspace-bre
 import { WorkspaceToolbar } from "@/modules/artworks/components/workspace-toolbar";
 import { ArtworkGallerySkeleton } from "@/modules/artworks/components/artwork-gallery.skeleton";
 import { PublicWorkspaceGrid } from "@/modules/artworks/components/public-workspace-grid";
+import { EditProfileButton } from "@/modules/profiles/components/edit-profile-dialog";
 
 export default async function PublicProfilePage(props: {
     params: Promise<{ username: string }>;
@@ -33,7 +33,7 @@ export default async function PublicProfilePage(props: {
 
     if (!org) notFound();
 
-    // Get the owner userId (artworks are owned by the user, not the org)
+    // Get the owner userId
     const [ownerMember] = await db
         .select({ userId: member.userId })
         .from(member)
@@ -44,12 +44,12 @@ export default async function PublicProfilePage(props: {
 
     const ownerUserId = ownerMember.userId;
 
-    // Check if current visitor can see all visibility levels (admin/owner)
+    // Check if current visitor can edit (admin/owner via RBAC)
     const session = await getSession();
-    let canSeeAll = false;
+    let canEdit = false;
     if (session) {
         if (session.user.id === ownerUserId) {
-            canSeeAll = true;
+            canEdit = true;
         } else {
             const [visitorMembership] = await db
                 .select({ role: member.role })
@@ -61,7 +61,7 @@ export default async function PublicProfilePage(props: {
                     ),
                 )
                 .limit(1);
-            canSeeAll = visitorMembership
+            canEdit = visitorMembership
                 ? ["owner", "admin"].includes(visitorMembership.role)
                 : false;
         }
@@ -71,7 +71,6 @@ export default async function PublicProfilePage(props: {
     const query = parseWorkspaceQuery(params, collectionId);
     const basePath = `/@${slug}`;
 
-    // Initial data fetch (server-side)
     const initialResult = await getPublicWorkspaceItemsAction(
         ownerUserId,
         query,
@@ -81,34 +80,8 @@ export default async function PublicProfilePage(props: {
     const avatarUrl = org.logo ?? null;
 
     return (
-        <div className="min-h-screen bg-white">
-            {/* Minimal public nav */}
-            <header className="px-6 md:px-10 py-4 flex justify-between items-center border-b border-gray-100 bg-white sticky top-0 z-20">
-                <Link href="/" className="flex items-center gap-2">
-                    {/* biome-ignore lint/performance/noImgElement: brand icon */}
-                    <img src="/icon.png" alt="Drimit" className="h-6 w-6" />
-                    <span className="font-semibold tracking-tight text-gray-900 text-sm">
-                        Drimit
-                    </span>
-                </Link>
-                {session ? (
-                    <Link
-                        href="/artworks"
-                        className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-                    >
-                        My artworks
-                    </Link>
-                ) : (
-                    <Link
-                        href="/login"
-                        className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-                    >
-                        Log in
-                    </Link>
-                )}
-            </header>
-
-            {/* Sticky breadcrumb + filters bar */}
+        <div className="w-full">
+            {/* Breadcrumb + Filters bar — sticky below Navigation */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 md:px-6 py-2 border-b border-gray-100 bg-white sticky top-[57px] z-10">
                 <WorkspaceBreadcrumb
                     collectionId={collectionId}
@@ -120,34 +93,45 @@ export default async function PublicProfilePage(props: {
                         order={query.order}
                         visibility={query.visibility}
                         insideCollection={!!collectionId}
-                        hideVisibility={!canSeeAll}
+                        hideVisibility={true}
                     />
                 </Suspense>
             </div>
 
             {/* Profile header — shown at root, hidden inside collection */}
             {!collectionId && (
-                <div className="px-4 md:px-6 pt-6 pb-4 flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400 text-lg font-medium select-none">
-                        {avatarUrl ? (
-                            // biome-ignore lint/performance/noImgElement: profile avatar
-                            <img
-                                src={avatarUrl}
-                                alt={displayName}
-                                className="h-full w-full object-cover"
-                            />
-                        ) : (
-                            displayName.charAt(0).toUpperCase()
-                        )}
+                <div className="px-4 md:px-6 pt-6 pb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        {/* Avatar */}
+                        <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400 text-lg font-medium select-none">
+                            {avatarUrl ? (
+                                // biome-ignore lint/performance/noImgElement: profile avatar
+                                <img
+                                    src={avatarUrl}
+                                    alt={displayName}
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                displayName.charAt(0).toUpperCase()
+                            )}
+                        </div>
+                        {/* Name + handle */}
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                                {displayName}
+                            </h1>
+                            <p className="text-sm text-gray-400">@{slug}</p>
+                        </div>
                     </div>
-                    {/* Name + handle */}
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-                            {displayName}
-                        </h1>
-                        <p className="text-sm text-gray-400">@{slug}</p>
-                    </div>
+
+                    {canEdit && (
+                        <EditProfileButton
+                            orgId={org.id}
+                            currentName={org.name}
+                            currentSlug={org.slug ?? slug}
+                            currentAvatarUrl={avatarUrl}
+                        />
+                    )}
                 </div>
             )}
 
@@ -164,6 +148,7 @@ export default async function PublicProfilePage(props: {
                             initialItems={initialResult.items}
                             initialHasMore={initialResult.hasMore}
                             query={query}
+                            basePath={basePath}
                         />
                     )}
                 </Suspense>

@@ -6,63 +6,22 @@ import { nodes } from "@/modules/nodes/schemas/node.schema";
 import { nodeRelations } from "@/modules/nodes/schemas/node-relation.schema";
 import { workspaceItems as artworkData } from "@/modules/artworks/schemas/workspace-item.schema";
 import { collectionNodes } from "@/modules/artworks/schemas/collection-node.schema";
-import { member } from "@/modules/profiles/schemas/org-plugin.schema";
 import { RELATION_TYPES } from "@/constants/relation-types";
 import type {
     WorkspaceItemsResult,
     WorkspaceQuery,
 } from "@/modules/artworks/models/workspace-item.model";
-import { getSession } from "@/modules/auth/utils/auth-utils";
-
-/**
- * Determines if the current session user can see all visibility levels
- * of the given profile owner (i.e. is owner/admin of that user's org).
- */
-async function resolveCanSeeAll(
-    db: Awaited<ReturnType<typeof getDb>>,
-    ownerUserId: string,
-): Promise<boolean> {
-    const session = await getSession();
-    if (!session) return false;
-    // Owner visits their own profile
-    if (session.user.id === ownerUserId) return true;
-    // Visitor is admin/owner in the profile's org
-    const [ownerMembership] = await db
-        .select({ orgId: member.organizationId })
-        .from(member)
-        .where(eq(member.userId, ownerUserId))
-        .limit(1);
-    if (!ownerMembership) return false;
-    const [visitorMembership] = await db
-        .select({ role: member.role })
-        .from(member)
-        .where(
-            and(
-                eq(member.organizationId, ownerMembership.orgId),
-                eq(member.userId, session.user.id),
-            ),
-        )
-        .limit(1);
-    return visitorMembership
-        ? ["owner", "admin"].includes(visitorMembership.role)
-        : false;
-}
 
 export async function getPublicWorkspaceItemsAction(
     ownerUserId: string,
     query: WorkspaceQuery,
 ): Promise<WorkspaceItemsResult> {
     const db = await getDb();
-    const canSeeAll = await resolveCanSeeAll(db, ownerUserId);
 
-    const { collectionId, sort, order, visibility, offset, limit } = query;
+    const { collectionId, sort, order, offset, limit } = query;
 
-    // Non-admins always see only public items
-    const effectiveVisibility = canSeeAll ? visibility : "public";
-    const visibilityClause =
-        effectiveVisibility === "all"
-            ? undefined
-            : eq(nodes.visibility, effectiveVisibility);
+    // Public profile always shows only public items
+    const visibilityClause = eq(nodes.visibility, "public");
 
     const artworkSortField =
         sort === "title"

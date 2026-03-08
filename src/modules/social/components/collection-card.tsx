@@ -15,6 +15,7 @@ import type { CollectionWorkspaceItem } from "@/modules/artworks/models/workspac
 
 interface CollectionCardProps {
     item: CollectionWorkspaceItem;
+    basePath?: string;
     onRename?: (id: string) => void;
     onDelete?: (id: string) => void;
     onVisibilityChange?: (id: string, visibility: "public" | "private") => void;
@@ -22,6 +23,7 @@ interface CollectionCardProps {
 
 export function CollectionCard({
     item,
+    basePath = "/artworks",
     onRename,
     onDelete,
     onVisibilityChange,
@@ -40,7 +42,7 @@ export function CollectionCard({
         // biome-ignore lint/a11y/useKeyWithClickEvents: card navigation
         <div
             className="group relative @container overflow-hidden rounded-lg w-full bg-gray-100/50 hover:bg-gray-100 transition-colors cursor-pointer"
-            onClick={() => router.push(`/artworks?collectionId=${item.id}`)}
+            onClick={() => router.push(`${basePath}?collectionId=${item.id}`)}
         >
             <div className="relative w-full">
                 {/* Cover image or icon placeholder */}
