@@ -1,4 +1,4 @@
-import { Home } from "lucide-react";
+import { Globe, Home, User } from "lucide-react";
 import Link from "next/link";
 import { resolveCollectionPath } from "@/modules/artworks/actions/get-workspace-items.action";
 
@@ -6,15 +6,26 @@ interface WorkspaceBreadcrumbProps {
     collectionId?: string;
     /** Root link. Defaults to "/artworks". Public profiles pass "/@slug". */
     basePath?: string;
+    /** Icon shown for the root breadcrumb link. Defaults to "home". */
+    rootIcon?: "home" | "globe" | "user";
 }
+
+const ROOT_ICONS = {
+    home: Home,
+    globe: Globe,
+    user: User,
+};
 
 export async function WorkspaceBreadcrumb({
     collectionId,
     basePath = "/artworks",
+    rootIcon = "home",
 }: WorkspaceBreadcrumbProps) {
     const ancestors = collectionId
         ? await resolveCollectionPath(collectionId)
         : [];
+
+    const RootIcon = ROOT_ICONS[rootIcon];
 
     return (
         <nav className="flex items-center gap-1.5 text-sm flex-wrap">
@@ -23,7 +34,7 @@ export async function WorkspaceBreadcrumb({
                 className="text-gray-400 hover:text-gray-700 transition-colors flex items-center"
                 aria-label="Home"
             >
-                <Home className="h-3.5 w-3.5" />
+                <RootIcon className="h-3.5 w-3.5" />
             </Link>
             {ancestors.map((seg, i) => {
                 const isLast = i === ancestors.length - 1;

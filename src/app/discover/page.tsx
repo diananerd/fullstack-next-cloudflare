@@ -24,6 +24,7 @@ export default async function DiscoverPage({
                 <WorkspaceBreadcrumb
                     collectionId={collectionId}
                     basePath="/discover"
+                    rootIcon="globe"
                 />
                 <Suspense fallback={null}>
                     <WorkspaceToolbar
