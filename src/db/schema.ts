@@ -68,5 +68,10 @@ export {
 export { commissionMessages } from "@/modules/commissions/schemas/commission-message.schema";
 export { commissionReferenceArtworks } from "@/modules/commissions/schemas/commission-reference.schema";
 
+// ── Social (publication layer) ─────────────────────────────────────────────────
+export { socialPosts } from "@/modules/social/schemas/social-post.schema";
+export { socialReactions } from "@/modules/social/schemas/social-reaction.schema";
+export { socialComments } from "@/modules/social/schemas/social-comment.schema";
+
 // ── RBAC ──────────────────────────────────────────────────────────────────────
 export { resourceRolePolicies } from "@/modules/rbac/schemas/resource-role-policy.schema";
