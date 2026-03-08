@@ -5,8 +5,8 @@ import {
     FolderInput,
     Loader2,
     Lock,
-    LockOpen,
-    Share2,
+    Globe,
+    Link2,
     Shield,
     Trash2,
     XCircle,
@@ -130,7 +130,7 @@ export function ArtworkActionButtons({
                     className={btn}
                 >
                     {artwork.visibility === "public" ? (
-                        <LockOpen className="h-4 w-4" />
+                        <Globe className="h-4 w-4" />
                     ) : (
                         <Lock className="h-4 w-4" />
                     )}
@@ -152,7 +152,7 @@ export function ArtworkActionButtons({
                     onClick={handleShare}
                     className={btn}
                 >
-                    <Share2 className="h-4 w-4" />
+                    <Link2 className="h-4 w-4" />
                 </button>
 
                 <button

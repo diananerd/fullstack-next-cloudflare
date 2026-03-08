@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Download, Share2 } from "lucide-react";
+import { Bookmark, Download, Link2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { ArtworkFullView } from "@/modules/artworks/components/artwork-full-view";
@@ -143,7 +143,7 @@ export function PublicArtworkCard({
                                 onClick={handleShare}
                                 className={btn}
                             >
-                                <Share2 className="h-4 w-4" />
+                                <Link2 className="h-4 w-4" />
                             </button>
                         </div>
                     </div>

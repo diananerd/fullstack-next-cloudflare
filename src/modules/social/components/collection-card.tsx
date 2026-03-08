@@ -4,9 +4,9 @@ import {
     FolderOpen,
     LayoutGrid,
     Lock,
-    LockOpen,
+    Globe,
     Pencil,
-    Share2,
+    Link2,
     Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -113,7 +113,7 @@ export function CollectionCard({
                                 className={btn}
                             >
                                 {item.visibility === "private" ? (
-                                    <LockOpen className="h-4 w-4" />
+                                    <Globe className="h-4 w-4" />
                                 ) : (
                                     <Lock className="h-4 w-4" />
                                 )}
@@ -125,7 +125,7 @@ export function CollectionCard({
                             onClick={handleShare}
                             className={btn}
                         >
-                            <Share2 className="h-4 w-4" />
+                            <Link2 className="h-4 w-4" />
                         </button>
                         {onDelete && (
                             <button
