@@ -220,6 +220,7 @@ export function WorkspaceGrid({
                             >
                                 <CollectionCard
                                     item={cardItem}
+                                    isFolder={isFolder}
                                     onRename={handleRename}
                                     onDelete={handleDelete}
                                     // Folders are always private — no visibility toggle

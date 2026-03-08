@@ -4,6 +4,7 @@ import {
     Eye,
     EyeOff,
     FolderOpen,
+    LayoutGrid,
     Lock,
     MoreVertical,
     Pencil,
@@ -16,6 +17,8 @@ import type { CollectionWorkspaceItem } from "@/modules/artworks/models/workspac
 interface CollectionCardProps {
     item: CollectionWorkspaceItem;
     basePath?: string;
+    /** When true, renders a folder icon instead of a board icon as fallback. */
+    isFolder?: boolean;
     onRename?: (id: string) => void;
     onDelete?: (id: string) => void;
     onVisibilityChange?: (id: string, visibility: "public" | "private") => void;
@@ -24,6 +27,7 @@ interface CollectionCardProps {
 export function CollectionCard({
     item,
     basePath = "/artworks",
+    isFolder = false,
     onRename,
     onDelete,
     onVisibilityChange,
@@ -56,7 +60,11 @@ export function CollectionCard({
                     />
                 ) : (
                     <div className="w-full aspect-[4/3] min-h-[8rem] bg-zinc-900 rounded-lg flex items-center justify-center">
-                        <FolderOpen className="h-10 w-10 text-zinc-600 group-hover:text-zinc-500 transition-colors" />
+                        {isFolder ? (
+                            <FolderOpen className="h-10 w-10 text-zinc-600 group-hover:text-zinc-500 transition-colors" />
+                        ) : (
+                            <LayoutGrid className="h-10 w-10 text-zinc-600 group-hover:text-zinc-500 transition-colors" />
+                        )}
                     </div>
                 )}
 
