@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Download, Link2 } from "lucide-react";
+import { Bookmark, Download } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
@@ -12,8 +12,6 @@ import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 interface PublicArtworkCardProps {
     item: ArtworkWorkspaceItem;
     isLoggedIn?: boolean;
-    /** Profile base path for share URL, e.g. "/@username". */
-    profilePath?: string;
     /** Owner attribution for discover views. */
     ownerSlug?: string | null;
     ownerName?: string | null;
@@ -22,7 +20,6 @@ interface PublicArtworkCardProps {
 export function PublicArtworkCard({
     item,
     isLoggedIn = false,
-    profilePath,
     ownerSlug,
     ownerName,
 }: PublicArtworkCardProps) {
@@ -72,22 +69,6 @@ export function PublicArtworkCard({
         } catch {
             toast.error("Download failed", { id: "dl" });
         }
-    };
-
-    const handleShare = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const r2KeyParts = (item.r2Key ?? "").split("/");
-        const artworkHash =
-            r2KeyParts.length >= 2
-                ? r2KeyParts[r2KeyParts.length - 2]
-                : r2KeyParts[0];
-        // Use owner's profile path if available (discover), else passed profilePath
-        const base = ownerSlug ? `/@${ownerSlug}` : (profilePath ?? "");
-        const url = `${window.location.origin}${base}?artwork=${artworkHash}`;
-        navigator.clipboard.writeText(url).then(
-            () => toast.success("Link copied"),
-            () => toast.error("Could not copy link"),
-        );
     };
 
     const btn =
@@ -142,14 +123,6 @@ export function PublicArtworkCard({
                                 <Download className="h-4 w-4" />
                             </button>
                         )}
-                        <button
-                            type="button"
-                            title="Share"
-                            onClick={handleShare}
-                            className={btn}
-                        >
-                            <Link2 className="h-4 w-4" />
-                        </button>
                     </div>
 
                     {/* Bottom: author attribution (discover only) */}

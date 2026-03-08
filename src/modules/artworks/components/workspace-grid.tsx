@@ -27,14 +27,12 @@ interface WorkspaceGridProps {
     initialItems: WorkspaceItem[];
     initialHasMore: boolean;
     query: WorkspaceQuery;
-    profilePath?: string;
 }
 
 export function WorkspaceGrid({
     initialItems,
     initialHasMore,
     query,
-    profilePath,
 }: WorkspaceGridProps) {
     const [items, setItems] = useState(initialItems);
     const [hasMore, setHasMore] = useState(initialHasMore);
@@ -197,7 +195,6 @@ export function WorkspaceGrid({
                                     item={cardItem}
                                     isFolder={true}
                                     basePath="/artworks"
-                                    profilePath={profilePath}
                                     onRename={handleRename}
                                     onDelete={handleDelete}
                                 />
@@ -240,7 +237,6 @@ export function WorkspaceGrid({
                             <ArtworkCard
                                 artwork={artwork}
                                 currentCollectionId={query.collectionId ?? null}
-                                profilePath={profilePath}
                             />
                         </div>
                     );

@@ -6,18 +6,14 @@ import {
     Lock,
     Globe,
     Pencil,
-    Link2,
     Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-hot-toast";
 import type { CollectionWorkspaceItem } from "@/modules/artworks/models/workspace-item.model";
 
 interface CollectionCardProps {
     item: CollectionWorkspaceItem;
     basePath?: string;
-    /** Profile base path for share URL, e.g. "/@username". Falls back to basePath. */
-    profilePath?: string;
     isFolder?: boolean;
     onRename?: (id: string) => void;
     onDelete?: (id: string) => void;
@@ -27,7 +23,6 @@ interface CollectionCardProps {
 export function CollectionCard({
     item,
     basePath = "/artworks",
-    profilePath,
     isFolder = false,
     onRename,
     onDelete,
@@ -39,16 +34,6 @@ export function CollectionCard({
         item.itemCount === 0
             ? "Empty"
             : `${item.itemCount} item${item.itemCount !== 1 ? "s" : ""}`;
-
-    const handleShare = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const base = profilePath ?? basePath;
-        const url = `${window.location.origin}${base}?collectionId=${item.id}`;
-        navigator.clipboard.writeText(url).then(
-            () => toast.success("Link copied"),
-            () => toast.error("Could not copy link"),
-        );
-    };
 
     const btn =
         "h-7 w-7 flex items-center justify-center rounded-full bg-black/30 text-white/80 hover:bg-black/50 transition-colors";
@@ -119,14 +104,6 @@ export function CollectionCard({
                                 )}
                             </button>
                         )}
-                        <button
-                            type="button"
-                            title="Share"
-                            onClick={handleShare}
-                            className={btn}
-                        >
-                            <Link2 className="h-4 w-4" />
-                        </button>
                         {onDelete && (
                             <button
                                 type="button"

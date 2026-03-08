@@ -5,7 +5,6 @@ import {
     Download,
     FolderInput,
     Globe,
-    Link2,
     Loader2,
     Lock,
     Shield,
@@ -31,15 +30,12 @@ import { useState } from "react";
 interface ArtworkActionButtonsProps {
     actions: ReturnType<typeof useArtworkActions>;
     currentCollectionId?: string | null;
-    /** Profile base path for share URL, e.g. "/@username". */
-    profilePath?: string;
     children?: React.ReactNode;
 }
 
 export function ArtworkActionButtons({
     actions,
     currentCollectionId,
-    profilePath,
     children,
 }: ArtworkActionButtonsProps) {
     const {
@@ -65,20 +61,6 @@ export function ArtworkActionButtons({
         executeDelete();
     };
 
-    const handleShare = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const r2KeyParts = (artwork.r2Key ?? "").split("/");
-        const artworkHash =
-            r2KeyParts.length >= 2
-                ? r2KeyParts[r2KeyParts.length - 2]
-                : r2KeyParts[0];
-        const base = profilePath ?? "";
-        const url = `${window.location.origin}${base}?artwork=${artworkHash}`;
-        navigator.clipboard.writeText(url).then(
-            () => toast.success("Link copied"),
-            () => toast.error("Could not copy link"),
-        );
-    };
 
     const btn =
         "h-7 w-7 flex items-center justify-center rounded-full bg-black/30 text-white/80 hover:bg-black/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
@@ -158,14 +140,6 @@ export function ArtworkActionButtons({
                     <Download className="h-4 w-4" />
                 </button>
 
-                <button
-                    type="button"
-                    title="Share"
-                    onClick={handleShare}
-                    className={btn}
-                >
-                    <Link2 className="h-4 w-4" />
-                </button>
 
                 <button
                     type="button"

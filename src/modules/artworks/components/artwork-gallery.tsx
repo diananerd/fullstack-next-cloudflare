@@ -5,10 +5,9 @@ import { WorkspaceGrid } from "@/modules/artworks/components/workspace-grid";
 
 interface ArtworkGalleryProps {
     query: WorkspaceQuery;
-    profilePath?: string;
 }
 
-export async function ArtworkGallery({ query, profilePath }: ArtworkGalleryProps) {
+export async function ArtworkGallery({ query }: ArtworkGalleryProps) {
     const result = await getWorkspaceItemsAction(query);
 
     if (result.items.length === 0) {
@@ -29,7 +28,6 @@ export async function ArtworkGallery({ query, profilePath }: ArtworkGalleryProps
             initialItems={result.items}
             initialHasMore={result.hasMore}
             query={query}
-            profilePath={profilePath}
         />
     );
 }

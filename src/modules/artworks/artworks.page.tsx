@@ -1,6 +1,4 @@
-import { and, eq } from "drizzle-orm";
 import { Suspense } from "react";
-import { getDb } from "@/db";
 import { ArtworkGallery } from "@/modules/artworks/components/artwork-gallery";
 import { ArtworkGallerySkeleton } from "@/modules/artworks/components/artwork-gallery.skeleton";
 import { WorkspaceBreadcrumb } from "@/modules/artworks/components/workspace-breadcrumb";
@@ -9,10 +7,6 @@ import { parseWorkspaceQuery } from "@/modules/artworks/models/workspace-item.mo
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { UploadArtworkButton } from "@/components/navbar-upload";
 import { CreateCollectionFab } from "@/modules/social/components/create-collection-dialog";
-import {
-    member,
-    organization,
-} from "@/modules/profiles/schemas/org-plugin.schema";
 
 interface ArtworksPageProps {
     searchParams: Promise<Record<string, string | undefined>>;
@@ -23,24 +17,9 @@ export default async function ArtworksPage({
     searchParams,
     collectionId,
 }: ArtworksPageProps) {
-    const user = await requireAuth();
+    await requireAuth();
     const params = await searchParams;
     const query = parseWorkspaceQuery(params, collectionId);
-
-    const db = await getDb();
-    const [ownedOrg] = await db
-        .select({ slug: organization.slug })
-        .from(organization)
-        .innerJoin(
-            member,
-            and(
-                eq(member.organizationId, organization.id),
-                eq(member.userId, user.id),
-                eq(member.role, "owner"),
-            ),
-        )
-        .limit(1);
-    const profilePath = ownedOrg?.slug ? `/@${ownedOrg.slug}` : undefined;
 
     return (
         <div className="w-full">
@@ -67,7 +46,7 @@ export default async function ArtworksPage({
 
             <div className="px-2 pb-6">
                 <Suspense fallback={<ArtworkGallerySkeleton />}>
-                    <ArtworkGallery query={query} profilePath={profilePath} />
+                    <ArtworkGallery query={query} />
                 </Suspense>
             </div>
 
