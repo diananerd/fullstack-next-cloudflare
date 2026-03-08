@@ -86,6 +86,7 @@ export default async function PublicProfilePage(props: {
                 <WorkspaceBreadcrumb
                     collectionId={collectionId}
                     basePath={basePath}
+                    rootIcon="user"
                 />
                 <Suspense fallback={null}>
                     <WorkspaceToolbar
