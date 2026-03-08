@@ -52,11 +52,18 @@ export async function getDiscoverWorkspaceItemsAction(
     }
 
     // ── Root discover: single query, left-joined with owner info ─────────────
-    // IDs of items already inside a collection (platform-wide)
+    // Only exclude items inside PUBLIC collections — private boards (cross-user saves)
+    // must NOT hide artworks from the discover root.
     const containedResult = await db
         .selectDistinct({ toId: nodeRelations.toId })
         .from(nodeRelations)
-        .where(eq(nodeRelations.type, RELATION_TYPES.CONTAINS));
+        .innerJoin(nodes, eq(nodes.id, nodeRelations.fromId))
+        .where(
+            and(
+                eq(nodeRelations.type, RELATION_TYPES.CONTAINS),
+                eq(nodes.visibility, "public"),
+            ),
+        );
     const containedIds = containedResult.map((r) => r.toId);
 
     const titleSort = sql<string>`COALESCE(${artworkData.title}, ${collectionNodes.name})`;

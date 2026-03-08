@@ -5,6 +5,7 @@ import {
     Download,
     Eye,
     EyeOff,
+    FolderInput,
     Loader2,
     MoreVertical,
     Shield,
@@ -23,15 +24,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { FEATURES } from "@/constants/features.constant";
 import type { useArtworkActions } from "../hooks/use-artwork-actions";
+import { CollectionPickerDialog } from "./collection-picker-dialog";
 import { ProtectArtworkDialog } from "./protect-artwork-dialog";
 
 interface ArtworkActionButtonsProps {
     actions: ReturnType<typeof useArtworkActions>;
+    /** Current parent collection ID, if the artwork is inside a collection. */
+    currentCollectionId?: string | null;
     children?: React.ReactNode;
 }
 
 export function ArtworkActionButtons({
     actions,
+    currentCollectionId,
     children,
 }: ArtworkActionButtonsProps) {
     const {
@@ -49,6 +54,7 @@ export function ArtworkActionButtons({
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [protectOpen, setProtectOpen] = useState(false);
+    const [moveOpen, setMoveOpen] = useState(false);
 
     const stopProp = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -127,6 +133,19 @@ export function ArtworkActionButtons({
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setMenuOpen(false);
+                                    setMoveOpen(true);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
+                            >
+                                <FolderInput className="h-3.5 w-3.5" />
+                                Move to folder
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMenuOpen(false);
                                     handleDownload(e);
                                 }}
                                 className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
@@ -198,6 +217,14 @@ export function ArtworkActionButtons({
                 artworkId={artwork.id}
                 open={protectOpen}
                 onOpenChange={setProtectOpen}
+            />
+
+            <CollectionPickerDialog
+                mode="move"
+                itemId={artwork.id}
+                currentCollectionId={currentCollectionId}
+                open={moveOpen}
+                onOpenChange={setMoveOpen}
             />
 
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

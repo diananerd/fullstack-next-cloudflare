@@ -1,20 +1,29 @@
 "use client";
 
-import { Download, MoreVertical } from "lucide-react";
+import { Bookmark, Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { ArtworkFullView } from "@/modules/artworks/components/artwork-full-view";
+import { CollectionPickerDialog } from "@/modules/artworks/components/collection-picker-dialog";
 import type { DiscoverItem } from "@/modules/artworks/actions/get-discover-workspace-items.action";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 
 interface DiscoverArtworkCardProps {
     item: DiscoverItem;
+    /** Whether the current visitor is authenticated — gates "Save to board". */
+    isLoggedIn?: boolean;
 }
 
-export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
+export function DiscoverArtworkCard({
+    item,
+    isLoggedIn = false,
+}: DiscoverArtworkCardProps) {
     const [open, setOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [saveOpen, setSaveOpen] = useState(false);
+
+    const hasMenu = item.allowDownload || isLoggedIn;
 
     const artwork: Artwork = {
         id: item.id,
@@ -85,8 +94,8 @@ export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 
                 <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
-                    {/* Top-right: kebab menu — only shown when there are actions available */}
-                    {item.allowDownload && (
+                    {/* Top-right: kebab menu */}
+                    {hasMenu && (
                         <div className="flex justify-end">
                             {/* biome-ignore lint/a11y/noStaticElementInteractions: menu */}
                             {/* biome-ignore lint/a11y/useKeyWithClickEvents: menu */}
@@ -117,8 +126,22 @@ export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
                                                 setMenuOpen(false);
                                             }}
                                         />
-                                        {item.allowDownload && (
-                                            <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-20 text-sm">
+                                        <div className="absolute top-full right-0 mt-1 w-40 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-20 text-sm">
+                                            {isLoggedIn && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setMenuOpen(false);
+                                                        setSaveOpen(true);
+                                                    }}
+                                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
+                                                >
+                                                    <Bookmark className="h-3.5 w-3.5" />
+                                                    Save to board
+                                                </button>
+                                            )}
+                                            {item.allowDownload && (
                                                 <button
                                                     type="button"
                                                     onClick={handleDownload}
@@ -127,8 +150,8 @@ export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
                                                     <Download className="h-3.5 w-3.5" />
                                                     Download
                                                 </button>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </>
                                 )}
                             </div>
@@ -158,6 +181,15 @@ export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
                 authorName={item.ownerName}
                 authorSlug={item.ownerSlug}
             />
+
+            {isLoggedIn && (
+                <CollectionPickerDialog
+                    mode="save"
+                    artworkId={item.id}
+                    open={saveOpen}
+                    onOpenChange={setSaveOpen}
+                />
+            )}
         </>
     );
 }

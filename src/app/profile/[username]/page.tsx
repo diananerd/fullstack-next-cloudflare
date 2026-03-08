@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getDb } from "@/db";
-import { getSession } from "@/modules/auth/utils/auth-utils";
+import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import {
     member,
     organization,
@@ -19,6 +19,7 @@ export default async function PublicProfilePage(props: {
     params: Promise<{ username: string }>;
     searchParams: Promise<Record<string, string | undefined>>;
 }) {
+    const visitor = await requireAuth();
     const { username } = await props.params;
     const params = await props.searchParams;
     const slug = username.toLowerCase();
@@ -45,26 +46,23 @@ export default async function PublicProfilePage(props: {
     const ownerUserId = ownerMember.userId;
 
     // Check if current visitor can edit (admin/owner via RBAC)
-    const session = await getSession();
     let canEdit = false;
-    if (session) {
-        if (session.user.id === ownerUserId) {
-            canEdit = true;
-        } else {
-            const [visitorMembership] = await db
-                .select({ role: member.role })
-                .from(member)
-                .where(
-                    and(
-                        eq(member.organizationId, org.id),
-                        eq(member.userId, session.user.id),
-                    ),
-                )
-                .limit(1);
-            canEdit = visitorMembership
-                ? ["owner", "admin"].includes(visitorMembership.role)
-                : false;
-        }
+    if (visitor.id === ownerUserId) {
+        canEdit = true;
+    } else {
+        const [visitorMembership] = await db
+            .select({ role: member.role })
+            .from(member)
+            .where(
+                and(
+                    eq(member.organizationId, org.id),
+                    eq(member.userId, visitor.id),
+                ),
+            )
+            .limit(1);
+        canEdit = visitorMembership
+            ? ["owner", "admin"].includes(visitorMembership.role)
+            : false;
     }
 
     const collectionId = params.collectionId;
@@ -148,6 +146,7 @@ export default async function PublicProfilePage(props: {
                             initialHasMore={initialResult.hasMore}
                             query={query}
                             basePath={basePath}
+                            isLoggedIn={true}
                         />
                     )}
                 </Suspense>

@@ -14,12 +14,14 @@ interface DiscoverWorkspaceGridProps {
     initialItems: DiscoverWorkspaceItem[];
     initialHasMore: boolean;
     query: WorkspaceQuery;
+    isLoggedIn?: boolean;
 }
 
 export function DiscoverWorkspaceGrid({
     initialItems,
     initialHasMore,
     query,
+    isLoggedIn = false,
 }: DiscoverWorkspaceGridProps) {
     const [items, setItems] = useState(initialItems);
     const [hasMore, setHasMore] = useState(initialHasMore);
@@ -72,7 +74,10 @@ export function DiscoverWorkspaceGrid({
                     item.kind === "collection" ? (
                         <CollectionCard item={item} basePath="/discover" />
                     ) : (
-                        <DiscoverArtworkCard item={item} />
+                        <DiscoverArtworkCard
+                            item={item}
+                            isLoggedIn={isLoggedIn}
+                        />
                     )
                 }
             />

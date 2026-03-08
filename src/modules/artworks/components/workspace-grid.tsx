@@ -230,6 +230,7 @@ export function WorkspaceGrid({
                         size: null,
                         semanticType: "digital_art",
                         visibility: item.visibility,
+                        allowDownload: item.allowDownload,
                         createdAt: item.createdAt,
                         updatedAt: item.updatedAt,
                     } as Artwork;
@@ -243,7 +244,10 @@ export function WorkspaceGrid({
                                 })
                             }
                         >
-                            <ArtworkCard artwork={artwork} />
+                            <ArtworkCard
+                                artwork={artwork}
+                                currentCollectionId={query.collectionId ?? null}
+                            />
                         </div>
                     );
                 }}

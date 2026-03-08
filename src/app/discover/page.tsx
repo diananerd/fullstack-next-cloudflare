@@ -5,12 +5,14 @@ import { WorkspaceToolbar } from "@/modules/artworks/components/workspace-toolba
 import { WorkspaceBreadcrumb } from "@/modules/artworks/components/workspace-breadcrumb";
 import { ArtworkGallerySkeleton } from "@/modules/artworks/components/artwork-gallery.skeleton";
 import { DiscoverWorkspaceGrid } from "@/modules/artworks/components/discover-workspace-grid";
+import { requireAuth } from "@/modules/auth/utils/auth-utils";
 
 export default async function DiscoverPage({
     searchParams,
 }: {
     searchParams: Promise<Record<string, string | undefined>>;
 }) {
+    await requireAuth();
     const params = await searchParams;
     const collectionId = params.collectionId;
     const query = parseWorkspaceQuery(params, collectionId);
@@ -60,6 +62,7 @@ export default async function DiscoverPage({
                             initialItems={initialResult.items}
                             initialHasMore={initialResult.hasMore}
                             query={query}
+                            isLoggedIn={true}
                         />
                     )}
                 </Suspense>

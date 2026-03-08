@@ -16,6 +16,7 @@ interface PublicWorkspaceGridProps {
     initialHasMore: boolean;
     query: WorkspaceQuery;
     basePath: string;
+    isLoggedIn?: boolean;
 }
 
 export function PublicWorkspaceGrid({
@@ -24,6 +25,7 @@ export function PublicWorkspaceGrid({
     initialHasMore,
     query,
     basePath,
+    isLoggedIn = false,
 }: PublicWorkspaceGridProps) {
     const [items, setItems] = useState(initialItems);
     const [hasMore, setHasMore] = useState(initialHasMore);
@@ -76,7 +78,10 @@ export function PublicWorkspaceGrid({
                     item.kind === "collection" ? (
                         <CollectionCard item={item} basePath={basePath} />
                     ) : (
-                        <PublicArtworkCard item={item} />
+                        <PublicArtworkCard
+                            item={item}
+                            isLoggedIn={isLoggedIn}
+                        />
                     )
                 }
             />

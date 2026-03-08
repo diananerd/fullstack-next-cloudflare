@@ -171,34 +171,61 @@ export async function deleteCollectionAction(id: string) {
 // ─── Remove from collection ───────────────────────────────────────────────────
 
 /**
- * Remove an item from its current collection without deleting it.
- * The item moves to root level.
+ * Remove an item from a specific collection without deleting it.
+ * Auth: user must own the COLLECTION (not necessarily the item) — supports cross-user boards.
+ * If collectionId is omitted, removes from the first CONTAINS edge found (owner must own item).
  */
-export async function removeFromCollectionAction(itemId: string) {
+export async function removeFromCollectionAction(
+    itemId: string,
+    collectionId?: string,
+) {
     const user = await requireAuth();
     const db = await getDb();
 
-    if (!(await assertOwner(db, itemId, user.id)))
-        return { success: false as const, error: "Unauthorized" };
+    let targetCollectionId: string;
+
+    if (collectionId) {
+        // Cross-user board: check user owns the COLLECTION, not the item
+        if (!(await assertOwner(db, collectionId, user.id)))
+            return { success: false as const, error: "Unauthorized" };
+        targetCollectionId = collectionId;
+    } else {
+        // Dir-like: user must own the item itself
+        if (!(await assertOwner(db, itemId, user.id)))
+            return { success: false as const, error: "Unauthorized" };
+        const [existingRel] = await db
+            .select({ fromId: nodeRelations.fromId })
+            .from(nodeRelations)
+            .where(
+                and(
+                    eq(nodeRelations.toId, itemId),
+                    eq(nodeRelations.type, RELATION_TYPES.CONTAINS),
+                ),
+            )
+            .limit(1);
+        if (!existingRel) return { success: true as const };
+        targetCollectionId = existingRel.fromId;
+    }
 
     const [existingRel] = await db
         .select({ fromId: nodeRelations.fromId })
         .from(nodeRelations)
         .where(
             and(
+                eq(nodeRelations.fromId, targetCollectionId),
                 eq(nodeRelations.toId, itemId),
                 eq(nodeRelations.type, RELATION_TYPES.CONTAINS),
             ),
         )
         .limit(1);
 
-    if (!existingRel) return { success: true as const }; // already at root
+    if (!existingRel) return { success: true as const }; // already not in this collection
 
     await db
         .delete(nodeRelations)
         .where(
             and(
-                eq(nodeRelations.fromId, existingRel.fromId),
+                eq(nodeRelations.fromId, targetCollectionId),
                 eq(nodeRelations.toId, itemId),
                 eq(nodeRelations.type, RELATION_TYPES.CONTAINS),
             ),
@@ -207,7 +234,7 @@ export async function removeFromCollectionAction(itemId: string) {
     await db
         .update(collectionNodes)
         .set({ itemCount: sql`max(0, item_count - 1)` })
-        .where(eq(collectionNodes.id, existingRel.fromId));
+        .where(eq(collectionNodes.id, targetCollectionId));
 
     revalidatePath("/artworks");
     return { success: true as const };
