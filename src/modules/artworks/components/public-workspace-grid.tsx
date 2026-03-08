@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MasonryGrid } from "@/components/ui/masonry-grid";
 import { PublicArtworkCard } from "@/modules/artworks/components/public-artwork-card";
-import { CollectionCard } from "@/modules/social/components/collection-card";
 import type {
     WorkspaceItem,
     WorkspaceQuery,
@@ -75,9 +74,7 @@ export function PublicWorkspaceGrid({
                     item.kind === "artwork" ? `a-${item.id}` : `c-${item.id}`
                 }
                 render={(item) =>
-                    item.kind === "collection" ? (
-                        <CollectionCard item={item} basePath={basePath} />
-                    ) : item.kind === "artwork" ? (
+                    item.kind === "artwork" ? (
                         <PublicArtworkCard
                             item={item}
                             isLoggedIn={isLoggedIn}

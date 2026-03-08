@@ -23,8 +23,8 @@ export async function getPublicWorkspaceItemsAction(
         ownerFilter: eq(nodes.createdBy, ownerUserId),
         visibilityFilter: eq(nodes.visibility, "public"),
         collectionRole: "viewer",
-        // Folders are always private — exclude from public profile views.
-        nodeTypes: ["artwork", "collection"],
+        // Folders are always private; boards are filters, not display items.
+        nodeTypes: ["artwork"],
     };
 
     if (collectionId) {

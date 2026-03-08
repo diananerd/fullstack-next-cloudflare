@@ -195,7 +195,7 @@ export async function queryRootItems(
         ownerFilter,
         visibilityFilter,
         collectionRole = "viewer",
-        nodeTypes = ["artwork", "folder", "collection"],
+        nodeTypes = ["artwork", "folder"],
     } = scope;
     const { sort, order, limit, offset } = query;
 

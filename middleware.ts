@@ -1,7 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getAuthInstance as getAuth } from "@/modules/auth/utils/auth-utils";
 
-const PROTECTED_PREFIXES = ["/artworks", "/billing", "/settings", "/profile", "/discover"];
+const PROTECTED_PREFIXES = [
+    "/artworks",
+    "/billing",
+    "/settings",
+    "/profile",
+    "/discover",
+];
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;

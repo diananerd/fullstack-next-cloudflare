@@ -115,7 +115,7 @@ export async function getDiscoverWorkspaceItemsAction(
         .leftJoin(organization, eq(organization.id, member.organizationId))
         .where(
             and(
-                inArray(nodes.type, ["artwork", "collection"]),
+                eq(nodes.type, "artwork"),
                 visibilityFilter,
                 ...(containedIds.length > 0
                     ? [notInArray(nodes.id, containedIds)]

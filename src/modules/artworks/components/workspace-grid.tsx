@@ -21,21 +21,18 @@ import { moveWorkspaceItemAction } from "@/modules/artworks/actions/move-item.ac
 import { CollectionCard } from "@/modules/social/components/collection-card";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 
-type DragPayload = { kind: "artwork" | "folder" | "collection"; id: string };
+type DragPayload = { kind: "artwork" | "folder"; id: string };
 
 interface WorkspaceGridProps {
     initialItems: WorkspaceItem[];
     initialHasMore: boolean;
     query: WorkspaceQuery;
-    /** Base path for board (collection) cards, e.g. "/@username". Defaults to "/artworks". */
-    boardBasePath?: string;
 }
 
 export function WorkspaceGrid({
     initialItems,
     initialHasMore,
     query,
-    boardBasePath,
 }: WorkspaceGridProps) {
     const [items, setItems] = useState(initialItems);
     const [hasMore, setHasMore] = useState(initialHasMore);
@@ -103,7 +100,6 @@ export function WorkspaceGrid({
             return;
         }
 
-        // Can't drop a container onto itself
         if (payload.id === targetContainerId) return;
 
         const result = await moveWorkspaceItemAction(
@@ -119,44 +115,25 @@ export function WorkspaceGrid({
     };
 
     const handleRename = (id: string) => {
-        const item = items.find(
-            (i) =>
-                i.id === id && (i.kind === "folder" || i.kind === "collection"),
-        );
-        if (item && item.kind !== "artwork") {
+        const item = items.find((i) => i.id === id && i.kind === "folder");
+        if (item) {
             setRenamingItem({ id: item.id, title: item.title });
         }
     };
 
     const handleDelete = async (id: string) => {
-        const item = items.find((i) => i.id === id);
-        const label = item?.kind === "folder" ? "folder" : "collection";
         if (
             !window.confirm(
-                `Delete this ${label}? Items inside will move to your root workspace.`,
+                "Delete this folder? Items inside will move to your root workspace.",
             )
         )
             return;
         const result = await deleteCollectionAction(id);
         if (result.success) {
-            toast.success(
-                `${label.charAt(0).toUpperCase() + label.slice(1)} deleted.`,
-            );
+            toast.success("Folder deleted.");
             router.refresh();
         } else {
-            toast.error(result.error ?? `Failed to delete ${label}.`);
-        }
-    };
-
-    const handleVisibilityChange = async (
-        id: string,
-        visibility: "public" | "private",
-    ) => {
-        const result = await updateCollectionAction(id, { visibility });
-        if (result.success) {
-            router.refresh();
-        } else {
-            toast.error("Failed to update visibility.");
+            toast.error(result.error ?? "Failed to delete folder.");
         }
     };
 
@@ -170,25 +147,18 @@ export function WorkspaceGrid({
                     item.kind === "artwork" ? `a-${item.id}` : `c-${item.id}`
                 }
                 render={(item) => {
-                    if (item.kind === "folder" || item.kind === "collection") {
-                        // Folders are always private — no visibility toggle
-                        const isFolder = item.kind === "folder";
-
-                        // CollectionCard expects CollectionWorkspaceItem; adapt folder
-                        const cardItem: CollectionWorkspaceItem = isFolder
-                            ? {
-                                  kind: "collection",
-                                  id: item.id,
-                                  title: item.title,
-                                  createdAt: item.createdAt,
-                                  updatedAt: item.updatedAt,
-                                  visibility: "private",
-                                  itemCount: (item as FolderWorkspaceItem)
-                                      .itemCount,
-                                  role: "owner",
-                                  coverUrl: null,
-                              }
-                            : (item as CollectionWorkspaceItem);
+                    if (item.kind === "folder") {
+                        const cardItem: CollectionWorkspaceItem = {
+                            kind: "collection",
+                            id: item.id,
+                            title: item.title,
+                            createdAt: item.createdAt,
+                            updatedAt: item.updatedAt,
+                            visibility: "private",
+                            itemCount: (item as FolderWorkspaceItem).itemCount,
+                            role: "owner",
+                            coverUrl: null,
+                        };
 
                         return (
                             // biome-ignore lint/a11y/noStaticElementInteractions: drop target
@@ -196,7 +166,7 @@ export function WorkspaceGrid({
                                 draggable
                                 onDragStart={(e) =>
                                     handleDragStart(e, {
-                                        kind: item.kind,
+                                        kind: "folder",
                                         id: item.id,
                                     })
                                 }
@@ -223,26 +193,17 @@ export function WorkspaceGrid({
                             >
                                 <CollectionCard
                                     item={cardItem}
-                                    isFolder={isFolder}
-                                    basePath={
-                                        isFolder
-                                            ? "/artworks"
-                                            : (boardBasePath ?? "/artworks")
-                                    }
+                                    isFolder={true}
+                                    basePath="/artworks"
                                     onRename={handleRename}
                                     onDelete={handleDelete}
-                                    // Folders are always private — no visibility toggle
-                                    onVisibilityChange={
-                                        isFolder
-                                            ? undefined
-                                            : handleVisibilityChange
-                                    }
                                 />
                             </div>
                         );
                     }
 
                     // artwork
+                    if (item.kind !== "artwork") return null;
                     const artwork = {
                         id: item.id,
                         title: item.title,
