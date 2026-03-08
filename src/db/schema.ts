@@ -68,6 +68,12 @@ export {
 export { commissionMessages } from "@/modules/commissions/schemas/commission-message.schema";
 export { commissionReferenceArtworks } from "@/modules/commissions/schemas/commission-reference.schema";
 
+// ── Legal engine ──────────────────────────────────────────────────────────────
+export { legalContracts } from "@/modules/legal/schemas/legal-contract.schema";
+export { legalContractParties } from "@/modules/legal/schemas/legal-contract-party.schema";
+export { legalClauses } from "@/modules/legal/schemas/legal-clause.schema";
+export { legalClauseEvents } from "@/modules/legal/schemas/legal-clause-event.schema";
+
 // ── Social (publication layer) ─────────────────────────────────────────────────
 export { socialPosts } from "@/modules/social/schemas/social-post.schema";
 export { socialReactions } from "@/modules/social/schemas/social-reaction.schema";

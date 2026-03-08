@@ -62,6 +62,10 @@ export const nodeCreditSplits = sqliteTable(
 
         // 1 = manually overridden, skip recomputation
         isLocked: integer("is_locked", { mode: "boolean" }).notNull().default(false),
+
+        // When set: this split was locked by a legal CREDIT_SPLIT clause.
+        // The contract's clause takes precedence over graph-computed values.
+        clauseId: text("clause_id"),
     },
     (table) => [
         uniqueIndex("node_credit_splits_unique").on(

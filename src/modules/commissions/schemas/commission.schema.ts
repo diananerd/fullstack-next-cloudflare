@@ -36,6 +36,10 @@ export const commissions = sqliteTable(
         ),
         canceledAt: text("canceled_at"),
         completedAt: text("completed_at"),
+        // The legal contract governing this commission.
+        // Created automatically when a commission moves from draft → negotiating.
+        contractId: text("contract_id"),
+
         metadata: text("metadata", { mode: "json" }).$type<
             Record<string, unknown>
         >(),
