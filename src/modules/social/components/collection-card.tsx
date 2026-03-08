@@ -6,12 +6,10 @@ import {
     FolderOpen,
     LayoutGrid,
     Lock,
-    MoreVertical,
     Pencil,
     Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import type { CollectionWorkspaceItem } from "@/modules/artworks/models/workspace-item.model";
 
 interface CollectionCardProps {
@@ -33,8 +31,7 @@ export function CollectionCard({
     onVisibilityChange,
 }: CollectionCardProps) {
     const router = useRouter();
-    const [menuOpen, setMenuOpen] = useState(false);
-    const hasMenu = onRename || onDelete || onVisibilityChange;
+    const hasActions = onRename || onDelete || onVisibilityChange;
 
     const itemCountLabel =
         item.itemCount === 0
@@ -46,7 +43,9 @@ export function CollectionCard({
         // biome-ignore lint/a11y/useKeyWithClickEvents: card navigation
         <div
             className="group relative @container overflow-hidden rounded-lg w-full bg-gray-100/50 hover:bg-gray-100 transition-colors cursor-pointer"
-            onClick={() => router.push(`${basePath}?collectionId=${item.id}`)}
+            onClick={() =>
+                router.push(`${basePath}?collectionId=${item.id}`)
+            }
         >
             <div className="relative w-full">
                 {/* Cover image or icon placeholder */}
@@ -73,97 +72,59 @@ export function CollectionCard({
 
                 {/* Overlay */}
                 <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
-                    {/* Top row: lock + kebab */}
-                    <div className="flex items-start w-full gap-2">
+                    {/* Top row: lock + action buttons */}
+                    <div className="flex items-start w-full gap-1.5">
                         {item.visibility === "private" && (
-                            <Lock className="h-3 w-3 text-white/70 mt-0.5 drop-shadow" />
+                            <Lock className="h-3 w-3 text-white/70 mt-1 drop-shadow flex-shrink-0" />
                         )}
 
-                        {hasMenu && (
-                            <div className="ml-auto pointer-events-auto relative">
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setMenuOpen((v) => !v);
-                                    }}
-                                    className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors opacity-0 group-hover:opacity-100"
-                                    aria-label="Collection options"
-                                >
-                                    <MoreVertical className="h-3.5 w-3.5" />
-                                </button>
-
-                                {menuOpen && (
-                                    <>
-                                        <div
-                                            className="fixed inset-0 z-10"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setMenuOpen(false);
-                                            }}
-                                        />
-                                        <div className="absolute top-full right-0 mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-20 text-sm">
-                                            {onRename && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setMenuOpen(false);
-                                                        onRename(item.id);
-                                                    }}
-                                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
-                                                >
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                    Rename
-                                                </button>
-                                            )}
-                                            {onVisibilityChange && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setMenuOpen(false);
-                                                        onVisibilityChange(
-                                                            item.id,
-                                                            item.visibility ===
-                                                                "private"
-                                                                ? "public"
-                                                                : "private",
-                                                        );
-                                                    }}
-                                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
-                                                >
-                                                    {item.visibility ===
-                                                    "private" ? (
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                    ) : (
-                                                        <EyeOff className="h-3.5 w-3.5" />
-                                                    )}
-                                                    {item.visibility ===
-                                                    "private"
-                                                        ? "Make public"
-                                                        : "Make private"}
-                                                </button>
-                                            )}
-                                            {onDelete && (
-                                                <>
-                                                    <div className="border-t border-gray-100 my-1" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setMenuOpen(false);
-                                                            onDelete(item.id);
-                                                        }}
-                                                        className="w-full flex items-center gap-2 px-3 py-1.5 text-red-600 hover:bg-red-50 text-left"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                        Delete
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </>
+                        {hasActions && (
+                            <div className="ml-auto flex items-center gap-1 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                {onRename && (
+                                    <button
+                                        type="button"
+                                        title="Rename"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onRename(item.id);
+                                        }}
+                                        className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors"
+                                    >
+                                        <Pencil className="h-3 w-3" />
+                                    </button>
+                                )}
+                                {onVisibilityChange && (
+                                    <button
+                                        type="button"
+                                        title={item.visibility === "private" ? "Make public" : "Make private"}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onVisibilityChange(
+                                                item.id,
+                                                item.visibility === "private" ? "public" : "private",
+                                            );
+                                        }}
+                                        className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors"
+                                    >
+                                        {item.visibility === "private" ? (
+                                            <Eye className="h-3 w-3" />
+                                        ) : (
+                                            <EyeOff className="h-3 w-3" />
+                                        )}
+                                    </button>
+                                )}
+                                {onDelete && (
+                                    <button
+                                        type="button"
+                                        title="Delete"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDelete(item.id);
+                                        }}
+                                        className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-red-400 hover:bg-red-500/40 hover:text-red-300 transition-colors"
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </button>
                                 )}
                             </div>
                         )}

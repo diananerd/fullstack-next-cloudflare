@@ -27,12 +27,15 @@ interface WorkspaceGridProps {
     initialItems: WorkspaceItem[];
     initialHasMore: boolean;
     query: WorkspaceQuery;
+    /** Base path for board (collection) cards, e.g. "/@username". Defaults to "/artworks". */
+    boardBasePath?: string;
 }
 
 export function WorkspaceGrid({
     initialItems,
     initialHasMore,
     query,
+    boardBasePath,
 }: WorkspaceGridProps) {
     const [items, setItems] = useState(initialItems);
     const [hasMore, setHasMore] = useState(initialHasMore);
@@ -221,6 +224,11 @@ export function WorkspaceGrid({
                                 <CollectionCard
                                     item={cardItem}
                                     isFolder={isFolder}
+                                    basePath={
+                                        isFolder
+                                            ? "/artworks"
+                                            : (boardBasePath ?? "/artworks")
+                                    }
                                     onRename={handleRename}
                                     onDelete={handleDelete}
                                     // Folders are always private — no visibility toggle
