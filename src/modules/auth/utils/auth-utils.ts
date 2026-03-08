@@ -550,11 +550,33 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
             return null;
         }
 
+        const userId = session.user.id;
+        let profileSlug: string | undefined;
+        try {
+            const db = await getDb();
+            const [org] = await db
+                .select({ slug: organizationSchema.slug })
+                .from(organizationSchema)
+                .innerJoin(
+                    memberSchema,
+                    and(
+                        eq(memberSchema.organizationId, organizationSchema.id),
+                        eq(memberSchema.userId, userId),
+                        eq(memberSchema.role, "owner"),
+                    ),
+                )
+                .limit(1);
+            profileSlug = org?.slug;
+        } catch {
+            // non-fatal — slug is optional
+        }
+
         return {
-            id: session.user.id,
+            id: userId,
             name: session.user.name,
             email: session.user.email,
             image: session.user.image,
+            profileSlug,
         };
     } catch (error) {
         console.error("Error getting current user:", error);
