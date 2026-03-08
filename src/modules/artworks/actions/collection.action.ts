@@ -10,23 +10,7 @@ import { RELATION_TYPES } from "@/constants/relation-types";
 import { member } from "@/modules/profiles/schemas/org-plugin.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { sql } from "drizzle-orm";
-
-const TITLE_PATTERN = /^[\p{L}\p{N}\s'\-\.,]+$/u;
-
-function validateTitle(
-    raw: string,
-): { ok: true; title: string } | { ok: false; error: string } {
-    const title = raw.trim().replace(/\s+/g, " ");
-    if (title.length === 0) return { ok: false, error: "Name is required." };
-    if (title.length > 50)
-        return { ok: false, error: "Name must be 50 characters or fewer." };
-    if (!TITLE_PATTERN.test(title))
-        return {
-            ok: false,
-            error: "Only letters, numbers, spaces, and ' - . , are allowed.",
-        };
-    return { ok: true, title };
-}
+import { parseCollectionTitle } from "@/modules/artworks/utils/collection-title";
 
 async function assertOwner(
     db: Awaited<ReturnType<typeof getDb>>,
@@ -49,7 +33,7 @@ export async function createCollectionAction(
 ) {
     const user = await requireAuth();
 
-    const validated = validateTitle(rawTitle);
+    const validated = parseCollectionTitle(rawTitle);
     if (!validated.ok)
         return { success: false as const, error: validated.error };
 
@@ -119,7 +103,7 @@ export async function updateCollectionAction(
     const now = new Date().toISOString();
 
     if (data.name !== undefined) {
-        const validated = validateTitle(data.name);
+        const validated = parseCollectionTitle(data.name);
         if (!validated.ok)
             return { success: false as const, error: validated.error };
         await db

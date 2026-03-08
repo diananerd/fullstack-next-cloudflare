@@ -71,6 +71,7 @@ export type CollectionWorkspaceItem = {
     visibility: string;
     itemCount: number;
     role: string;
+    coverUrl?: string | null;
 };
 
 export type WorkspaceItem = ArtworkWorkspaceItem | CollectionWorkspaceItem;

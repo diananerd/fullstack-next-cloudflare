@@ -10,11 +10,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { CollectionNameField } from "@/modules/artworks/components/collection-name-field";
 import { updateCollectionAction } from "@/modules/artworks/actions/collection.action";
-
-const TITLE_PATTERN = /^[\p{L}\p{N}\s'\-\.,]*$/u;
 
 interface CollectionRenameDialogProps {
     open: boolean;
@@ -35,23 +32,11 @@ export function CollectionRenameDialog({
     const router = useRouter();
 
     useEffect(() => {
-        if (open) setName(currentName);
+        if (open) {
+            setName(currentName);
+            setError(null);
+        }
     }, [open, currentName]);
-
-    const validate = (value: string): string | null => {
-        const trimmed = value.trim();
-        if (trimmed.length === 0) return null;
-        if (trimmed.length > 50) return "50 characters max.";
-        if (!TITLE_PATTERN.test(value))
-            return "Only letters, numbers, spaces, and ' - . , are allowed.";
-        return null;
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        setName(val);
-        setError(validate(val));
-    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -90,23 +75,15 @@ export function CollectionRenameDialog({
                     onSubmit={handleSubmit}
                     className="mt-2 flex flex-col gap-4"
                 >
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="rename-collection">Name</Label>
-                        <Input
-                            id="rename-collection"
-                            value={name}
-                            onChange={handleChange}
-                            maxLength={51}
-                            autoFocus
-                            autoComplete="off"
-                        />
-                        {error && (
-                            <p className="text-xs text-red-500">{error}</p>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                            {name.trim().length}/50
-                        </p>
-                    </div>
+                    <CollectionNameField
+                        id="rename-collection"
+                        value={name}
+                        error={error}
+                        onChange={(val, err) => {
+                            setName(val);
+                            setError(err);
+                        }}
+                    />
                     <div className="flex justify-end gap-2">
                         <Button
                             type="button"
