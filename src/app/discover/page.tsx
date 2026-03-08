@@ -36,21 +36,19 @@ export default async function DiscoverPage({
                 </Suspense>
             </div>
 
-            {/* Title + Description — shown only at root */}
-            {!collectionId && (
-                <div className="px-4 pt-6 pb-2 md:px-6 md:pt-6">
-                    <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-                        Discover
-                    </h1>
-                    <p className="text-gray-600 text-sm md:text-base mt-1">
-                        Explore public artworks and collections from creators on
-                        Drimit
-                    </p>
-                </div>
-            )}
+            {/* Title + Description */}
+            <div className="px-4 pt-6 pb-2 md:px-6 md:pt-6">
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                    Discover
+                </h1>
+                <p className="text-gray-600 text-sm md:text-base mt-1">
+                    Explore public artworks and collections from creators on
+                    Drimit
+                </p>
+            </div>
 
             {/* Gallery */}
-            <div className="px-2 pb-6 pt-4">
+            <div className="px-2 pb-6">
                 <Suspense fallback={<ArtworkGallerySkeleton />}>
                     {initialResult.items.length === 0 ? (
                         <p className="text-sm text-gray-400 px-4 py-8 text-center">

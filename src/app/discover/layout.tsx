@@ -1,14 +1,9 @@
-import { Navigation } from "@/components/navigation";
+import PublicLayout from "@/modules/artworks/public.layout";
 
 export default function DiscoverLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    return (
-        <div className="flex flex-col min-h-screen">
-            <Navigation />
-            <div className="w-full h-full flex-1">{children}</div>
-        </div>
-    );
+    return <PublicLayout>{children}</PublicLayout>;
 }

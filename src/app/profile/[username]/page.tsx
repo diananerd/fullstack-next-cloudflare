@@ -98,42 +98,40 @@ export default async function PublicProfilePage(props: {
                 </Suspense>
             </div>
 
-            {/* Profile header — shown at root, hidden inside collection */}
-            {!collectionId && (
-                <div className="px-4 md:px-6 pt-6 pb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        {/* Avatar */}
-                        <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400 text-lg font-medium select-none">
-                            {avatarUrl ? (
-                                // biome-ignore lint/performance/noImgElement: profile avatar
-                                <img
-                                    src={avatarUrl}
-                                    alt={displayName}
-                                    className="h-full w-full object-cover"
-                                />
-                            ) : (
-                                displayName.charAt(0).toUpperCase()
-                            )}
-                        </div>
-                        {/* Name + handle */}
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-                                {displayName}
-                            </h1>
-                            <p className="text-sm text-gray-400">@{slug}</p>
-                        </div>
+            {/* Profile header */}
+            <div className="px-4 md:px-6 pt-6 pb-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    {/* Avatar */}
+                    <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400 text-lg font-medium select-none">
+                        {avatarUrl ? (
+                            // biome-ignore lint/performance/noImgElement: profile avatar
+                            <img
+                                src={avatarUrl}
+                                alt={displayName}
+                                className="h-full w-full object-cover"
+                            />
+                        ) : (
+                            displayName.charAt(0).toUpperCase()
+                        )}
                     </div>
-
-                    {canEdit && (
-                        <EditProfileButton
-                            orgId={org.id}
-                            currentName={org.name}
-                            currentSlug={org.slug ?? slug}
-                            currentAvatarUrl={avatarUrl}
-                        />
-                    )}
+                    {/* Name + handle */}
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                            {displayName}
+                        </h1>
+                        <p className="text-sm text-gray-400">@{slug}</p>
+                    </div>
                 </div>
-            )}
+
+                {canEdit && (
+                    <EditProfileButton
+                        orgId={org.id}
+                        currentName={org.name}
+                        currentSlug={org.slug ?? slug}
+                        currentAvatarUrl={avatarUrl}
+                    />
+                )}
+            </div>
 
             {/* Gallery */}
             <div className="px-2 pb-6">

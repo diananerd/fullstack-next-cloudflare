@@ -24,7 +24,7 @@ export default async function ArtworksPage({
     return (
         <div className="w-full">
             {/* Breadcrumb + Filters bar — sticky at the top */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 md:px-6 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 md:px-6 py-2 border-b border-gray-100 bg-white sticky top-[57px] z-10">
                 <WorkspaceBreadcrumb collectionId={collectionId} />
                 <Suspense fallback={null}>
                     <WorkspaceToolbar

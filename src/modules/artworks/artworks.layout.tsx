@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { Navigation } from "@/components/navigation";
 import { WelcomeModal } from "@/components/welcome-modal";
 import { getSession } from "@/modules/auth/utils/auth-utils";
 import authRoutes from "../auth/auth.route";
+import PublicLayout from "./public.layout";
 
 export default async function ArtworksLayout({
     children,
@@ -16,11 +16,9 @@ export default async function ArtworksLayout({
     }
 
     return (
-        <div className="flex flex-col min-h-screen">
-            <Navigation />
-
-            <div className="w-full h-full flex-1">{children}</div>
+        <PublicLayout>
+            {children}
             <WelcomeModal />
-        </div>
+        </PublicLayout>
     );
 }
