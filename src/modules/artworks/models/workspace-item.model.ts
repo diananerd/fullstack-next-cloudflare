@@ -64,7 +64,18 @@ export type ArtworkWorkspaceItem = {
     allowDownload: boolean;
 };
 
+export type FolderWorkspaceItem = {
+    /** Always-private dir-like container. Move semantics: items inside disappear from root. */
+    kind: "folder";
+    id: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+    itemCount: number;
+};
+
 export type CollectionWorkspaceItem = {
+    /** Cross-user board. Reference semantics: saved items still live at owner's root. */
     kind: "collection";
     id: string;
     title: string;
@@ -76,7 +87,10 @@ export type CollectionWorkspaceItem = {
     coverUrl?: string | null;
 };
 
-export type WorkspaceItem = ArtworkWorkspaceItem | CollectionWorkspaceItem;
+export type WorkspaceItem =
+    | ArtworkWorkspaceItem
+    | FolderWorkspaceItem
+    | CollectionWorkspaceItem;
 
 export interface WorkspaceItemsResult {
     items: WorkspaceItem[];

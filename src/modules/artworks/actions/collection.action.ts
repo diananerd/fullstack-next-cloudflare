@@ -49,7 +49,7 @@ export async function createCollectionAction(
 
     await db.insert(nodes).values({
         id: collectionId,
-        type: "collection",
+        type: "folder",
         createdBy: user.id,
         visibility: "private",
     });

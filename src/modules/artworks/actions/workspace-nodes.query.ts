@@ -1,10 +1,14 @@
 /**
  * Shared internal query engine for workspace node lists.
- * All views that list items (artworks + collections) share this implementation.
+ * All views that list items (artworks + folders + collections) share this implementation.
+ *
+ * Two container types:
+ *   folder     (type="folder")     → private dir-like org; items inside EXCLUDED from root
+ *   collection (type="collection") → cross-user boards; saved artworks still appear at root
  *
  * Pattern: single LEFT JOIN query on `nodes` discriminated by `nodes.type`.
  * - Correct global pagination (LIMIT/OFFSET on the unified set, not per subtype).
- * - Consistent sort across both types: COALESCE(artwork.title, collection.name).
+ * - Consistent sort across all types: COALESCE(artwork.title, folder/collection.name).
  * - Specialization (card UI, owner info) is handled by the caller.
  */
 
@@ -38,6 +42,12 @@ export interface NodeQueryScope {
     visibilityFilter?: SQL;
     /** Role to assign to collection items in the result. */
     collectionRole?: string;
+    /**
+     * Node types to include in root query results.
+     * Defaults to ["artwork", "folder", "collection"] (authenticated workspace).
+     * Public/discover views pass ["artwork", "collection"] to exclude private folders.
+     */
+    nodeTypes?: string[];
 }
 
 // ── Shared SELECT clause ──────────────────────────────────────────────────────
@@ -48,7 +58,7 @@ const NODE_FIELDS = {
     createdAt: nodes.createdAt,
     updatedAt: nodes.updatedAt,
     visibility: nodes.visibility,
-    // Artwork subtype fields (null for collections)
+    // Artwork subtype fields (null for folders/collections)
     artworkTitle: artworkData.title,
     url: artworkData.url,
     r2Key: artworkData.r2Key,
@@ -56,7 +66,7 @@ const NODE_FIELDS = {
     height: artworkData.height,
     protectionStatus: artworkData.protectionStatus,
     allowDownload: artworkData.allowDownload,
-    // Collection subtype fields (null for artworks)
+    // Folder/Collection subtype fields (null for artworks)
     collectionName: collectionNodes.name,
     itemCount: collectionNodes.itemCount,
 } as const;
@@ -101,6 +111,17 @@ export function rowToWorkspaceItem(
             allowDownload: row.allowDownload ?? false,
         };
     }
+    if (row.type === "folder") {
+        return {
+            kind: "folder",
+            id: row.id,
+            title: row.collectionName ?? "",
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
+            itemCount: row.itemCount ?? 0,
+        };
+    }
+    // type === "collection" (board)
     return {
         kind: "collection",
         id: row.id,
@@ -113,23 +134,7 @@ export function rowToWorkspaceItem(
     };
 }
 
-// ── Shared LEFT JOINs for subtype fields ──────────────────────────────────────
-
-function applySubtypeJoins<T extends { leftJoin: (...args: any[]) => any }>(
-    qb: T,
-) {
-    return (qb as any)
-        .leftJoin(
-            artworkData,
-            and(eq(artworkData.id, nodes.id), eq(nodes.type, "artwork")),
-        )
-        .leftJoin(
-            collectionNodes,
-            and(eq(collectionNodes.id, nodes.id), eq(nodes.type, "collection")),
-        );
-}
-
-// ── Collection path: items inside a specific collection ───────────────────────
+// ── Container path: items inside a specific folder or collection ──────────────
 
 export async function queryCollectionItems(
     db: DB,
@@ -137,11 +142,13 @@ export async function queryCollectionItems(
     query: WorkspaceQuery,
     scope: NodeQueryScope,
 ): Promise<WorkspaceItemsResult> {
-    const { ownerFilter, visibilityFilter, collectionRole = "viewer" } = scope;
+    const { visibilityFilter, collectionRole = "viewer" } = scope;
     const { limit, offset } = query;
 
-    // Single query: INNER JOIN nodeRelations to filter children + get position
-    const baseQuery = db
+    // Single query: INNER JOIN nodeRelations to filter children + get position.
+    // ownerFilter NOT applied — the CONTAINS edge is the authorization gate;
+    // boards can contain artworks from any owner.
+    const rows = await db
         .select({ ...NODE_FIELDS, position: nodeRelations.position })
         .from(nodes)
         .innerJoin(
@@ -151,22 +158,18 @@ export async function queryCollectionItems(
                 eq(nodeRelations.fromId, collectionId),
                 eq(nodeRelations.type, RELATION_TYPES.CONTAINS),
             ),
-        );
-
-    const withJoins = baseQuery
+        )
         .leftJoin(
             artworkData,
             and(eq(artworkData.id, nodes.id), eq(nodes.type, "artwork")),
         )
         .leftJoin(
             collectionNodes,
-            and(eq(collectionNodes.id, nodes.id), eq(nodes.type, "collection")),
-        );
-
-    // ownerFilter intentionally NOT applied here: the collection edge is the
-    // authorization gate. Items can come from any owner (cross-user boards).
-    // visibilityFilter still applies so public views only show public items.
-    const rows = await withJoins
+            and(
+                eq(collectionNodes.id, nodes.id),
+                inArray(nodes.type, ["collection", "folder"]),
+            ),
+        )
         .where(and(...(visibilityFilter ? [visibilityFilter] : [])))
         .orderBy(asc(nodeRelations.position))
         .limit(limit + 1)
@@ -181,17 +184,24 @@ export async function queryCollectionItems(
     };
 }
 
-// ── Root path: top-level items (not inside any collection) ───────────────────
+// ── Root path: top-level items (not inside any folder) ───────────────────────
 
 export async function queryRootItems(
     db: DB,
     query: WorkspaceQuery,
     scope: NodeQueryScope,
 ): Promise<WorkspaceItemsResult> {
-    const { ownerFilter, visibilityFilter, collectionRole = "viewer" } = scope;
+    const {
+        ownerFilter,
+        visibilityFilter,
+        collectionRole = "viewer",
+        nodeTypes = ["artwork", "folder", "collection"],
+    } = scope;
     const { sort, order, limit, offset } = query;
 
-    // Step 1: IDs of items already inside a collection (scoped to owner if provided)
+    // Step 1: IDs of items inside a FOLDER (folder = move semantics → hidden from root).
+    // Collections (boards) use reference semantics: saved artworks still appear at root.
+    // Folders are always private, so for public views this always yields an empty set.
     const containedResult = await db
         .selectDistinct({ toId: nodeRelations.toId })
         .from(nodeRelations)
@@ -199,13 +209,14 @@ export async function queryRootItems(
         .where(
             and(
                 eq(nodeRelations.type, RELATION_TYPES.CONTAINS),
+                eq(nodes.type, "folder"),
                 ...(ownerFilter ? [ownerFilter] : []),
             ),
         );
     const containedIds = containedResult.map((r) => r.toId);
 
     // Step 2: Single unified query — nodes, left-joined with both subtype tables.
-    // Title sort uses COALESCE so collections and artworks sort together.
+    // Title sort uses COALESCE so all types sort together.
     const titleSort = sql<string>`COALESCE(${artworkData.title}, ${collectionNodes.name})`;
     const sortField =
         sort === "title"
@@ -224,11 +235,14 @@ export async function queryRootItems(
         )
         .leftJoin(
             collectionNodes,
-            and(eq(collectionNodes.id, nodes.id), eq(nodes.type, "collection")),
+            and(
+                eq(collectionNodes.id, nodes.id),
+                inArray(nodes.type, ["collection", "folder"]),
+            ),
         )
         .where(
             and(
-                inArray(nodes.type, ["artwork", "collection"]),
+                inArray(nodes.type, nodeTypes),
                 ...(ownerFilter ? [ownerFilter] : []),
                 ...(visibilityFilter ? [visibilityFilter] : []),
                 ...(containedIds.length > 0

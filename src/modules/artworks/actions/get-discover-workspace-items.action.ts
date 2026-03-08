@@ -52,8 +52,10 @@ export async function getDiscoverWorkspaceItemsAction(
     }
 
     // ── Root discover: single query, left-joined with owner info ─────────────
-    // Only exclude items inside PUBLIC collections — private boards (cross-user saves)
-    // must NOT hide artworks from the discover root.
+    // Only exclude items inside FOLDERS (move semantics = item disappears from root).
+    // Collections (boards) use reference semantics — artworks saved to boards
+    // still appear at their owner's root. Folders are always private so this
+    // yields an empty set for public queries, which is correct.
     const containedResult = await db
         .selectDistinct({ toId: nodeRelations.toId })
         .from(nodeRelations)
@@ -61,7 +63,7 @@ export async function getDiscoverWorkspaceItemsAction(
         .where(
             and(
                 eq(nodeRelations.type, RELATION_TYPES.CONTAINS),
-                eq(nodes.visibility, "public"),
+                eq(nodes.type, "folder"),
             ),
         );
     const containedIds = containedResult.map((r) => r.toId);
@@ -101,7 +103,10 @@ export async function getDiscoverWorkspaceItemsAction(
         )
         .leftJoin(
             collectionNodes,
-            and(eq(collectionNodes.id, nodes.id), eq(nodes.type, "collection")),
+            and(
+                eq(collectionNodes.id, nodes.id),
+                inArray(nodes.type, ["collection", "folder"]),
+            ),
         )
         .leftJoin(
             member,

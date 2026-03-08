@@ -23,6 +23,7 @@ import { user } from "@/modules/auth/schemas/auth.schema";
  */
 export type NodeType =
     | "artwork"
+    | "folder"
     | "collection"
     | "profile"
     | "tag"

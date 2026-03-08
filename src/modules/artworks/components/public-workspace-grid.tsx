@@ -77,12 +77,12 @@ export function PublicWorkspaceGrid({
                 render={(item) =>
                     item.kind === "collection" ? (
                         <CollectionCard item={item} basePath={basePath} />
-                    ) : (
+                    ) : item.kind === "artwork" ? (
                         <PublicArtworkCard
                             item={item}
                             isLoggedIn={isLoggedIn}
                         />
-                    )
+                    ) : null
                 }
             />
 

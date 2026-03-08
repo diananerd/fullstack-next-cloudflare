@@ -1,31 +1,32 @@
 "use client";
 
 /**
- * CollectionPickerDialog — unified dialog for two distinct models:
+ * CollectionPickerDialog — unified tree dialog for two models:
  *
- *  mode="move"  (dir-like): Move an artwork/collection to a folder.
- *    - Single-select. Clicking a board triggers move + closes.
- *    - Shows "Root workspace" as the first option (move out of any folder).
- *    - Current parent is marked (dimmed) to avoid no-op moves.
+ *  mode="move"  Navigate a tree of ALL containers (folders + boards).
+ *               Click "Move here" to place the item in the currently-viewed level.
+ *               Breadcrumb shows the current path. Works for any item type
+ *               (artwork, folder, board).
  *
- *  mode="save"  (board/save-like): Save an artwork to one or more boards.
- *    - Multi-select with checkboxes. Toggling is instant.
- *    - Current membership pre-loaded from the DB.
- *    - "Done" closes the dialog.
+ *  mode="save"  Navigate a tree of BOARDS only.
+ *               Toggle checkboxes to add/remove the artwork from boards.
+ *               Membership state is pre-loaded; toggling is instant.
  *
- * Both modes share the board list + inline "New board" creation form.
+ * Both modes share: breadcrumb path navigation, inline "New" creation, lazy loading.
  */
 
 import {
+    ArrowLeft,
     Bookmark,
     Check,
+    ChevronRight,
     FolderOpen,
-    FolderRoot,
     Loader2,
     Move,
     Plus,
+    LayoutGrid,
 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -35,19 +36,23 @@ import {
 } from "@/components/ui/dialog";
 import { CollectionNameField } from "@/modules/artworks/components/collection-name-field";
 import {
-    createBoardAndSaveAction,
+    getContainerChildrenAction,
+    getBoardChildrenAction,
     getArtworkBoardMembershipAction,
-    getUserBoardsAction,
+    createBoardAndSaveAction,
     toggleArtworkBoardAction,
+    type ContainerTreeItem,
+    type BoardTreeItem,
 } from "@/modules/artworks/actions/save-to-board.action";
+import { createCollectionAction } from "@/modules/artworks/actions/collection.action";
 import { moveWorkspaceItemAction } from "@/modules/artworks/actions/move-item.action";
 
-// ── Props ─────────────────────────────────────────────────────────────────────
+// ── Props ──────────────────────────────────────────────────────────────────────
 
 interface MoveProps {
     mode: "move";
     itemId: string;
-    /** Current parent collection of the item (null = already at root). */
+    /** Current parent container of the item (null = already at root). */
     currentCollectionId?: string | null;
     onMoved?: () => void;
 }
@@ -62,68 +67,113 @@ type CollectionPickerDialogProps = (MoveProps | SaveProps) & {
     onOpenChange: (open: boolean) => void;
 };
 
-// ── Board item type ───────────────────────────────────────────────────────────
+// ── Path segment ──────────────────────────────────────────────────────────────
 
-type BoardItem = {
-    id: string;
-    name: string;
-    itemCount: number;
-    visibility: string;
-};
+type PathSegment = { id: string; name: string };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
     const { open, onOpenChange } = props;
+    const isMove = props.mode === "move";
 
-    const [boards, setBoards] = useState<BoardItem[]>([]);
-    const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+    // Tree state
+    const [path, setPath] = useState<PathSegment[]>([]); // breadcrumb
+    const [containerItems, setContainerItems] = useState<ContainerTreeItem[]>(
+        [],
+    );
+    const [boardItems, setBoardItems] = useState<BoardTreeItem[]>([]);
     const [loading, setLoading] = useState(false);
+
+    // Save mode: pre-loaded board membership
+    const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
     const [toggling, setToggling] = useState<string | null>(null);
+
+    // Creation form
     const [creatingNew, setCreatingNew] = useState(false);
     const [newName, setNewName] = useState("");
     const [newNameError, setNewNameError] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
 
-    const isMove = props.mode === "move";
-    const itemId = isMove ? props.itemId : props.artworkId;
+    const currentParentId = path.length > 0 ? path[path.length - 1].id : null;
+    const currentItemCollectionId = isMove
+        ? ((props as MoveProps).currentCollectionId ?? null)
+        : null;
 
-    // Load boards and current membership when dialog opens
+    // ── Fetch current level ────────────────────────────────────────────────────
+
+    const fetchLevel = useCallback(
+        async (parentId: string | null) => {
+            setLoading(true);
+            try {
+                if (isMove) {
+                    const items = await getContainerChildrenAction(parentId);
+                    setContainerItems(items);
+                } else {
+                    const items = await getBoardChildrenAction(parentId);
+                    setBoardItems(items);
+                }
+            } finally {
+                setLoading(false);
+            }
+        },
+        [isMove],
+    );
+
+    // ── Initialize on open ────────────────────────────────────────────────────
+
     useEffect(() => {
         if (!open) {
+            setPath([]);
+            setContainerItems([]);
+            setBoardItems([]);
+            setSavedIds(new Set());
             setCreatingNew(false);
             setNewName("");
             setNewNameError(null);
             return;
         }
-        setLoading(true);
-        if (isMove) {
-            // Move mode: just need the list of boards (no membership checkboxes)
-            getUserBoardsAction().then((collections) => {
-                setBoards(collections);
-                setLoading(false);
-            });
-        } else {
-            // Save mode: need boards + which ones already contain this artwork
-            Promise.all([
-                getUserBoardsAction(),
-                getArtworkBoardMembershipAction(props.artworkId),
-            ]).then(([collections, membership]) => {
-                setBoards(collections);
-                setSavedIds(new Set(membership));
-                setLoading(false);
-            });
+
+        fetchLevel(null);
+
+        if (!isMove) {
+            const artworkId = (props as SaveProps).artworkId;
+            getArtworkBoardMembershipAction(artworkId).then((ids) =>
+                setSavedIds(new Set(ids)),
+            );
         }
-    }, [open, isMove, isMove ? props.itemId : props.artworkId]);
+    }, [open, isMove]);
 
-    // ── Move mode: pick a destination, then move ──────────────────────────────
+    // ── Navigation ────────────────────────────────────────────────────────────
 
-    const handleMove = (targetCollectionId: string | null) => {
+    const drillInto = async (item: ContainerTreeItem | BoardTreeItem) => {
+        const newPath = [...path, { id: item.id, name: item.name }];
+        setPath(newPath);
+        await fetchLevel(item.id);
+    };
+
+    const navigateTo = async (index: number) => {
+        if (index < 0) {
+            setPath([]);
+            await fetchLevel(null);
+        } else {
+            const newPath = path.slice(0, index + 1);
+            setPath(newPath);
+            await fetchLevel(newPath[newPath.length - 1].id);
+        }
+        setCreatingNew(false);
+        setNewName("");
+        setNewNameError(null);
+    };
+
+    // ── Move here ─────────────────────────────────────────────────────────────
+
+    const handleMoveHere = () => {
         if (!isMove || isPending) return;
         startTransition(async () => {
             const result = await moveWorkspaceItemAction(
-                itemId,
-                targetCollectionId,
+                (props as MoveProps).itemId,
+                currentParentId,
             );
             if (result.success) {
                 onOpenChange(false);
@@ -132,23 +182,24 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
         });
     };
 
-    // ── Save mode: toggle membership ──────────────────────────────────────────
+    // ── Toggle board membership ───────────────────────────────────────────────
 
-    const handleToggle = (collectionId: string) => {
+    const handleToggle = (boardId: string) => {
         if (isMove || toggling || isPending) return;
-        setToggling(collectionId);
+        const artworkId = (props as SaveProps).artworkId;
+        setToggling(boardId);
         startTransition(async () => {
-            const result = await toggleArtworkBoardAction(itemId, collectionId);
+            const result = await toggleArtworkBoardAction(artworkId, boardId);
             if (result.success) {
                 setSavedIds((prev) => {
                     const next = new Set(prev);
-                    if (result.saved) next.add(collectionId);
-                    else next.delete(collectionId);
+                    if (result.saved) next.add(boardId);
+                    else next.delete(boardId);
                     return next;
                 });
-                setBoards((prev) =>
+                setBoardItems((prev) =>
                     prev.map((b) =>
-                        b.id === collectionId
+                        b.id === boardId
                             ? {
                                   ...b,
                                   itemCount: result.saved
@@ -163,40 +214,60 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
         });
     };
 
-    // ── Create new board + save ───────────────────────────────────────────────
+    // ── Create new ────────────────────────────────────────────────────────────
 
-    const handleCreateAndSave = () => {
+    const handleCreate = () => {
         if (newNameError || !newName.trim() || isPending) return;
         startTransition(async () => {
-            const result = await createBoardAndSaveAction(
-                itemId,
-                newName.trim(),
-            );
-            if (result.success) {
-                const newBoard: BoardItem = {
-                    id: result.collectionId,
-                    name: result.name,
-                    itemCount: 1,
-                    visibility: "private",
-                };
-                setBoards((prev) => [newBoard, ...prev]);
-                if (isMove) {
-                    // In move mode, creating a new board and saving = move there
-                    onOpenChange(false);
-                    if (props.mode === "move") props.onMoved?.();
-                } else {
-                    // In save mode, board is created and artwork is already saved
+            if (isMove) {
+                // Create folder at current level, then move item into it
+                const result = await createCollectionAction(
+                    newName.trim(),
+                    currentParentId,
+                );
+                if (result.success) {
+                    const moveResult = await moveWorkspaceItemAction(
+                        (props as MoveProps).itemId,
+                        result.collectionId,
+                    );
+                    if (moveResult.success) {
+                        onOpenChange(false);
+                        if (props.mode === "move") props.onMoved?.();
+                    }
+                }
+            } else {
+                // Create board at current level, save artwork to it
+                const artworkId = (props as SaveProps).artworkId;
+                const result = await createBoardAndSaveAction(
+                    artworkId,
+                    newName.trim(),
+                    currentParentId,
+                );
+                if (result.success) {
+                    setBoardItems((prev) => [
+                        {
+                            id: result.collectionId,
+                            name: result.name,
+                            itemCount: 1,
+                        },
+                        ...prev,
+                    ]);
                     setSavedIds(
                         (prev) => new Set([...prev, result.collectionId]),
                     );
+                    setCreatingNew(false);
+                    setNewName("");
                 }
-                setCreatingNew(false);
-                setNewName("");
             }
         });
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
+
+    const isMoveHereDisabled =
+        isPending || currentParentId === currentItemCollectionId;
+
+    const displayItems = isMove ? containerItems : boardItems;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -206,7 +277,7 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
                         {isMove ? (
                             <>
                                 <Move className="h-4 w-4" />
-                                Move to folder
+                                Move to
                             </>
                         ) : (
                             <>
@@ -217,42 +288,84 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="mt-2 flex flex-col gap-2">
-                    {/* Root workspace option — move mode only */}
+                <div className="mt-1 flex flex-col gap-2">
+                    {/* Breadcrumb */}
+                    <div className="flex items-center gap-0.5 text-xs min-h-[1.5rem] flex-wrap">
+                        {path.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => navigateTo(-1)}
+                                className="h-5 w-5 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0"
+                                aria-label="Go to root"
+                            >
+                                <ArrowLeft className="h-3 w-3" />
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => navigateTo(-1)}
+                            className={`px-1 py-0.5 rounded transition-colors ${
+                                path.length === 0
+                                    ? "text-gray-800 font-medium"
+                                    : "text-gray-400 hover:text-gray-700"
+                            }`}
+                        >
+                            Root
+                        </button>
+                        {path.map((seg, i) => (
+                            <span key={seg.id} className="flex items-center">
+                                <ChevronRight className="h-3 w-3 text-gray-300 flex-shrink-0" />
+                                <button
+                                    type="button"
+                                    onClick={() => navigateTo(i)}
+                                    className={`px-1 py-0.5 rounded truncate max-w-[8rem] transition-colors ${
+                                        i === path.length - 1
+                                            ? "text-gray-800 font-medium"
+                                            : "text-gray-400 hover:text-gray-700"
+                                    }`}
+                                >
+                                    {seg.name}
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Move here button (move mode) */}
                     {isMove && (
                         <button
                             type="button"
-                            onClick={() => handleMove(null)}
-                            disabled={isPending || !props.currentCollectionId}
+                            onClick={handleMoveHere}
+                            disabled={isMoveHereDisabled}
                             title={
-                                !props.currentCollectionId
-                                    ? "Already at root"
+                                isMoveHereDisabled && !isPending
+                                    ? "Already here"
                                     : undefined
                             }
-                            className="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-left w-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                            <FolderRoot className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                            <span className="text-sm text-gray-700 flex-1">
-                                Root workspace
-                            </span>
-                            {!props.currentCollectionId && (
-                                <Check className="h-3.5 w-3.5 text-gray-400" />
+                            {isPending ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <Check className="h-3.5 w-3.5" />
                             )}
+                            Move here
                         </button>
                     )}
 
-                    {/* New board form or trigger */}
+                    {/* New folder/board form or trigger */}
                     {creatingNew ? (
                         <div className="flex flex-col gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50">
                             <CollectionNameField
-                                id="new-board-name"
+                                id="new-container-name"
                                 value={newName}
                                 error={newNameError}
                                 onChange={(val, err) => {
                                     setNewName(val);
                                     setNewNameError(err);
                                 }}
-                                placeholder="Folder name…"
+                                placeholder={
+                                    isMove ? "Folder name…" : "Board name…"
+                                }
                             />
                             <div className="flex gap-2 justify-end">
                                 <Button
@@ -271,7 +384,7 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
                                 <Button
                                     type="button"
                                     size="sm"
-                                    onClick={handleCreateAndSave}
+                                    onClick={handleCreate}
                                     disabled={
                                         isPending ||
                                         !newName.trim() ||
@@ -292,83 +405,67 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
                         <button
                             type="button"
                             onClick={() => setCreatingNew(true)}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg border border-dashed border-gray-300 w-full text-left"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg border border-dashed border-gray-300 w-full text-left transition-colors"
                         >
                             <Plus className="h-3.5 w-3.5" />
-                            New folder
+                            {isMove ? "New folder here" : "New board here"}
                         </button>
                     )}
 
-                    {/* Board list */}
+                    {/* Container / board list */}
                     {loading ? (
                         <div className="flex justify-center py-6">
                             <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
                         </div>
-                    ) : boards.length === 0 ? (
-                        <p className="text-sm text-gray-400 text-center py-4">
-                            No folders yet. Create one above.
+                    ) : displayItems.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-3">
+                            {isMove
+                                ? "No sub-folders or boards here."
+                                : "No boards here."}
                         </p>
                     ) : (
-                        <div className="flex flex-col gap-0.5 max-h-64 overflow-y-auto">
-                            {boards.map((board) => {
-                                const isCurrent =
-                                    isMove &&
-                                    board.id === props.currentCollectionId;
-                                const isSaved =
-                                    !isMove && savedIds.has(board.id);
-                                const isToggling = toggling === board.id;
-
-                                return (
-                                    <button
-                                        key={board.id}
-                                        type="button"
-                                        onClick={() =>
-                                            isMove
-                                                ? handleMove(board.id)
-                                                : handleToggle(board.id)
-                                        }
-                                        disabled={
-                                            isPending || !!toggling || isCurrent
-                                        }
-                                        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 text-left w-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {!isMove && (
-                                            <div
-                                                className={`h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-                                                    isSaved
-                                                        ? "bg-black border-black"
-                                                        : "border-gray-300"
-                                                }`}
-                                            >
-                                                {isToggling ? (
-                                                    <Loader2 className="h-2.5 w-2.5 animate-spin text-white" />
-                                                ) : isSaved ? (
-                                                    <Check className="h-2.5 w-2.5 text-white" />
-                                                ) : null}
-                                            </div>
-                                        )}
-                                        <FolderOpen className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                                        <span className="text-sm text-gray-700 flex-1 truncate">
-                                            {board.name}
-                                        </span>
-                                        {isCurrent && (
-                                            <Check className="h-3 w-3 text-gray-400" />
-                                        )}
-                                        {isPending && isMove && !isCurrent && (
-                                            <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
-                                        )}
-                                        {!isMove && (
-                                            <span className="text-xs text-gray-400">
-                                                {board.itemCount}
-                                            </span>
-                                        )}
-                                    </button>
-                                );
-                            })}
+                        <div className="flex flex-col gap-0.5 max-h-56 overflow-y-auto">
+                            {isMove
+                                ? (containerItems as ContainerTreeItem[]).map(
+                                      (item) => (
+                                          <ContainerRow
+                                              key={item.id}
+                                              item={item}
+                                              isPending={isPending}
+                                              onDrillIn={() => drillInto(item)}
+                                          />
+                                      ),
+                                  )
+                                : (boardItems as BoardTreeItem[]).map(
+                                      (board) => {
+                                          const isSaved = savedIds.has(
+                                              board.id,
+                                          );
+                                          const isToggling =
+                                              toggling === board.id;
+                                          return (
+                                              <BoardRow
+                                                  key={board.id}
+                                                  item={board}
+                                                  isSaved={isSaved}
+                                                  isToggling={isToggling}
+                                                  isPending={
+                                                      isPending || !!toggling
+                                                  }
+                                                  onToggle={() =>
+                                                      handleToggle(board.id)
+                                                  }
+                                                  onDrillIn={() =>
+                                                      drillInto(board)
+                                                  }
+                                              />
+                                          );
+                                      },
+                                  )}
                         </div>
                     )}
 
-                    {/* Footer */}
+                    {/* Footer (save mode) */}
                     {!isMove && (
                         <div className="flex justify-end pt-2 border-t border-gray-100">
                             <Button
@@ -384,5 +481,97 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function ContainerRow({
+    item,
+    isPending,
+    onDrillIn,
+}: {
+    item: ContainerTreeItem;
+    isPending: boolean;
+    onDrillIn: () => void;
+}) {
+    const Icon = item.containerType === "folder" ? FolderOpen : LayoutGrid;
+    return (
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 w-full group">
+            <Icon className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+            <span className="text-sm text-gray-700 flex-1 truncate">
+                {item.name}
+            </span>
+            <span className="text-xs text-gray-400 flex-shrink-0">
+                {item.itemCount}
+            </span>
+            <button
+                type="button"
+                onClick={onDrillIn}
+                disabled={isPending}
+                className="h-5 w-5 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                aria-label={`Open ${item.name}`}
+            >
+                <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+        </div>
+    );
+}
+
+function BoardRow({
+    item,
+    isSaved,
+    isToggling,
+    isPending,
+    onToggle,
+    onDrillIn,
+}: {
+    item: BoardTreeItem;
+    isSaved: boolean;
+    isToggling: boolean;
+    isPending: boolean;
+    onToggle: () => void;
+    onDrillIn: () => void;
+}) {
+    return (
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 w-full group">
+            {/* Checkbox */}
+            <button
+                type="button"
+                onClick={onToggle}
+                disabled={isPending}
+                className={`h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                    isSaved ? "bg-black border-black" : "border-gray-300"
+                } disabled:opacity-50`}
+            >
+                {isToggling ? (
+                    <Loader2 className="h-2.5 w-2.5 animate-spin text-white" />
+                ) : isSaved ? (
+                    <Check className="h-2.5 w-2.5 text-white" />
+                ) : null}
+            </button>
+            <LayoutGrid className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+            {/* Clicking the name also toggles */}
+            <button
+                type="button"
+                onClick={onToggle}
+                disabled={isPending}
+                className="text-sm text-gray-700 flex-1 truncate text-left"
+            >
+                {item.name}
+            </button>
+            <span className="text-xs text-gray-400 flex-shrink-0">
+                {item.itemCount}
+            </span>
+            <button
+                type="button"
+                onClick={onDrillIn}
+                disabled={isPending}
+                className="h-5 w-5 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                aria-label={`Open ${item.name}`}
+            >
+                <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+        </div>
     );
 }

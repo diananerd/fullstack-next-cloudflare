@@ -8,6 +8,7 @@ import { ArtworkCard } from "@/modules/artworks/components/artwork-card";
 import { CollectionRenameDialog } from "@/modules/artworks/components/collection-rename-dialog";
 import type {
     CollectionWorkspaceItem,
+    FolderWorkspaceItem,
     WorkspaceItem,
     WorkspaceQuery,
 } from "@/modules/artworks/models/workspace-item.model";
@@ -16,16 +17,11 @@ import {
     deleteCollectionAction,
     updateCollectionAction,
 } from "@/modules/artworks/actions/collection.action";
-import {
-    moveArtworkAction,
-    moveCollectionAction,
-} from "@/modules/artworks/actions/move-item.action";
+import { moveWorkspaceItemAction } from "@/modules/artworks/actions/move-item.action";
 import { CollectionCard } from "@/modules/social/components/collection-card";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 
-type DragPayload =
-    | { kind: "artwork"; id: string }
-    | { kind: "collection"; id: string };
+type DragPayload = { kind: "artwork" | "folder" | "collection"; id: string };
 
 interface WorkspaceGridProps {
     initialItems: WorkspaceItem[];
@@ -42,8 +38,10 @@ export function WorkspaceGrid({
     const [hasMore, setHasMore] = useState(initialHasMore);
     const [isLoading, setIsLoading] = useState(false);
     const [dropTarget, setDropTarget] = useState<string | null>(null);
-    const [renamingCollection, setRenamingCollection] =
-        useState<CollectionWorkspaceItem | null>(null);
+    const [renamingItem, setRenamingItem] = useState<{
+        id: string;
+        title: string;
+    } | null>(null);
     const sentinelRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
 
@@ -87,7 +85,7 @@ export function WorkspaceGrid({
 
     const handleDrop = async (
         e: React.DragEvent,
-        targetCollectionId: string,
+        targetContainerId: string,
     ) => {
         e.preventDefault();
         setDropTarget(null);
@@ -102,51 +100,48 @@ export function WorkspaceGrid({
             return;
         }
 
-        if (payload.kind === "collection" && payload.id === targetCollectionId)
-            return;
+        // Can't drop a container onto itself
+        if (payload.id === targetContainerId) return;
 
-        if (payload.kind === "artwork") {
-            const result = await moveArtworkAction(
-                payload.id,
-                query.collectionId ?? null,
-                targetCollectionId,
-            );
-            if (!result.success) {
-                toast.error("Failed to move artwork");
-                return;
-            }
-        } else {
-            const result = await moveCollectionAction(
-                payload.id,
-                targetCollectionId,
-            );
-            if (!result.success) {
-                toast.error("Failed to move collection");
-                return;
-            }
+        const result = await moveWorkspaceItemAction(
+            payload.id,
+            targetContainerId,
+        );
+        if (!result.success) {
+            toast.error("Failed to move item");
+            return;
         }
 
         router.refresh();
     };
 
     const handleRename = (id: string) => {
-        const item = items.find((i) => i.id === id && i.kind === "collection");
-        if (item?.kind === "collection") setRenamingCollection(item);
+        const item = items.find(
+            (i) =>
+                i.id === id && (i.kind === "folder" || i.kind === "collection"),
+        );
+        if (item && item.kind !== "artwork") {
+            setRenamingItem({ id: item.id, title: item.title });
+        }
     };
 
     const handleDelete = async (id: string) => {
+        const item = items.find((i) => i.id === id);
+        const label = item?.kind === "folder" ? "folder" : "collection";
         if (
             !window.confirm(
-                "Delete this collection? Items inside will move to your root workspace.",
+                `Delete this ${label}? Items inside will move to your root workspace.`,
             )
         )
             return;
         const result = await deleteCollectionAction(id);
         if (result.success) {
-            toast.success("Collection deleted.");
+            toast.success(
+                `${label.charAt(0).toUpperCase() + label.slice(1)} deleted.`,
+            );
             router.refresh();
         } else {
-            toast.error(result.error ?? "Failed to delete collection.");
+            toast.error(result.error ?? `Failed to delete ${label}.`);
         }
     };
 
@@ -172,14 +167,33 @@ export function WorkspaceGrid({
                     item.kind === "artwork" ? `a-${item.id}` : `c-${item.id}`
                 }
                 render={(item) => {
-                    if (item.kind === "collection") {
+                    if (item.kind === "folder" || item.kind === "collection") {
+                        // Folders are always private — no visibility toggle
+                        const isFolder = item.kind === "folder";
+
+                        // CollectionCard expects CollectionWorkspaceItem; adapt folder
+                        const cardItem: CollectionWorkspaceItem = isFolder
+                            ? {
+                                  kind: "collection",
+                                  id: item.id,
+                                  title: item.title,
+                                  createdAt: item.createdAt,
+                                  updatedAt: item.updatedAt,
+                                  visibility: "private",
+                                  itemCount: (item as FolderWorkspaceItem)
+                                      .itemCount,
+                                  role: "owner",
+                                  coverUrl: null,
+                              }
+                            : (item as CollectionWorkspaceItem);
+
                         return (
                             // biome-ignore lint/a11y/noStaticElementInteractions: drop target
                             <div
                                 draggable
                                 onDragStart={(e) =>
                                     handleDragStart(e, {
-                                        kind: "collection",
+                                        kind: item.kind,
                                         id: item.id,
                                     })
                                 }
@@ -205,15 +219,21 @@ export function WorkspaceGrid({
                                 }
                             >
                                 <CollectionCard
-                                    item={item}
+                                    item={cardItem}
                                     onRename={handleRename}
                                     onDelete={handleDelete}
-                                    onVisibilityChange={handleVisibilityChange}
+                                    // Folders are always private — no visibility toggle
+                                    onVisibilityChange={
+                                        isFolder
+                                            ? undefined
+                                            : handleVisibilityChange
+                                    }
                                 />
                             </div>
                         );
                     }
 
+                    // artwork
                     const artwork = {
                         id: item.id,
                         title: item.title,
@@ -261,14 +281,14 @@ export function WorkspaceGrid({
                 </div>
             )}
 
-            {renamingCollection && (
+            {renamingItem && (
                 <CollectionRenameDialog
                     open={true}
                     onOpenChange={(open) => {
-                        if (!open) setRenamingCollection(null);
+                        if (!open) setRenamingItem(null);
                     }}
-                    collectionId={renamingCollection.id}
-                    currentName={renamingCollection.title}
+                    collectionId={renamingItem.id}
+                    currentName={renamingItem.title}
                 />
             )}
         </div>
