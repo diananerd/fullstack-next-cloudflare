@@ -127,21 +127,16 @@ async function getContainerChildren(
 // ── Tree navigation — Move dialog ─────────────────────────────────────────────
 
 /**
- * Get direct child containers (BOTH folders and boards) for the move-to dialog.
- * Shows all container types since any item can be moved into any container.
+ * Get direct child FOLDERS for the move-to dialog.
+ * Move semantics live in folders only; boards are for the save dialog.
  * parentId=null → root level.
  */
-export async function getContainerChildrenAction(
+export async function getFolderChildrenAction(
     parentId: string | null,
 ): Promise<ContainerTreeItem[]> {
     const user = await requireAuth();
     const db = await getDb();
-    return getContainerChildren(
-        db,
-        user.id,
-        ["folder", "collection"],
-        parentId,
-    );
+    return getContainerChildren(db, user.id, ["folder"], parentId);
 }
 
 // ── Tree navigation — Save dialog ─────────────────────────────────────────────

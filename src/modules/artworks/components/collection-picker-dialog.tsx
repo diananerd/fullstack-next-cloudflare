@@ -16,15 +16,14 @@
  */
 
 import {
-    ArrowLeft,
     Bookmark,
     Check,
     ChevronRight,
     FolderOpen,
+    LayoutGrid,
     Loader2,
     Move,
     Plus,
-    LayoutGrid,
 } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { CollectionNameField } from "@/modules/artworks/components/collection-name-field";
 import {
-    getContainerChildrenAction,
+    getFolderChildrenAction,
     getBoardChildrenAction,
     getArtworkBoardMembershipAction,
     createBoardAndSaveAction,
@@ -107,7 +106,7 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
             setLoading(true);
             try {
                 if (isMove) {
-                    const items = await getContainerChildrenAction(parentId);
+                    const items = await getFolderChildrenAction(parentId);
                     setContainerItems(items);
                 } else {
                     const items = await getBoardChildrenAction(parentId);
@@ -291,26 +290,21 @@ export function CollectionPickerDialog(props: CollectionPickerDialogProps) {
                 <div className="mt-1 flex flex-col gap-2">
                     {/* Breadcrumb */}
                     <div className="flex items-center gap-0.5 text-xs min-h-[1.5rem] flex-wrap">
-                        {path.length > 0 && (
-                            <button
-                                type="button"
-                                onClick={() => navigateTo(-1)}
-                                className="h-5 w-5 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0"
-                                aria-label="Go to root"
-                            >
-                                <ArrowLeft className="h-3 w-3" />
-                            </button>
-                        )}
                         <button
                             type="button"
                             onClick={() => navigateTo(-1)}
-                            className={`px-1 py-0.5 rounded transition-colors ${
+                            className={`h-5 w-5 flex items-center justify-center rounded transition-colors ${
                                 path.length === 0
-                                    ? "text-gray-800 font-medium"
-                                    : "text-gray-400 hover:text-gray-700"
+                                    ? "text-gray-700"
+                                    : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                             }`}
+                            aria-label="Go to root"
                         >
-                            Root
+                            {isMove ? (
+                                <FolderOpen className="h-3.5 w-3.5" />
+                            ) : (
+                                <LayoutGrid className="h-3.5 w-3.5" />
+                            )}
                         </button>
                         {path.map((seg, i) => (
                             <span key={seg.id} className="flex items-center">
