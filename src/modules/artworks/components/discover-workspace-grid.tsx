@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MasonryGrid } from "@/components/ui/masonry-grid";
-import { DiscoverArtworkCard } from "@/modules/artworks/components/discover-artwork-card";
-import { CollectionCard } from "@/modules/social/components/collection-card";
+import { PublicArtworkCard } from "@/modules/artworks/components/public-artwork-card";
 import type { WorkspaceQuery } from "@/modules/artworks/models/workspace-item.model";
 import {
     getDiscoverWorkspaceItemsAction,
@@ -67,18 +66,16 @@ export function DiscoverWorkspaceGrid({
         <div>
             <MasonryGrid
                 items={items}
-                keyExtractor={(item) =>
-                    item.kind === "artwork" ? `a-${item.id}` : `c-${item.id}`
-                }
+                keyExtractor={(item) => `a-${item.id}`}
                 render={(item) =>
-                    item.kind === "collection" ? (
-                        <CollectionCard item={item} basePath="/discover" />
-                    ) : (
-                        <DiscoverArtworkCard
+                    item.kind === "artwork" ? (
+                        <PublicArtworkCard
                             item={item}
                             isLoggedIn={isLoggedIn}
+                            ownerSlug={item.ownerSlug}
+                            ownerName={item.ownerName}
                         />
-                    )
+                    ) : null
                 }
             />
             <div ref={sentinelRef} className="h-10" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { Bookmark, Download, Link2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { ArtworkFullView } from "@/modules/artworks/components/artwork-full-view";
@@ -13,12 +14,17 @@ interface PublicArtworkCardProps {
     isLoggedIn?: boolean;
     /** Profile base path for share URL, e.g. "/@username". */
     profilePath?: string;
+    /** Owner attribution for discover views. */
+    ownerSlug?: string | null;
+    ownerName?: string | null;
 }
 
 export function PublicArtworkCard({
     item,
     isLoggedIn = false,
     profilePath,
+    ownerSlug,
+    ownerName,
 }: PublicArtworkCardProps) {
     const [open, setOpen] = useState(false);
     const [saveOpen, setSaveOpen] = useState(false);
@@ -75,7 +81,8 @@ export function PublicArtworkCard({
             r2KeyParts.length >= 2
                 ? r2KeyParts[r2KeyParts.length - 2]
                 : r2KeyParts[0];
-        const base = profilePath ?? "";
+        // Use owner's profile path if available (discover), else passed profilePath
+        const base = ownerSlug ? `/@${ownerSlug}` : (profilePath ?? "");
         const url = `${window.location.origin}${base}?artwork=${artworkHash}`;
         navigator.clipboard.writeText(url).then(
             () => toast.success("Link copied"),
@@ -85,8 +92,6 @@ export function PublicArtworkCard({
 
     const btn =
         "h-7 w-7 flex items-center justify-center rounded-full bg-black/30 text-white/80 hover:bg-black/50 transition-colors";
-
-    const hasActions = isLoggedIn || item.allowDownload;
 
     return (
         <>
@@ -109,45 +114,57 @@ export function PublicArtworkCard({
 
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 
-                {hasActions && (
-                    <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
-                        {/* biome-ignore lint/a11y/noStaticElementInteractions: action container */}
-                        {/* biome-ignore lint/a11y/useKeyWithClickEvents: action container */}
-                        <div
-                            className="flex justify-end gap-1 pointer-events-auto"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {isLoggedIn && (
-                                <button
-                                    type="button"
-                                    title="Save to board"
-                                    onClick={(e) => { e.stopPropagation(); setSaveOpen(true); }}
-                                    className={btn}
-                                >
-                                    <Bookmark className="h-4 w-4" />
-                                </button>
-                            )}
-                            {item.allowDownload && (
-                                <button
-                                    type="button"
-                                    title="Download"
-                                    onClick={handleDownload}
-                                    className={btn}
-                                >
-                                    <Download className="h-4 w-4" />
-                                </button>
-                            )}
+                <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
+                    {/* Top row: action buttons */}
+                    {/* biome-ignore lint/a11y/noStaticElementInteractions: action container */}
+                    {/* biome-ignore lint/a11y/useKeyWithClickEvents: action container */}
+                    <div
+                        className="flex justify-end gap-1 pointer-events-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {isLoggedIn && (
                             <button
                                 type="button"
-                                title="Share"
-                                onClick={handleShare}
+                                title="Save to board"
+                                onClick={(e) => { e.stopPropagation(); setSaveOpen(true); }}
                                 className={btn}
                             >
-                                <Link2 className="h-4 w-4" />
+                                <Bookmark className="h-4 w-4" />
                             </button>
-                        </div>
+                        )}
+                        {item.allowDownload && (
+                            <button
+                                type="button"
+                                title="Download"
+                                onClick={handleDownload}
+                                className={btn}
+                            >
+                                <Download className="h-4 w-4" />
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            title="Share"
+                            onClick={handleShare}
+                            className={btn}
+                        >
+                            <Link2 className="h-4 w-4" />
+                        </button>
                     </div>
-                )}
+
+                    {/* Bottom: author attribution (discover only) */}
+                    {ownerSlug && (
+                        <div className="mt-auto pointer-events-auto">
+                            <Link
+                                href={`/@${ownerSlug}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-xs font-medium text-white/80 hover:text-white drop-shadow transition-colors truncate block"
+                            >
+                                {ownerName ?? `@${ownerSlug}`}
+                            </Link>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <ArtworkFullView
@@ -155,6 +172,8 @@ export function PublicArtworkCard({
                 isOpen={open}
                 onClose={() => setOpen(false)}
                 readOnly
+                authorName={ownerName}
+                authorSlug={ownerSlug}
             />
 
             {isLoggedIn && (

@@ -1,12 +1,13 @@
 "use client";
 
 import {
+    Bookmark,
     Download,
     FolderInput,
-    Loader2,
-    Lock,
     Globe,
     Link2,
+    Loader2,
+    Lock,
     Shield,
     Trash2,
     XCircle,
@@ -55,6 +56,7 @@ export function ArtworkActionButtons({
 
     const [protectOpen, setProtectOpen] = useState(false);
     const [moveOpen, setMoveOpen] = useState(false);
+    const [saveOpen, setSaveOpen] = useState(false);
 
     const stopProp = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -111,6 +113,16 @@ export function ArtworkActionButtons({
                             <Shield className="h-4 w-4" />
                         </button>
                     ))}
+
+                <button
+                    type="button"
+                    title="Save to board"
+                    onClick={(e) => { e.stopPropagation(); setSaveOpen(true); }}
+                    disabled={isPending}
+                    className={btn}
+                >
+                    <Bookmark className="h-4 w-4" />
+                </button>
 
                 <button
                     type="button"
@@ -176,6 +188,13 @@ export function ArtworkActionButtons({
                 artworkId={artwork.id}
                 open={protectOpen}
                 onOpenChange={setProtectOpen}
+            />
+
+            <CollectionPickerDialog
+                mode="save"
+                artworkId={artwork.id}
+                open={saveOpen}
+                onOpenChange={setSaveOpen}
             />
 
             <CollectionPickerDialog
