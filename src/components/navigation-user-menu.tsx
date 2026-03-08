@@ -71,7 +71,7 @@ export function NavigationUserMenu({ user, profileSlug }: NavigationUserMenuProp
                         <span>Artworks</span>
                     </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem asChild className="hidden">
                     <Link href="/billing" className="cursor-pointer">
                         <CreditCard className="mr-2 h-4 w-4" />
                         <span>Credits</span>
