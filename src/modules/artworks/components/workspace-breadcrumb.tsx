@@ -4,10 +4,13 @@ import { resolveCollectionPath } from "@/modules/artworks/actions/get-workspace-
 
 interface WorkspaceBreadcrumbProps {
     collectionId?: string;
+    /** Root link. Defaults to "/artworks". Public profiles pass "/@slug". */
+    basePath?: string;
 }
 
 export async function WorkspaceBreadcrumb({
     collectionId,
+    basePath = "/artworks",
 }: WorkspaceBreadcrumbProps) {
     const ancestors = collectionId
         ? await resolveCollectionPath(collectionId)
@@ -16,15 +19,15 @@ export async function WorkspaceBreadcrumb({
     return (
         <nav className="flex items-center gap-1.5 text-sm flex-wrap">
             <Link
-                href="/artworks"
+                href={basePath}
                 className="text-gray-400 hover:text-gray-700 transition-colors flex items-center"
-                aria-label="My Artworks"
+                aria-label="Home"
             >
                 <Home className="h-3.5 w-3.5" />
             </Link>
             {ancestors.map((seg, i) => {
                 const isLast = i === ancestors.length - 1;
-                const href = `/artworks?collectionId=${seg.id}`;
+                const href = `${basePath}?collectionId=${seg.id}`;
                 return (
                     <span key={seg.id} className="flex items-center gap-1.5">
                         <span className="text-gray-300">/</span>

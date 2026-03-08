@@ -32,6 +32,8 @@ interface WorkspaceToolbarProps {
     /** When true (inside a collection), sort/order controls are disabled.
      *  Order is controlled by drag-and-drop position inside folders. */
     insideCollection?: boolean;
+    /** When true, the visibility filter is hidden (e.g. on public profile pages). */
+    hideVisibility?: boolean;
 }
 
 export function WorkspaceToolbar({
@@ -39,6 +41,7 @@ export function WorkspaceToolbar({
     order,
     visibility,
     insideCollection = false,
+    hideVisibility = false,
 }: WorkspaceToolbarProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -102,19 +105,21 @@ export function WorkspaceToolbar({
             </button>
 
             {/* Visibility filter */}
-            <select
-                value={visibility}
-                onChange={(e) => update("visibility", e.target.value)}
-                className="h-7 text-xs rounded-md border border-gray-200 bg-white px-2 text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300"
-            >
-                {(Object.keys(VISIBILITY_LABELS) as VisibilityFilter[]).map(
-                    (v) => (
-                        <option key={v} value={v}>
-                            {VISIBILITY_LABELS[v]}
-                        </option>
-                    ),
-                )}
-            </select>
+            {!hideVisibility && (
+                <select
+                    value={visibility}
+                    onChange={(e) => update("visibility", e.target.value)}
+                    className="h-7 text-xs rounded-md border border-gray-200 bg-white px-2 text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                >
+                    {(Object.keys(VISIBILITY_LABELS) as VisibilityFilter[]).map(
+                        (v) => (
+                            <option key={v} value={v}>
+                                {VISIBILITY_LABELS[v]}
+                            </option>
+                        ),
+                    )}
+                </select>
+            )}
         </div>
     );
 }

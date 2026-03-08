@@ -12,6 +12,7 @@ import {
     createProfileAction,
     updateProfileAction,
 } from "@/modules/profiles/actions/profile.action";
+import { AvatarCropUpload } from "@/modules/profiles/components/avatar-crop-upload";
 
 // ── Create form (no org yet) ──────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ export function ProfileEditForm({ org }: ProfileEditFormProps) {
     const [bio, setBio] = useState(org.bio ?? "");
     const [websiteUrl, setWebsiteUrl] = useState(org.websiteUrl ?? "");
     const [visibility, setVisibility] = useState(org.visibility ?? "public");
+    const [avatarUrl, setAvatarUrl] = useState(org.logo ?? null);
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
 
@@ -142,6 +144,17 @@ export function ProfileEditForm({ org }: ProfileEditFormProps) {
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-w-md">
+            {/* Avatar */}
+            <AvatarCropUpload
+                orgId={org.id}
+                currentAvatarUrl={avatarUrl}
+                displayName={name || org.name}
+                onSuccess={(url) => {
+                    setAvatarUrl(url);
+                    router.refresh();
+                }}
+            />
+
             <div className="flex flex-col gap-1.5">
                 <Label htmlFor="edit-name">Display name</Label>
                 <Input

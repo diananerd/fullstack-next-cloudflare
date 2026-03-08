@@ -1,181 +1,173 @@
-import { and, desc, eq, getTableColumns, like } from "drizzle-orm";
-import Image from "next/image";
+import { and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getDb } from "@/db";
-import { entities } from "@/modules/artworks/schemas/entity.schema";
-import { workspaceItems as artworkData } from "@/modules/artworks/schemas/workspace-item.schema";
-import { user as userSchema } from "@/modules/auth/schemas/auth.schema";
 import { getSession } from "@/modules/auth/utils/auth-utils";
 import {
     member,
     organization,
 } from "@/modules/profiles/schemas/org-plugin.schema";
+import { parseWorkspaceQuery } from "@/modules/artworks/models/workspace-item.model";
+import { getPublicWorkspaceItemsAction } from "@/modules/profiles/actions/get-public-workspace-items.action";
+import { WorkspaceBreadcrumb } from "@/modules/artworks/components/workspace-breadcrumb";
+import { WorkspaceToolbar } from "@/modules/artworks/components/workspace-toolbar";
+import { ArtworkGallerySkeleton } from "@/modules/artworks/components/artwork-gallery.skeleton";
+import { PublicWorkspaceGrid } from "@/modules/artworks/components/public-workspace-grid";
 
-export default async function ProfilePage(props: {
+export default async function PublicProfilePage(props: {
     params: Promise<{ username: string }>;
+    searchParams: Promise<Record<string, string | undefined>>;
 }) {
     const { username } = await props.params;
-    // middleware rewrites /@slug → /profile/slug — username arrives without @
+    const params = await props.searchParams;
     const slug = username.toLowerCase();
     const db = await getDb();
 
-    // Primary: look up org by slug
+    // Resolve org by slug
     const [org] = await db
         .select()
         .from(organization)
         .where(eq(organization.slug, slug))
         .limit(1);
 
-    // Fallback: user with email prefix (backwards compat before profiles were created)
-    const [fallbackUser] = org
-        ? [null]
-        : await db
-              .select()
-              .from(userSchema)
-              .where(like(userSchema.email, `${slug}@%`))
-              .limit(1);
+    if (!org) notFound();
 
-    if (!org && !fallbackUser) notFound();
+    // Get the owner userId (artworks are owned by the user, not the org)
+    const [ownerMember] = await db
+        .select({ userId: member.userId })
+        .from(member)
+        .where(and(eq(member.organizationId, org.id), eq(member.role, "owner")))
+        .limit(1);
 
-    // Resolve display name and userId for artwork query
-    const displayName = org?.name ?? fallbackUser?.name ?? slug;
-    const avatarUrl = org?.logo ?? fallbackUser?.image ?? null;
+    if (!ownerMember) notFound();
 
-    // For org: get owner userId to fetch artworks
-    let ownerUserId: string | null = null;
-    if (org) {
-        const [ownerMember] = await db
-            .select({ userId: member.userId })
-            .from(member)
-            .where(
-                and(
-                    eq(member.organizationId, org.id),
-                    eq(member.role, "owner"),
-                ),
-            )
-            .limit(1);
-        ownerUserId = ownerMember?.userId ?? null;
-    } else {
-        ownerUserId = fallbackUser?.id ?? null;
+    const ownerUserId = ownerMember.userId;
+
+    // Check if current visitor can see all visibility levels (admin/owner)
+    const session = await getSession();
+    let canSeeAll = false;
+    if (session) {
+        if (session.user.id === ownerUserId) {
+            canSeeAll = true;
+        } else {
+            const [visitorMembership] = await db
+                .select({ role: member.role })
+                .from(member)
+                .where(
+                    and(
+                        eq(member.organizationId, org.id),
+                        eq(member.userId, session.user.id),
+                    ),
+                )
+                .limit(1);
+            canSeeAll = visitorMembership
+                ? ["owner", "admin"].includes(visitorMembership.role)
+                : false;
+        }
     }
 
-    const userArtworks = ownerUserId
-        ? await db
-              .select({
-                  ...getTableColumns(entities),
-                  ...getTableColumns(artworkData),
-              })
-              .from(entities)
-              .innerJoin(artworkData, eq(artworkData.id, entities.id))
-              .where(
-                  and(
-                      eq(entities.createdBy, ownerUserId),
-                      eq(entities.type, "artwork"),
-                      eq(entities.visibility, "public"),
-                  ),
-              )
-              .orderBy(desc(entities.createdAt))
-        : [];
+    const collectionId = params.collectionId;
+    const query = parseWorkspaceQuery(params, collectionId);
+    const basePath = `/@${slug}`;
 
-    const session = await getSession();
-    const bio = org?.bio ?? null;
-    const websiteUrl = org?.websiteUrl ?? null;
+    // Initial data fetch (server-side)
+    const initialResult = await getPublicWorkspaceItemsAction(
+        ownerUserId,
+        query,
+    );
+
+    const displayName = org.name;
+    const avatarUrl = org.logo ?? null;
 
     return (
-        <div className="min-h-screen bg-stone-50 text-stone-900">
-            {/* Nav */}
-            <header className="px-6 md:px-10 py-5 flex justify-between items-center max-w-5xl mx-auto">
+        <div className="min-h-screen bg-white">
+            {/* Minimal public nav */}
+            <header className="px-6 md:px-10 py-4 flex justify-between items-center border-b border-gray-100 bg-white sticky top-0 z-20">
                 <Link href="/" className="flex items-center gap-2">
                     {/* biome-ignore lint/performance/noImgElement: brand icon */}
-                    <img src="/icon.png" alt="Drimit" className="h-7 w-7" />
-                    <span className="font-semibold tracking-tight">Drimit</span>
+                    <img src="/icon.png" alt="Drimit" className="h-6 w-6" />
+                    <span className="font-semibold tracking-tight text-gray-900 text-sm">
+                        Drimit
+                    </span>
                 </Link>
                 {session ? (
                     <Link
                         href="/artworks"
-                        className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
+                        className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
                     >
                         My artworks
                     </Link>
                 ) : (
                     <Link
                         href="/login"
-                        className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
+                        className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
                     >
                         Log in
                     </Link>
                 )}
             </header>
 
-            <main className="max-w-5xl mx-auto px-6 md:px-10 py-10">
-                {/* Profile header */}
-                <div className="flex items-center gap-4 mb-10">
-                    {avatarUrl ? (
-                        <Image
-                            src={avatarUrl}
-                            alt={displayName}
-                            width={56}
-                            height={56}
-                            className="rounded-full object-cover"
-                        />
-                    ) : (
-                        <div className="h-14 w-14 rounded-full bg-stone-200 flex items-center justify-center text-stone-500 text-xl font-medium select-none">
-                            {displayName.charAt(0).toUpperCase()}
-                        </div>
-                    )}
+            {/* Sticky breadcrumb + filters bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 md:px-6 py-2 border-b border-gray-100 bg-white sticky top-[57px] z-10">
+                <WorkspaceBreadcrumb
+                    collectionId={collectionId}
+                    basePath={basePath}
+                />
+                <Suspense fallback={null}>
+                    <WorkspaceToolbar
+                        sort={query.sort}
+                        order={query.order}
+                        visibility={query.visibility}
+                        insideCollection={!!collectionId}
+                        hideVisibility={!canSeeAll}
+                    />
+                </Suspense>
+            </div>
+
+            {/* Profile header — shown at root, hidden inside collection */}
+            {!collectionId && (
+                <div className="px-4 md:px-6 pt-6 pb-4 flex items-center gap-3">
+                    {/* Avatar */}
+                    <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400 text-lg font-medium select-none">
+                        {avatarUrl ? (
+                            // biome-ignore lint/performance/noImgElement: profile avatar
+                            <img
+                                src={avatarUrl}
+                                alt={displayName}
+                                className="h-full w-full object-cover"
+                            />
+                        ) : (
+                            displayName.charAt(0).toUpperCase()
+                        )}
+                    </div>
+                    {/* Name + handle */}
                     <div>
-                        <h1 className="text-lg font-semibold text-stone-900 leading-tight">
+                        <h1 className="text-2xl font-bold text-gray-900 leading-tight">
                             {displayName}
                         </h1>
-                        <p className="text-sm text-stone-400">@{slug}</p>
-                        {bio && (
-                            <p className="text-sm text-stone-500 mt-1 max-w-md">
-                                {bio}
-                            </p>
-                        )}
-                        {websiteUrl && (
-                            <a
-                                href={websiteUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-stone-400 hover:text-stone-700 transition-colors mt-0.5 inline-block"
-                            >
-                                {websiteUrl.replace(/^https?:\/\//, "")}
-                            </a>
-                        )}
+                        <p className="text-sm text-gray-400">@{slug}</p>
                     </div>
                 </div>
+            )}
 
-                {/* Artworks */}
-                {userArtworks.length === 0 ? (
-                    <p className="text-sm text-stone-400">
-                        No public artworks yet.
-                    </p>
-                ) : (
-                    <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 space-y-3">
-                        {userArtworks.map((artwork) => (
-                            <div
-                                key={artwork.id}
-                                className="break-inside-avoid rounded-xl overflow-hidden ring-1 ring-black/[0.07] shadow-[0_2px_12px_rgba(0,0,0,0.10)]"
-                            >
-                                {/* biome-ignore lint/performance/noImgElement: artwork thumbnail */}
-                                <img
-                                    src={artwork.url ?? undefined}
-                                    alt={artwork.title}
-                                    className="w-full object-cover"
-                                    loading="lazy"
-                                />
-                                <div className="px-3 py-2">
-                                    <p className="text-xs font-medium text-stone-700 truncate">
-                                        {artwork.title}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </main>
+            {/* Gallery */}
+            <div className="px-2 pb-6">
+                <Suspense fallback={<ArtworkGallerySkeleton />}>
+                    {initialResult.items.length === 0 ? (
+                        <p className="text-sm text-gray-400 px-4 py-8 text-center">
+                            No public artworks yet.
+                        </p>
+                    ) : (
+                        <PublicWorkspaceGrid
+                            ownerUserId={ownerUserId}
+                            initialItems={initialResult.items}
+                            initialHasMore={initialResult.hasMore}
+                            query={query}
+                        />
+                    )}
+                </Suspense>
+            </div>
         </div>
     );
 }
