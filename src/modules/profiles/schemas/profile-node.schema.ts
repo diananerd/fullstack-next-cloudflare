@@ -1,4 +1,10 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+    index,
+    integer,
+    sqliteTable,
+    text,
+    uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { nodes } from "@/modules/nodes/schemas/node.schema";
 import { organization } from "@/modules/profiles/schemas/org-plugin.schema";
 

@@ -5,18 +5,23 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { MasonryGrid } from "@/components/ui/masonry-grid";
 import { ArtworkCard } from "@/modules/artworks/components/artwork-card";
+import { CollectionRenameDialog } from "@/modules/artworks/components/collection-rename-dialog";
 import type {
+    CollectionWorkspaceItem,
     WorkspaceItem,
     WorkspaceQuery,
 } from "@/modules/artworks/models/workspace-item.model";
 import { getWorkspaceItemsAction } from "@/modules/artworks/actions/get-workspace-items.action";
+import {
+    deleteCollectionAction,
+    updateCollectionAction,
+} from "@/modules/artworks/actions/collection.action";
 import {
     moveArtworkAction,
     moveCollectionAction,
 } from "@/modules/artworks/actions/move-item.action";
 import { CollectionCard } from "@/modules/social/components/collection-card";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
-import type { Collection } from "@/modules/social/schemas/collection.schema";
 
 type DragPayload =
     | { kind: "artwork"; id: string }
@@ -37,6 +42,8 @@ export function WorkspaceGrid({
     const [hasMore, setHasMore] = useState(initialHasMore);
     const [isLoading, setIsLoading] = useState(false);
     const [dropTarget, setDropTarget] = useState<string | null>(null);
+    const [renamingCollection, setRenamingCollection] =
+        useState<CollectionWorkspaceItem | null>(null);
     const sentinelRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
 
@@ -122,6 +129,39 @@ export function WorkspaceGrid({
         router.refresh();
     };
 
+    const handleRename = (id: string) => {
+        const item = items.find((i) => i.id === id && i.kind === "collection");
+        if (item?.kind === "collection") setRenamingCollection(item);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (
+            !window.confirm(
+                "Delete this collection? Items inside will move to your root workspace.",
+            )
+        )
+            return;
+        const result = await deleteCollectionAction(id);
+        if (result.success) {
+            toast.success("Collection deleted.");
+            router.refresh();
+        } else {
+            toast.error(result.error ?? "Failed to delete collection.");
+        }
+    };
+
+    const handleVisibilityChange = async (
+        id: string,
+        visibility: "public" | "private",
+    ) => {
+        const result = await updateCollectionAction(id, { visibility });
+        if (result.success) {
+            router.refresh();
+        } else {
+            toast.error("Failed to update visibility.");
+        }
+    };
+
     if (items.length === 0) return null;
 
     return (
@@ -133,20 +173,6 @@ export function WorkspaceGrid({
                 }
                 render={(item) => {
                     if (item.kind === "collection") {
-                        const col = {
-                            kind: "collection" as const,
-                            id: item.id,
-                            title: item.title,
-                            createdAt: item.createdAt,
-                            updatedAt: item.updatedAt,
-                            visibility: item.visibility,
-                            itemCount: item.itemCount,
-                            userId: "",
-                            createdBy: "",
-                            workspaceId: null,
-                            description: null,
-                            coverImageUrl: null,
-                        } satisfies Collection;
                         return (
                             // biome-ignore lint/a11y/noStaticElementInteractions: drop target
                             <div
@@ -179,12 +205,15 @@ export function WorkspaceGrid({
                                 }
                             >
                                 <CollectionCard
-                                    collection={col}
-                                    role={item.role}
+                                    item={item}
+                                    onRename={handleRename}
+                                    onDelete={handleDelete}
+                                    onVisibilityChange={handleVisibilityChange}
                                 />
                             </div>
                         );
                     }
+
                     const artwork = {
                         id: item.id,
                         title: item.title,
@@ -226,6 +255,17 @@ export function WorkspaceGrid({
                 <div className="flex justify-center py-6">
                     <div className="h-5 w-5 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
                 </div>
+            )}
+
+            {renamingCollection && (
+                <CollectionRenameDialog
+                    open={true}
+                    onOpenChange={(open) => {
+                        if (!open) setRenamingCollection(null);
+                    }}
+                    collectionId={renamingCollection.id}
+                    currentName={renamingCollection.title}
+                />
             )}
         </div>
     );

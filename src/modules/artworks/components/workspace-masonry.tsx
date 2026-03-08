@@ -2,33 +2,27 @@
 
 import { MasonryGrid } from "@/components/ui/masonry-grid";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
+import type { CollectionWorkspaceItem } from "@/modules/artworks/models/workspace-item.model";
 import { CollectionCard } from "@/modules/social/components/collection-card";
-import type { Collection } from "@/modules/social/schemas/collection.schema";
 import { ArtworkCard } from "./artwork-card";
 
 type WorkspaceItem =
     | { kind: "artwork"; data: Artwork }
-    | { kind: "collection"; data: Collection; role: string };
+    | { kind: "collection"; data: CollectionWorkspaceItem };
 
 interface WorkspaceMasonryProps {
     artworks: Artwork[];
-    collections: { collection: Collection; role: string }[];
-    parentId?: string;
+    collections: CollectionWorkspaceItem[];
 }
 
 export function WorkspaceMasonry({
     artworks,
     collections,
-    parentId,
 }: WorkspaceMasonryProps) {
     // Folders first, then artworks — like a file system
     const items: WorkspaceItem[] = [
         ...collections.map(
-            ({ collection, role }): WorkspaceItem => ({
-                kind: "collection",
-                data: collection,
-                role,
-            }),
+            (c): WorkspaceItem => ({ kind: "collection", data: c }),
         ),
         ...artworks.map((a): WorkspaceItem => ({ kind: "artwork", data: a })),
     ];
@@ -43,11 +37,7 @@ export function WorkspaceMasonry({
             }
             render={(item) =>
                 item.kind === "collection" ? (
-                    <CollectionCard
-                        collection={item.data}
-                        role={item.role}
-                        parentId={parentId}
-                    />
+                    <CollectionCard item={item.data} />
                 ) : (
                     <ArtworkCard artwork={item.data} />
                 )

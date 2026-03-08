@@ -1,8 +1,7 @@
 "use client";
 
-import { FolderPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,29 +12,35 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createCollectionAction } from "@/modules/artworks/actions/collection.action";
+import { updateCollectionAction } from "@/modules/artworks/actions/collection.action";
 
 const TITLE_PATTERN = /^[\p{L}\p{N}\s'\-\.,]*$/u;
 
-interface CreateCollectionDialogProps {
+interface CollectionRenameDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    collectionId?: string;
+    collectionId: string;
+    currentName: string;
 }
 
-export function CreateCollectionDialog({
+export function CollectionRenameDialog({
     open,
     onOpenChange,
     collectionId,
-}: CreateCollectionDialogProps) {
-    const [title, setTitle] = useState("");
+    currentName,
+}: CollectionRenameDialogProps) {
+    const [name, setName] = useState(currentName);
     const [error, setError] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
 
+    useEffect(() => {
+        if (open) setName(currentName);
+    }, [open, currentName]);
+
     const validate = (value: string): string | null => {
         const trimmed = value.trim();
-        if (trimmed.length === 0) return null; // no error while empty
+        if (trimmed.length === 0) return null;
         if (trimmed.length > 50) return "50 characters max.";
         if (!TITLE_PATTERN.test(value))
             return "Only letters, numbers, spaces, and ' - . , are allowed.";
@@ -44,26 +49,29 @@ export function CreateCollectionDialog({
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
-        setTitle(val);
+        setName(val);
         setError(validate(val));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-
-        const trimmed = title.trim();
+        const trimmed = name.trim();
         if (!trimmed) {
             setError("Name is required.");
             return;
         }
         if (error) return;
+        if (trimmed === currentName) {
+            onOpenChange(false);
+            return;
+        }
 
         startTransition(async () => {
-            const result = await createCollectionAction(title, collectionId);
+            const result = await updateCollectionAction(collectionId, {
+                name: trimmed,
+            });
             if (result.success) {
-                toast.success("Collection created.");
-                setTitle("");
-                setError(null);
+                toast.success("Collection renamed.");
                 onOpenChange(false);
                 router.refresh();
             } else {
@@ -72,30 +80,21 @@ export function CreateCollectionDialog({
         });
     };
 
-    const handleOpenChange = (val: boolean) => {
-        if (!val) {
-            setTitle("");
-            setError(null);
-        }
-        onOpenChange(val);
-    };
-
     return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
-                    <DialogTitle>New collection</DialogTitle>
+                    <DialogTitle>Rename collection</DialogTitle>
                 </DialogHeader>
                 <form
                     onSubmit={handleSubmit}
                     className="mt-2 flex flex-col gap-4"
                 >
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="collection-name">Name</Label>
+                        <Label htmlFor="rename-collection">Name</Label>
                         <Input
-                            id="collection-name"
-                            placeholder="e.g. Character sketches"
-                            value={title}
+                            id="rename-collection"
+                            value={name}
                             onChange={handleChange}
                             maxLength={51}
                             autoFocus
@@ -105,7 +104,7 @@ export function CreateCollectionDialog({
                             <p className="text-xs text-red-500">{error}</p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                            {title.trim().length}/50 · Private by default
+                            {name.trim().length}/50
                         </p>
                     </div>
                     <div className="flex justify-end gap-2">
@@ -113,7 +112,7 @@ export function CreateCollectionDialog({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleOpenChange(false)}
+                            onClick={() => onOpenChange(false)}
                             disabled={isPending}
                         >
                             Cancel
@@ -122,43 +121,14 @@ export function CreateCollectionDialog({
                             type="submit"
                             size="sm"
                             disabled={
-                                isPending ||
-                                title.trim().length === 0 ||
-                                !!error
+                                isPending || name.trim().length === 0 || !!error
                             }
                         >
-                            {isPending ? "Creating…" : "Create"}
+                            {isPending ? "Saving…" : "Rename"}
                         </Button>
                     </div>
                 </form>
             </DialogContent>
         </Dialog>
-    );
-}
-
-// FAB trigger — self-contained button + dialog
-export function CreateCollectionFab({
-    collectionId,
-}: {
-    collectionId?: string;
-}) {
-    const [open, setOpen] = useState(false);
-
-    return (
-        <>
-            <button
-                type="button"
-                onClick={() => setOpen(true)}
-                className="flex items-center justify-center w-11 h-11 rounded-full bg-white border border-gray-200 shadow-lg text-gray-700 hover:bg-gray-50 hover:scale-105 transition-all z-50"
-                aria-label="New collection"
-            >
-                <FolderPlus className="h-5 w-5" />
-            </button>
-            <CreateCollectionDialog
-                open={open}
-                onOpenChange={setOpen}
-                collectionId={collectionId}
-            />
-        </>
     );
 }

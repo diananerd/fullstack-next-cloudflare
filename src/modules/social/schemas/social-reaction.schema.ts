@@ -1,9 +1,4 @@
-import {
-    index,
-    sqliteTable,
-    text,
-    uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { nodes } from "@/modules/nodes/schemas/node.schema";
 import { socialPosts } from "@/modules/social/schemas/social-post.schema";
 

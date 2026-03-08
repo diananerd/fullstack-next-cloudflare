@@ -1,4 +1,11 @@
-import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+    index,
+    integer,
+    real,
+    sqliteTable,
+    text,
+    uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { nodes } from "@/modules/nodes/schemas/node.schema";
 
 /**
@@ -61,7 +68,9 @@ export const nodeCreditSplits = sqliteTable(
             .$defaultFn(() => new Date().toISOString()),
 
         // 1 = manually overridden, skip recomputation
-        isLocked: integer("is_locked", { mode: "boolean" }).notNull().default(false),
+        isLocked: integer("is_locked", { mode: "boolean" })
+            .notNull()
+            .default(false),
 
         // When set: this split was locked by a legal CREDIT_SPLIT clause.
         // The contract's clause takes precedence over graph-computed values.

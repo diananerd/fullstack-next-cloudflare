@@ -5,7 +5,6 @@ import {
     ArrowUpAZ,
     CalendarArrowDown,
     CalendarArrowUp,
-    Clock,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -30,12 +29,16 @@ interface WorkspaceToolbarProps {
     sort: SortField;
     order: SortOrder;
     visibility: VisibilityFilter;
+    /** When true (inside a collection), sort/order controls are disabled.
+     *  Order is controlled by drag-and-drop position inside folders. */
+    insideCollection?: boolean;
 }
 
 export function WorkspaceToolbar({
     sort,
     order,
     visibility,
+    insideCollection = false,
 }: WorkspaceToolbarProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -59,13 +62,21 @@ export function WorkspaceToolbar({
               ? CalendarArrowUp
               : CalendarArrowDown;
 
+    const disabledClass = "opacity-40 cursor-not-allowed pointer-events-none";
+
     return (
         <div className="flex items-center gap-2 flex-wrap">
             {/* Sort field */}
             <select
                 value={sort}
+                disabled={insideCollection}
                 onChange={(e) => update("sort", e.target.value)}
-                className="h-7 text-xs rounded-md border border-gray-200 bg-white px-2 text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                title={
+                    insideCollection
+                        ? "Order by drag & drop inside folders"
+                        : undefined
+                }
+                className={`h-7 text-xs rounded-md border border-gray-200 bg-white px-2 text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300 ${insideCollection ? disabledClass : ""}`}
             >
                 {(Object.keys(SORT_LABELS) as SortField[]).map((s) => (
                     <option key={s} value={s}>
@@ -78,7 +89,13 @@ export function WorkspaceToolbar({
             <button
                 type="button"
                 onClick={toggleOrder}
-                className="h-7 w-7 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors"
+                disabled={insideCollection}
+                title={
+                    insideCollection
+                        ? "Order by drag & drop inside folders"
+                        : undefined
+                }
+                className={`h-7 w-7 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors ${insideCollection ? disabledClass : ""}`}
                 aria-label={order === "asc" ? "Ascending" : "Descending"}
             >
                 <OrderIcon className="h-3.5 w-3.5" />

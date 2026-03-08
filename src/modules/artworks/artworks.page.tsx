@@ -31,6 +31,7 @@ export default async function ArtworksPage({
                         sort={query.sort}
                         order={query.order}
                         visibility={query.visibility}
+                        insideCollection={!!collectionId}
                     />
                 </Suspense>
             </div>
