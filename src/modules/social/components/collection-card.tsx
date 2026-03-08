@@ -1,11 +1,10 @@
 "use client";
 
 import {
-    Eye,
-    EyeOff,
     FolderOpen,
     LayoutGrid,
     Lock,
+    LockOpen,
     Pencil,
     Trash2,
 } from "lucide-react";
@@ -88,9 +87,9 @@ export function CollectionCard({
                                             e.stopPropagation();
                                             onRename(item.id);
                                         }}
-                                        className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors"
+                                        className="h-7 w-7 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors"
                                     >
-                                        <Pencil className="h-3 w-3" />
+                                        <Pencil className="h-4 w-4" />
                                     </button>
                                 )}
                                 {onVisibilityChange && (
@@ -104,12 +103,12 @@ export function CollectionCard({
                                                 item.visibility === "private" ? "public" : "private",
                                             );
                                         }}
-                                        className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors"
+                                        className="h-7 w-7 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors"
                                     >
                                         {item.visibility === "private" ? (
-                                            <Eye className="h-3 w-3" />
+                                            <LockOpen className="h-4 w-4" />
                                         ) : (
-                                            <EyeOff className="h-3 w-3" />
+                                            <Lock className="h-4 w-4" />
                                         )}
                                     </button>
                                 )}
@@ -123,7 +122,7 @@ export function CollectionCard({
                                         }}
                                         className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-red-400 hover:bg-red-500/40 hover:text-red-300 transition-colors"
                                     >
-                                        <Trash2 className="h-3 w-3" />
+                                        <Trash2 className="h-4 w-4" />
                                     </button>
                                 )}
                             </div>

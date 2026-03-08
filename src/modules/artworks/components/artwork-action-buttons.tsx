@@ -1,12 +1,11 @@
 "use client";
 
 import {
-    Ban,
     Download,
-    Eye,
-    EyeOff,
     FolderInput,
     Loader2,
+    Lock,
+    LockOpen,
     Shield,
     Trash2,
     XCircle,
@@ -45,7 +44,6 @@ export function ArtworkActionButtons({
         setDeleteOpen,
         executeDelete,
         handleDownload,
-        handleDownloadableToggle,
         handleCancel,
         handleVisibilityChange,
         artwork,
@@ -62,7 +60,7 @@ export function ArtworkActionButtons({
     };
 
     const btnBase =
-        "h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+        "h-7 w-7 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
     return (
         <>
@@ -84,7 +82,7 @@ export function ArtworkActionButtons({
                             disabled={isPending}
                             className={btnBase}
                         >
-                            <XCircle className="h-3 w-3 text-orange-300" />
+                            <XCircle className="h-4 w-4 text-orange-300" />
                         </button>
                     ) : (
                         <button
@@ -97,7 +95,7 @@ export function ArtworkActionButtons({
                             disabled={isPending}
                             className={btnBase}
                         >
-                            <Shield className="h-3 w-3" />
+                            <Shield className="h-4 w-4" />
                         </button>
                     ))}
 
@@ -111,7 +109,7 @@ export function ArtworkActionButtons({
                     disabled={isPending}
                     className={btnBase}
                 >
-                    <FolderInput className="h-3 w-3" />
+                    <FolderInput className="h-4 w-4" />
                 </button>
 
                 <button
@@ -125,9 +123,9 @@ export function ArtworkActionButtons({
                     className={btnBase}
                 >
                     {artwork.visibility === "public" ? (
-                        <EyeOff className="h-3 w-3" />
+                        <LockOpen className="h-4 w-4" />
                     ) : (
-                        <Eye className="h-3 w-3" />
+                        <Lock className="h-4 w-4" />
                     )}
                 </button>
 
@@ -141,24 +139,7 @@ export function ArtworkActionButtons({
                     disabled={isPending}
                     className={btnBase}
                 >
-                    <Download className="h-3 w-3" />
-                </button>
-
-                <button
-                    type="button"
-                    title={artwork.allowDownload ? "Disable download" : "Allow download"}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownloadableToggle(e);
-                    }}
-                    disabled={isPending}
-                    className={btnBase}
-                >
-                    {artwork.allowDownload ? (
-                        <Ban className="h-3 w-3" />
-                    ) : (
-                        <Download className="h-3 w-3 text-green-400" />
-                    )}
+                    <Download className="h-4 w-4" />
                 </button>
 
                 <button
@@ -169,12 +150,12 @@ export function ArtworkActionButtons({
                         setDeleteOpen(true);
                     }}
                     disabled={isPending}
-                    className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-red-400 hover:bg-red-500/40 hover:text-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="h-7 w-7 flex items-center justify-center rounded-md bg-black/30 text-red-400 hover:bg-red-500/40 hover:text-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                     {isPending ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" />
                     )}
                 </button>
 
