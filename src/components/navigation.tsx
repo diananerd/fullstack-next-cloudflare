@@ -11,7 +11,10 @@ export async function Navigation() {
             <div className="w-full px-4 md:px-6 py-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-6">
-                        <Link href="/" className="flex items-center gap-2">
+                        <Link
+                            href="/discover"
+                            className="flex items-center gap-2"
+                        >
                             <Image
                                 src="/icon.png"
                                 alt="Drimit"
@@ -25,6 +28,12 @@ export async function Navigation() {
                                     Drimit
                                 </span>
                             </span>
+                        </Link>
+                        <Link
+                            href="/discover"
+                            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                        >
+                            Discover
                         </Link>
                     </div>
                     <div className="flex items-center gap-4">

@@ -6,6 +6,7 @@ import {
     cancelProtectionAction,
     deleteArtworkAction,
     retryProtectionAction,
+    updateArtworkVisibilityAction,
 } from "../actions/manage-artwork.actions";
 import { ProtectionStatus } from "../models/artwork.enum";
 import type { Artwork } from "../schemas/artwork.schema";
@@ -92,6 +93,20 @@ export function useArtworkActions(artwork: Artwork) {
         });
     };
 
+    const handleVisibilityChange = (
+        e?: React.MouseEvent,
+        visibility?: "public" | "private",
+    ) => {
+        e?.stopPropagation();
+        const next =
+            visibility ??
+            (artwork.visibility === "public" ? "private" : "public");
+        startTransition(async () => {
+            const res = await updateArtworkVisibilityAction(artwork.id, next);
+            if (!res.success) toast.error(res.error || "Failed");
+        });
+    };
+
     const handleRetry = (e?: React.MouseEvent) => {
         e?.stopPropagation();
         setIsRetrying(true);
@@ -135,14 +150,15 @@ export function useArtworkActions(artwork: Artwork) {
         handleDownload,
         handleCancel,
         handleRetry,
+        handleVisibilityChange,
         isProtected,
         isProcessing,
-        isReady, // Export
+        isReady,
         isFailed,
         isCanceled,
         isRetrying,
-        optimisticStatus, // Expose this for UI components
-        artworkId: artwork.id, // Expose ID
+        optimisticStatus,
+        artworkId: artwork.id,
         artwork,
     };
 }

@@ -58,10 +58,7 @@ export default async function HomePage() {
 
             {/* Nav */}
             <header className="relative z-10 px-6 md:px-10 py-5 flex justify-between items-center">
-                <Link
-                    href={session ? "/artworks" : "/"}
-                    className="flex items-center gap-2"
-                >
+                <Link href="/discover" className="flex items-center gap-2">
                     {/* biome-ignore lint/performance/noImgElement: brand icon */}
                     <img src="/icon.png" alt="Drimit" className="h-7 w-7" />
                     <span className="font-semibold tracking-tight">Drimit</span>
@@ -135,7 +132,7 @@ export default async function HomePage() {
 
                 {/* CTA */}
                 <div className="self-end sm:self-auto">
-                    <Link href={session ? "/artworks" : "/signup"}>
+                    <Link href={session ? "/discover" : "/signup"}>
                         <Button className="h-10 px-6 rounded-full bg-white text-stone-900 hover:bg-stone-100 text-sm font-medium border-0 shadow-none">
                             {session ? "Open Drimit" : "Get Started"}
                             <ChevronRight className="ml-1 h-4 w-4" />

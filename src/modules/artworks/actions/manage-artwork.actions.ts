@@ -85,6 +85,31 @@ export async function cancelProtectionAction(artworkId: string) {
     }
 }
 
+export async function updateArtworkVisibilityAction(
+    artworkId: string,
+    visibility: "public" | "private",
+) {
+    try {
+        const user = await requireAuth();
+        const db = await getDb();
+
+        const artwork = await getArtwork(artworkId);
+        if (!artwork) return { success: false, error: "Artwork not found" };
+        if (artwork.userId !== user.id)
+            return { success: false, error: "Unauthorized" };
+
+        await db
+            .update(entities)
+            .set({ visibility })
+            .where(eq(entities.id, artworkId));
+
+        revalidatePath(DASHBOARD_ROUTE);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
 export async function retryProtectionAction(artworkId: string) {
     try {
         const user = await requireAuth();
