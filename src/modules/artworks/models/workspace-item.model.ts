@@ -60,6 +60,8 @@ export type ArtworkWorkspaceItem = {
     height: number | null;
     protectionStatus: string;
     mediaType: "image";
+    /** Owner-controlled: whether non-owners may download this artwork. */
+    allowDownload: boolean;
 };
 
 export type CollectionWorkspaceItem = {

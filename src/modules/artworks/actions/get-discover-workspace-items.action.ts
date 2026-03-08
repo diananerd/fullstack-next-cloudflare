@@ -81,6 +81,7 @@ export async function getDiscoverWorkspaceItemsAction(
             width: artworkData.width,
             height: artworkData.height,
             protectionStatus: artworkData.protectionStatus,
+            allowDownload: artworkData.allowDownload,
             collectionName: collectionNodes.name,
             itemCount: collectionNodes.itemCount,
             ownerName: organization.name,
@@ -131,6 +132,7 @@ export async function getDiscoverWorkspaceItemsAction(
                 height: row.height ?? null,
                 protectionStatus: row.protectionStatus ?? "idle",
                 mediaType: "image" as const,
+                allowDownload: row.allowDownload ?? false,
                 ownerName: row.ownerName ?? null,
                 ownerSlug: row.ownerSlug ?? null,
             } satisfies DiscoverItem;

@@ -110,6 +110,31 @@ export async function updateArtworkVisibilityAction(
     }
 }
 
+export async function updateArtworkDownloadableAction(
+    artworkId: string,
+    allowDownload: boolean,
+) {
+    try {
+        const user = await requireAuth();
+        const db = await getDb();
+
+        const artwork = await getArtwork(artworkId);
+        if (!artwork) return { success: false, error: "Artwork not found" };
+        if (artwork.userId !== user.id)
+            return { success: false, error: "Unauthorized" };
+
+        await db
+            .update(artworkData)
+            .set({ allowDownload })
+            .where(eq(artworkData.id, artworkId));
+
+        revalidatePath(DASHBOARD_ROUTE);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
 export async function retryProtectionAction(artworkId: string) {
     try {
         const user = await requireAuth();

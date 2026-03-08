@@ -48,6 +48,7 @@ const NODE_FIELDS = {
     width: artworkData.width,
     height: artworkData.height,
     protectionStatus: artworkData.protectionStatus,
+    allowDownload: artworkData.allowDownload,
     // Collection subtype fields (null for artworks)
     collectionName: collectionNodes.name,
     itemCount: collectionNodes.itemCount,
@@ -67,6 +68,7 @@ type NodeRow = {
     width: number | null;
     height: number | null;
     protectionStatus: string | null;
+    allowDownload: boolean | null;
     collectionName: string | null;
     itemCount: number | null;
 };
@@ -89,6 +91,7 @@ export function rowToWorkspaceItem(
             height: row.height ?? null,
             protectionStatus: row.protectionStatus ?? "idle",
             mediaType: "image",
+            allowDownload: row.allowDownload ?? false,
         };
     }
     return {

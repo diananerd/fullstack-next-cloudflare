@@ -51,6 +51,15 @@ export const workspaceItems = sqliteTable(
         semanticType: text("semantic_type")
             .$type<ArtworkSemanticTypeValue>()
             .default(ArtworkSemanticType.DIGITAL_ART),
+
+        /**
+         * Whether the owner allows others to download this artwork.
+         * Separates VIEW access (everyone with public visibility) from DOWNLOAD_ORIGINAL
+         * (explicit opt-in by the owner). Defaults to false — view-only by default.
+         */
+        allowDownload: integer("allow_download", { mode: "boolean" })
+            .notNull()
+            .default(false),
     },
     (table) => [
         index("idx_artworks_status").on(table.protectionStatus),

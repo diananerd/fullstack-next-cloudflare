@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    Ban,
     Download,
     Eye,
     EyeOff,
@@ -40,6 +41,7 @@ export function ArtworkActionButtons({
         setDeleteOpen,
         executeDelete,
         handleDownload,
+        handleDownloadableToggle,
         handleCancel,
         handleVisibilityChange,
         artwork,
@@ -150,6 +152,25 @@ export function ArtworkActionButtons({
                                 {artwork.visibility === "public"
                                     ? "Make private"
                                     : "Make public"}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMenuOpen(false);
+                                    handleDownloadableToggle(e);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
+                            >
+                                {artwork.allowDownload ? (
+                                    <Ban className="h-3.5 w-3.5" />
+                                ) : (
+                                    <Download className="h-3.5 w-3.5" />
+                                )}
+                                {artwork.allowDownload
+                                    ? "Disable download"
+                                    : "Allow download"}
                             </button>
 
                             <div className="border-t border-gray-100 my-1" />

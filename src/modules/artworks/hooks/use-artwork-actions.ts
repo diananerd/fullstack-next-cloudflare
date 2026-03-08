@@ -6,6 +6,7 @@ import {
     cancelProtectionAction,
     deleteArtworkAction,
     retryProtectionAction,
+    updateArtworkDownloadableAction,
     updateArtworkVisibilityAction,
 } from "../actions/manage-artwork.actions";
 import { ProtectionStatus } from "../models/artwork.enum";
@@ -107,6 +108,17 @@ export function useArtworkActions(artwork: Artwork) {
         });
     };
 
+    const handleDownloadableToggle = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        startTransition(async () => {
+            const res = await updateArtworkDownloadableAction(
+                artwork.id,
+                !artwork.allowDownload,
+            );
+            if (!res.success) toast.error(res.error || "Failed");
+        });
+    };
+
     const handleRetry = (e?: React.MouseEvent) => {
         e?.stopPropagation();
         setIsRetrying(true);
@@ -148,6 +160,7 @@ export function useArtworkActions(artwork: Artwork) {
         setDeleteOpen,
         executeDelete,
         handleDownload,
+        handleDownloadableToggle,
         handleCancel,
         handleRetry,
         handleVisibilityChange,

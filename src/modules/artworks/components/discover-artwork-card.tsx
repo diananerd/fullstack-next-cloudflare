@@ -85,51 +85,55 @@ export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 
                 <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
-                    {/* Top-right: kebab menu */}
-                    <div className="flex justify-end">
-                        {/* biome-ignore lint/a11y/noStaticElementInteractions: menu */}
-                        {/* biome-ignore lint/a11y/useKeyWithClickEvents: menu */}
-                        <div
-                            className="pointer-events-auto relative"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMenuOpen((v) => !v);
-                                }}
-                                className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors opacity-0 group-hover:opacity-100"
-                                aria-label="Options"
+                    {/* Top-right: kebab menu — only shown when there are actions available */}
+                    {item.allowDownload && (
+                        <div className="flex justify-end">
+                            {/* biome-ignore lint/a11y/noStaticElementInteractions: menu */}
+                            {/* biome-ignore lint/a11y/useKeyWithClickEvents: menu */}
+                            <div
+                                className="pointer-events-auto relative"
+                                onClick={(e) => e.stopPropagation()}
                             >
-                                <MoreVertical className="h-3.5 w-3.5" />
-                            </button>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setMenuOpen((v) => !v);
+                                    }}
+                                    className="h-6 w-6 flex items-center justify-center rounded-md bg-black/30 text-white/80 hover:bg-black/50 transition-colors opacity-0 group-hover:opacity-100"
+                                    aria-label="Options"
+                                >
+                                    <MoreVertical className="h-3.5 w-3.5" />
+                                </button>
 
-                            {menuOpen && (
-                                <>
-                                    {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop */}
-                                    {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop */}
-                                    <div
-                                        className="fixed inset-0 z-10"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setMenuOpen(false);
-                                        }}
-                                    />
-                                    <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-20 text-sm">
-                                        <button
-                                            type="button"
-                                            onClick={handleDownload}
-                                            className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
-                                        >
-                                            <Download className="h-3.5 w-3.5" />
-                                            Download
-                                        </button>
-                                    </div>
-                                </>
-                            )}
+                                {menuOpen && (
+                                    <>
+                                        {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop */}
+                                        {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop */}
+                                        <div
+                                            className="fixed inset-0 z-10"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setMenuOpen(false);
+                                            }}
+                                        />
+                                        {item.allowDownload && (
+                                            <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-20 text-sm">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleDownload}
+                                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-left"
+                                                >
+                                                    <Download className="h-3.5 w-3.5" />
+                                                    Download
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Bottom-left: author link */}
                     {item.ownerSlug && (
