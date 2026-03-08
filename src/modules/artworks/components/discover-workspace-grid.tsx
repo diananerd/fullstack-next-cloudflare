@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MasonryGrid } from "@/components/ui/masonry-grid";
 import { PublicArtworkCard } from "@/modules/artworks/components/public-artwork-card";
+import { CollectionCard } from "@/modules/social/components/collection-card";
 import type { WorkspaceQuery } from "@/modules/artworks/models/workspace-item.model";
 import {
     getDiscoverWorkspaceItemsAction,
@@ -66,17 +67,31 @@ export function DiscoverWorkspaceGrid({
         <div>
             <MasonryGrid
                 items={items}
-                keyExtractor={(item) => `a-${item.id}`}
-                render={(item) =>
-                    item.kind === "artwork" ? (
-                        <PublicArtworkCard
-                            item={item}
-                            isLoggedIn={isLoggedIn}
-                            ownerSlug={item.ownerSlug}
-                            ownerName={item.ownerName}
-                        />
-                    ) : null
-                }
+                keyExtractor={(item) => `${item.kind[0]}-${item.id}`}
+                render={(item) => {
+                    if (item.kind === "artwork") {
+                        return (
+                            <PublicArtworkCard
+                                item={item}
+                                isLoggedIn={isLoggedIn}
+                                ownerSlug={item.ownerSlug}
+                                ownerName={item.ownerName}
+                            />
+                        );
+                    }
+                    if (item.kind === "collection") {
+                        const basePath = item.ownerSlug
+                            ? `/@${item.ownerSlug}`
+                            : "/discover";
+                        return (
+                            <CollectionCard
+                                item={item}
+                                basePath={basePath}
+                            />
+                        );
+                    }
+                    return null;
+                }}
             />
             <div ref={sentinelRef} className="h-10" />
             {isLoading && (

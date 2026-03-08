@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type {
+    NodeTypeFilter,
     SortField,
     SortOrder,
     VisibilityFilter,
@@ -25,23 +26,33 @@ const VISIBILITY_LABELS: Record<VisibilityFilter, string> = {
     private: "Private",
 };
 
+const NODE_TYPE_LABELS: Record<NodeTypeFilter, string> = {
+    all: "All",
+    artwork: "Artworks",
+    board: "Boards",
+};
+
 interface WorkspaceToolbarProps {
     sort: SortField;
     order: SortOrder;
     visibility: VisibilityFilter;
-    /** When true (inside a collection), sort/order controls are disabled.
-     *  Order is controlled by drag-and-drop position inside folders. */
+    nodeType?: NodeTypeFilter;
+    /** When true (inside a collection), sort/order controls are disabled. */
     insideCollection?: boolean;
     /** When true, the visibility filter is hidden (e.g. on public profile pages). */
     hideVisibility?: boolean;
+    /** When true, shows ONLY the node type filter — hides sort/order/visibility. */
+    showNodeTypeFilter?: boolean;
 }
 
 export function WorkspaceToolbar({
     sort,
     order,
     visibility,
+    nodeType = "all",
     insideCollection = false,
     hideVisibility = false,
+    showNodeTypeFilter = false,
 }: WorkspaceToolbarProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -66,6 +77,24 @@ export function WorkspaceToolbar({
               : CalendarArrowDown;
 
     const disabledClass = "opacity-40 cursor-not-allowed pointer-events-none";
+
+    if (showNodeTypeFilter) {
+        return (
+            <div className="flex items-center gap-2">
+                <select
+                    value={nodeType}
+                    onChange={(e) => update("nodeType", e.target.value)}
+                    className="h-7 text-xs rounded-md border border-gray-200 bg-white px-2 text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                >
+                    {(Object.keys(NODE_TYPE_LABELS) as NodeTypeFilter[]).map((t) => (
+                        <option key={t} value={t}>
+                            {NODE_TYPE_LABELS[t]}
+                        </option>
+                    ))}
+                </select>
+            </div>
+        );
+    }
 
     return (
         <div className="flex items-center gap-2 flex-wrap">

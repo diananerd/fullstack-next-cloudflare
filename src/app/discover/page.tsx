@@ -33,8 +33,8 @@ export default async function DiscoverPage({
                         sort={query.sort}
                         order={query.order}
                         visibility="public"
-                        insideCollection={!!collectionId}
-                        hideVisibility={true}
+                        nodeType={query.nodeType}
+                        showNodeTypeFilter={!collectionId}
                     />
                 </Suspense>
             </div>

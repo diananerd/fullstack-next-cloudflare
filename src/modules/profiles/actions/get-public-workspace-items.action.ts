@@ -19,12 +19,19 @@ export async function getPublicWorkspaceItemsAction(
     const db = await getDb();
     const { collectionId } = query;
 
+    const nodeType = query.nodeType ?? "all";
+    const nodeTypes =
+        nodeType === "artwork"
+            ? ["artwork"]
+            : nodeType === "board"
+              ? ["collection"]
+              : ["artwork", "collection"];
+
     const scope = {
         ownerFilter: eq(nodes.createdBy, ownerUserId),
         visibilityFilter: eq(nodes.visibility, "public"),
         collectionRole: "viewer",
-        // Folders are always private; boards are filters, not display items.
-        nodeTypes: ["artwork"],
+        nodeTypes,
     };
 
     if (collectionId) {

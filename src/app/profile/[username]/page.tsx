@@ -91,8 +91,8 @@ export default async function PublicProfilePage(props: {
                         sort={query.sort}
                         order={query.order}
                         visibility={query.visibility}
-                        insideCollection={!!collectionId}
-                        hideVisibility={true}
+                        nodeType={query.nodeType}
+                        showNodeTypeFilter={!collectionId}
                     />
                 </Suspense>
             </div>

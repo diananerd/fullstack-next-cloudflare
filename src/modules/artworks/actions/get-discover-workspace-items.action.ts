@@ -13,7 +13,6 @@ import {
 import { RELATION_TYPES } from "@/constants/relation-types";
 import {
     queryCollectionItems,
-    rowToWorkspaceItem,
 } from "./workspace-nodes.query";
 import type {
     ArtworkWorkspaceItem,
@@ -27,7 +26,13 @@ export interface DiscoverItem extends ArtworkWorkspaceItem {
     ownerSlug: string | null;
 }
 
-export type DiscoverWorkspaceItem = DiscoverItem | CollectionWorkspaceItem;
+/** Board item with owner attribution — used in discover views. */
+export interface DiscoverCollectionItem extends CollectionWorkspaceItem {
+    ownerName: string | null;
+    ownerSlug: string | null;
+}
+
+export type DiscoverWorkspaceItem = DiscoverItem | DiscoverCollectionItem;
 
 export interface DiscoverWorkspaceResult {
     items: DiscoverWorkspaceItem[];
@@ -51,11 +56,17 @@ export async function getDiscoverWorkspaceItemsAction(
         return result as DiscoverWorkspaceResult;
     }
 
+    // ── Determine which node types to include ─────────────────────────────────
+    const nodeType = query.nodeType ?? "all";
+    const nodeTypes =
+        nodeType === "artwork"
+            ? ["artwork"]
+            : nodeType === "board"
+              ? ["collection"]
+              : ["artwork", "collection"];
+
     // ── Root discover: single query, left-joined with owner info ─────────────
     // Only exclude items inside FOLDERS (move semantics = item disappears from root).
-    // Collections (boards) use reference semantics — artworks saved to boards
-    // still appear at their owner's root. Folders are always private so this
-    // yields an empty set for public queries, which is correct.
     const containedResult = await db
         .selectDistinct({ toId: nodeRelations.toId })
         .from(nodeRelations)
@@ -93,6 +104,7 @@ export async function getDiscoverWorkspaceItemsAction(
             allowDownload: artworkData.allowDownload,
             collectionName: collectionNodes.name,
             itemCount: collectionNodes.itemCount,
+            coverUrl: collectionNodes.coverImageUrl,
             ownerName: organization.name,
             ownerSlug: organization.slug,
         })
@@ -115,7 +127,7 @@ export async function getDiscoverWorkspaceItemsAction(
         .leftJoin(organization, eq(organization.id, member.organizationId))
         .where(
             and(
-                eq(nodes.type, "artwork"),
+                inArray(nodes.type, nodeTypes),
                 visibilityFilter,
                 ...(containedIds.length > 0
                     ? [notInArray(nodes.id, containedIds)]
@@ -149,7 +161,20 @@ export async function getDiscoverWorkspaceItemsAction(
                 ownerSlug: row.ownerSlug ?? null,
             } satisfies DiscoverItem;
         }
-        return rowToWorkspaceItem(row, "viewer") as CollectionWorkspaceItem;
+        // collection (board)
+        return {
+            kind: "collection" as const,
+            id: row.id,
+            title: row.collectionName ?? "",
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
+            visibility: row.visibility,
+            itemCount: row.itemCount ?? 0,
+            role: "viewer",
+            coverUrl: row.coverUrl ?? null,
+            ownerName: row.ownerName ?? null,
+            ownerSlug: row.ownerSlug ?? null,
+        } satisfies DiscoverCollectionItem;
     });
 
     return { items, hasMore };

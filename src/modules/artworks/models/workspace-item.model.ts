@@ -1,12 +1,14 @@
 export type SortField = "createdAt" | "updatedAt" | "title";
 export type SortOrder = "asc" | "desc";
 export type VisibilityFilter = "all" | "public" | "private";
+export type NodeTypeFilter = "all" | "artwork" | "board";
 
 export interface WorkspaceQuery {
     collectionId?: string;
     sort: SortField;
     order: SortOrder;
     visibility: VisibilityFilter;
+    nodeType: NodeTypeFilter;
     offset: number;
     limit: number;
 }
@@ -15,6 +17,7 @@ export const DEFAULT_QUERY: WorkspaceQuery = {
     sort: "createdAt",
     order: "desc",
     visibility: "all",
+    nodeType: "all",
     offset: 0,
     limit: 15,
 };
@@ -26,6 +29,7 @@ export function parseWorkspaceQuery(
     const validSorts: SortField[] = ["createdAt", "updatedAt", "title"];
     const validOrders: SortOrder[] = ["asc", "desc"];
     const validVisibility: VisibilityFilter[] = ["all", "public", "private"];
+    const validNodeTypes: NodeTypeFilter[] = ["all", "artwork", "board"];
 
     return {
         collectionId,
@@ -40,6 +44,9 @@ export function parseWorkspaceQuery(
         )
             ? (params.visibility as VisibilityFilter)
             : DEFAULT_QUERY.visibility,
+        nodeType: validNodeTypes.includes(params.nodeType as NodeTypeFilter)
+            ? (params.nodeType as NodeTypeFilter)
+            : DEFAULT_QUERY.nodeType,
         offset: 0,
         limit: DEFAULT_QUERY.limit,
     };

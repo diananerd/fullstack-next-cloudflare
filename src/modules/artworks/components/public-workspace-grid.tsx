@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MasonryGrid } from "@/components/ui/masonry-grid";
 import { PublicArtworkCard } from "@/modules/artworks/components/public-artwork-card";
+import { CollectionCard } from "@/modules/social/components/collection-card";
 import type {
     WorkspaceItem,
     WorkspaceQuery,
@@ -73,14 +74,25 @@ export function PublicWorkspaceGrid({
                 keyExtractor={(item) =>
                     item.kind === "artwork" ? `a-${item.id}` : `c-${item.id}`
                 }
-                render={(item) =>
-                    item.kind === "artwork" ? (
-                        <PublicArtworkCard
-                            item={item}
-                            isLoggedIn={isLoggedIn}
-                        />
-                    ) : null
-                }
+                render={(item) => {
+                    if (item.kind === "artwork") {
+                        return (
+                            <PublicArtworkCard
+                                item={item}
+                                isLoggedIn={isLoggedIn}
+                            />
+                        );
+                    }
+                    if (item.kind === "collection") {
+                        return (
+                            <CollectionCard
+                                item={item}
+                                basePath={basePath}
+                            />
+                        );
+                    }
+                    return null;
+                }}
             />
 
             <div ref={sentinelRef} className="h-10" />
