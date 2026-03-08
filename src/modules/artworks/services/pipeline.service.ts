@@ -1,6 +1,15 @@
-import { eq, inArray, and, asc, desc, count, sql } from "drizzle-orm";
+import {
+    eq,
+    inArray,
+    and,
+    asc,
+    desc,
+    count,
+    getTableColumns,
+} from "drizzle-orm";
 import { getDb } from "@/db";
-import { workspaceItems as artworks } from "../schemas/workspace-item.schema";
+import { entities } from "../schemas/entity.schema";
+import { workspaceItems as artworkData } from "../schemas/workspace-item.schema";
 import {
     artworkJobs,
     JobStatus,
@@ -25,6 +34,28 @@ import {
 } from "@/constants/pricing.constant";
 import { Analytics } from "@/lib/analytics";
 
+// Merged artwork type (entity base + artwork subtype + userId alias)
+type ArtworkRow = typeof entities.$inferSelect &
+    typeof artworkData.$inferSelect & { userId: string };
+
+/** Fetch a single artwork by entity ID (JOIN entities + artworkData). */
+async function getArtworkById(
+    db: Awaited<ReturnType<typeof getDb>>,
+    artworkId: string,
+): Promise<ArtworkRow | undefined> {
+    const [row] = await db
+        .select({
+            ...getTableColumns(entities),
+            ...getTableColumns(artworkData),
+            userId: entities.createdBy,
+        })
+        .from(entities)
+        .innerJoin(artworkData, eq(artworkData.id, entities.id))
+        .where(eq(entities.id, artworkId))
+        .limit(1);
+    return row;
+}
+
 export class PipelineService {
     /**
      * Initializes a new protection pipeline for an artwork.
@@ -33,19 +64,12 @@ export class PipelineService {
     static async startPipeline(
         artworkId: string,
         userId: string,
-        // Config is passed, but method is implied as SHIELD for V2,
-        // though we support passing it for future proofing.
         pipeline: { method: ProtectionMethodType; config?: any }[],
     ) {
         const db = await getDb();
 
         // 1. Validate Artwork State
-        const [artwork] = await db
-            .select()
-            .from(artworks)
-            .where(eq(artworks.id, artworkId))
-            .limit(1);
-
+        const artwork = await getArtworkById(db, artworkId);
         if (!artwork) throw new Error("Artwork not found");
 
         // 2. Hard Reset / Cleanup Logic
@@ -59,7 +83,6 @@ export class PipelineService {
                 `[Pipeline] Hard Reset: Cleaning up ${allPreviousJobs.length} previous jobs for artwork ${artworkId}.`,
             );
 
-            // A. Directory Cleanup (Force Clean)
             if (artwork.r2Key) {
                 const lastSlash = artwork.r2Key.lastIndexOf("/");
                 if (lastSlash !== -1) {
@@ -74,7 +97,6 @@ export class PipelineService {
                 }
             }
 
-            // B. Invalidate DB Rows
             await db
                 .update(artworkJobs)
                 .set({
@@ -91,10 +113,8 @@ export class PipelineService {
         }
 
         // 3. Prepare Metadata
-        // Clear old reports
         const baseMetadata = (artwork.metadata as Record<string, any>) || {};
         const { verificationReport, error, ...keptMetadata } = baseMetadata;
-
         const metadata = {
             ...keptMetadata,
             pipeline: {
@@ -105,7 +125,6 @@ export class PipelineService {
         };
 
         // 4. Create Single Shield Job
-        // V2 Unified Pipeline = 1 Job Record
         const now = new Date().toISOString();
         const mainConfig = pipeline[0]?.config || {};
 
@@ -114,7 +133,7 @@ export class PipelineService {
                 .insert(artworkJobs)
                 .values({
                     artworkId: artworkId,
-                    method: ProtectionMethod.SHIELD, // Enforce Shield
+                    method: ProtectionMethod.SHIELD,
                     config: mainConfig,
                     stepOrder: 0,
                     inputUrl: artwork.url ?? "",
@@ -124,89 +143,78 @@ export class PipelineService {
                 })
                 .returning();
 
-            // 5. Update Artwork Status
             await db
-                .update(artworks)
+                .update(artworkData)
                 .set({
                     protectionStatus: ProtectionStatus.QUEUED,
                     metadata: metadata,
-                    updatedAt: now,
                 })
-                .where(eq(artworks.id, artworkId));
+                .where(eq(artworkData.id, artworkId));
+
+            await db
+                .update(entities)
+                .set({ updatedAt: now })
+                .where(eq(entities.id, artworkId));
 
             console.log(`[Pipeline] Job ${insertedJob.id} queued (SHIELD V2).`);
-
-            // 6. Trigger Process Queue (Optional immediate attempt)
-            // await this.processQueue();
         } catch (error) {
             console.error("[Pipeline] Start failed:", error);
             await db
-                .update(artworks)
+                .update(artworkData)
                 .set({
                     protectionStatus: ProtectionStatus.FAILED,
                     metadata: { ...metadata, error: String(error) },
-                    updatedAt: new Date().toISOString(),
                 })
-                .where(eq(artworks.id, artworkId));
+                .where(eq(artworkData.id, artworkId));
             throw error;
         }
     }
 
-    /**
-     * Resumes or Restarts a pipeline.
-     */
     static async resumePipeline(
         artworkId: string,
         userId: string,
     ): Promise<void> {
-        // Simplified Resume: Just restart the last job if failed/stuck
         const db = await getDb();
-        const jobs = await db
+        const [job] = await db
             .select()
             .from(artworkJobs)
             .where(eq(artworkJobs.artworkId, artworkId))
             .orderBy(desc(artworkJobs.createdAt))
             .limit(1);
 
-        if (jobs.length > 0) {
-            const job = jobs[0];
-            if (job.status !== JobStatus.COMPLETED) {
-                console.log(`[Pipeline] Resuming Job ${job.id}`);
-                await db
-                    .update(artworkJobs)
-                    .set({
-                        status: JobStatus.PENDING,
-                        updatedAt: new Date().toISOString(),
-                    })
-                    .where(eq(artworkJobs.id, job.id));
+        if (job && job.status !== JobStatus.COMPLETED) {
+            console.log(`[Pipeline] Resuming Job ${job.id}`);
+            await db
+                .update(artworkJobs)
+                .set({
+                    status: JobStatus.PENDING,
+                    updatedAt: new Date().toISOString(),
+                })
+                .where(eq(artworkJobs.id, job.id));
 
-                await db
-                    .update(artworks)
-                    .set({ protectionStatus: ProtectionStatus.QUEUED })
-                    .where(eq(artworks.id, artworkId));
-            }
+            await db
+                .update(artworkData)
+                .set({ protectionStatus: ProtectionStatus.QUEUED })
+                .where(eq(artworkData.id, artworkId));
         }
     }
 
-    /**
-     * Dispatches a specific Job to Modal.
-     */
     static async dispatchJob(jobId: number, userId: string) {
         const db = await getDb();
-        const job = await db.query.artworkJobs.findFirst({
-            where: eq(artworkJobs.id, jobId),
-        });
+        const [job] = await db
+            .select()
+            .from(artworkJobs)
+            .where(eq(artworkJobs.id, jobId))
+            .limit(1);
 
         if (!job || job.status !== JobStatus.PENDING) return;
 
         console.log(`[Pipeline] Dispatching Job ${jobId} (SHIELD)`);
 
-        // Fetch artwork r2Key so Python can derive the correct output path prefix.
-        // Convention: {userId}/{sha256}/original.ext → output goes to {userId}/{sha256}/
-        const [artwork] = await db
-            .select({ r2Key: artworks.r2Key })
-            .from(artworks)
-            .where(eq(artworks.id, job.artworkId))
+        const [artworkR2] = await db
+            .select({ r2Key: artworkData.r2Key })
+            .from(artworkData)
+            .where(eq(artworkData.id, job.artworkId))
             .limit(1);
 
         try {
@@ -214,7 +222,7 @@ export class PipelineService {
                 artworkId: job.artworkId,
                 userId: userId,
                 imageUrl: job.inputUrl,
-                imageR2Key: artwork?.r2Key ?? undefined,
+                imageR2Key: artworkR2?.r2Key ?? undefined,
                 method: job.method as ProtectionMethodType,
                 config: job.config,
             });
@@ -229,12 +237,16 @@ export class PipelineService {
                 .where(eq(artworkJobs.id, jobId));
 
             await db
-                .update(artworks)
+                .update(artworkData)
                 .set({
                     protectionStatus: ProtectionStatus.PROCESSING,
-                    updatedAt: new Date().toISOString(),
                 })
-                .where(eq(artworks.id, job.artworkId));
+                .where(eq(artworkData.id, job.artworkId));
+
+            await db
+                .update(entities)
+                .set({ updatedAt: new Date().toISOString() })
+                .where(eq(entities.id, job.artworkId));
         } catch (error) {
             console.error(`[Pipeline] Dispatch Error Job ${jobId}:`, error);
             void Analytics.captureException(userId, error, {
@@ -249,13 +261,14 @@ export class PipelineService {
                     updatedAt: new Date().toISOString(),
                 })
                 .where(eq(artworkJobs.id, jobId));
+
+            await db
+                .update(artworkData)
+                .set({ protectionStatus: ProtectionStatus.FAILED })
+                .where(eq(artworkData.id, job.artworkId));
         }
     }
 
-    /**
-     * Main Orchestration: Sync Statuses
-     * V2 Refactor: Optimized for multiple artworks in one batch.
-     */
     static async syncRunningJobs(targetArtworkId?: string) {
         const db = await getDb();
 
@@ -280,11 +293,10 @@ export class PipelineService {
 
         console.log(`[Pipeline] Syncing ${activeJobs.length} active jobs`);
 
-        // Filter Zombies
         const validJobs = [];
         for (const j of activeJobs) {
-            const lastUpdate = new Date(j.updatedAt).getTime();
-            const elapsedMinutes = (Date.now() - lastUpdate) / (1000 * 60);
+            const elapsedMinutes =
+                (Date.now() - new Date(j.updatedAt).getTime()) / (1000 * 60);
 
             if (elapsedMinutes > JOB_TIMEOUT_MINUTES) {
                 console.warn(`[Pipeline] Job ${j.id} Timed Out.`);
@@ -298,9 +310,9 @@ export class PipelineService {
                     .where(eq(artworkJobs.id, j.id));
 
                 await db
-                    .update(artworks)
+                    .update(artworkData)
                     .set({ protectionStatus: ProtectionStatus.FAILED })
-                    .where(eq(artworks.id, j.artworkId));
+                    .where(eq(artworkData.id, j.artworkId));
                 continue;
             }
             validJobs.push(j);
@@ -308,8 +320,6 @@ export class PipelineService {
 
         if (validJobs.length === 0) return { synced: 0 };
 
-        // Group by Artworks for Modal Query
-        // We assume all are SHIELD method for V2.
         const artworkIds = validJobs.map((j) => String(j.artworkId));
         const jobMap = new Map(validJobs.map((j) => [String(j.artworkId), j]));
 
@@ -348,61 +358,53 @@ export class PipelineService {
 
                     const steps = result.steps || [];
                     const finalUrl = result.final_url;
-                    const shieldScore = result.shield_score || 0; // Capture aggregated score
+                    const shieldScore = result.shield_score || 0;
 
-                    // 1. Update Job
                     updates.push(
                         db
                             .update(artworkJobs)
                             .set({
                                 status: JobStatus.COMPLETED,
                                 outputUrl: finalUrl,
-                                result: { steps, shieldScore }, // Store rich result json
+                                result: { steps, shieldScore },
                                 currentStep: "COMPLETED",
                                 updatedAt: new Date().toISOString(),
                             })
                             .where(eq(artworkJobs.id, job.id)),
                     );
 
-                    // 2. Finalize Artwork & Charge
                     const cost =
                         PROTECTION_PRICING[ProtectionMethod.SHIELD]?.cost ??
                         DEFAULT_PROCESS_COST;
-                    // Declared outside try so catch can reference it for error reporting
-                    let artwork: typeof artworks.$inferSelect | undefined;
+                    let artwork: ArtworkRow | undefined;
 
                     try {
-                        [artwork] = await db
-                            .select()
-                            .from(artworks)
-                            .where(eq(artworks.id, job.artworkId))
-                            .limit(1);
+                        artwork = await getArtworkById(db, job.artworkId);
 
-                        // Merge result into artwork metadata for easy frontend access
                         const updatedMetadata = {
                             ...((artwork?.metadata as any) || {}),
-                            shieldScore: shieldScore,
+                            shieldScore,
                             steps_summary: steps.map((s: any) => ({
                                 name: s.step_name,
                                 status: s.status,
                             })),
                             completedAt: new Date().toISOString(),
+                            verificationReport: steps,
                         };
 
                         if (artwork) {
-                            // Update Metadata on Artwork (includes verificationReport)
-                            const finalMetadata = {
-                                ...updatedMetadata,
-                                verificationReport: steps,
-                            };
                             await db
-                                .update(artworks)
+                                .update(artworkData)
                                 .set({
-                                    metadata: finalMetadata,
+                                    metadata: updatedMetadata,
                                     protectionStatus: ProtectionStatus.DONE,
-                                    updatedAt: new Date().toISOString(),
                                 })
-                                .where(eq(artworks.id, job.artworkId));
+                                .where(eq(artworkData.id, job.artworkId));
+
+                            await db
+                                .update(entities)
+                                .set({ updatedAt: new Date().toISOString() })
+                                .where(eq(entities.id, job.artworkId));
 
                             void Analytics.protectionCompleted(artwork.userId, {
                                 artwork_id: job.artworkId,
@@ -453,11 +455,11 @@ export class PipelineService {
                             })
                             .where(eq(artworkJobs.id, job.id)),
                     );
-                    const [failedArtwork] = await db
-                        .select()
-                        .from(artworks)
-                        .where(eq(artworks.id, job.artworkId))
-                        .limit(1);
+
+                    const failedArtwork = await getArtworkById(
+                        db,
+                        job.artworkId,
+                    );
                     if (failedArtwork?.userId) {
                         void Analytics.protectionFailed(failedArtwork.userId, {
                             artwork_id: job.artworkId,
@@ -466,19 +468,17 @@ export class PipelineService {
                     }
                     updates.push(
                         db
-                            .update(artworks)
+                            .update(artworkData)
                             .set({
                                 protectionStatus: ProtectionStatus.FAILED,
                                 metadata: {
-                                    ...(failedArtwork?.metadata as any),
+                                    ...((failedArtwork?.metadata as any) || {}),
                                     error: state.error,
                                 },
                             })
-                            .where(eq(artworks.id, job.artworkId)),
+                            .where(eq(artworkData.id, job.artworkId)),
                     );
                 } else {
-                    // Running / Processing
-                    // Update progress (steps)
                     const steps = state.result?.steps || state.steps;
                     if (steps) {
                         updates.push(
@@ -508,10 +508,6 @@ export class PipelineService {
         return { synced: validJobs.length };
     }
 
-    /**
-     * V2 Refactor: Queue Processor
-     * Simple scheduler for pending jobs.
-     */
     static async processQueue() {
         const db = await getDb();
 
@@ -543,16 +539,14 @@ export class PipelineService {
 
         for (const job of pendingJobs) {
             try {
-                // Fetch userId from artwork relation for dispatch
-                // Optimized: We could join in the select, but for now simple query is fine
-                const [artwork] = await db
-                    .select({ userId: artworks.userId })
-                    .from(artworks)
-                    .where(eq(artworks.id, job.artworkId))
+                const [entityRow] = await db
+                    .select({ userId: entities.createdBy })
+                    .from(entities)
+                    .where(eq(entities.id, job.artworkId))
                     .limit(1);
 
-                if (artwork) {
-                    await this.dispatchJob(job.id, artwork.userId);
+                if (entityRow) {
+                    await this.dispatchJob(job.id, entityRow.userId);
                 }
             } catch (e) {
                 console.error(`[Queue] Failed to dispatch job ${job.id}`, e);
@@ -565,7 +559,6 @@ export class PipelineService {
         };
     }
 
-    // Deprecated methods
     static async advancePipelines() {
         return { advancements: 0 };
     }

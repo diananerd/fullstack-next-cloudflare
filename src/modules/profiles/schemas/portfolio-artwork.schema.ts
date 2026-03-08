@@ -6,7 +6,7 @@ import {
     uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { user } from "@/modules/auth/schemas/auth.schema";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
 import { organization } from "@/modules/profiles/schemas/org-plugin.schema";
 
 export const portfolioArtworks = sqliteTable(
@@ -18,7 +18,7 @@ export const portfolioArtworks = sqliteTable(
             .references(() => organization.id, { onDelete: "cascade" }),
         artworkId: text("artwork_id")
             .notNull()
-            .references(() => artworks.id, { onDelete: "cascade" }),
+            .references(() => entities.id, { onDelete: "cascade" }),
         isFeatured: integer("is_featured", { mode: "boolean" })
             .notNull()
             .default(false),

@@ -1,6 +1,6 @@
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { user } from "@/modules/auth/schemas/auth.schema";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
 import {
     SnapshotReason,
     type SnapshotReasonValue,
@@ -23,7 +23,7 @@ export const artworkSnapshots = sqliteTable(
         id: integer("id").primaryKey({ autoIncrement: true }),
         artworkId: text("artwork_id")
             .notNull()
-            .references(() => artworks.id, { onDelete: "cascade" }),
+            .references(() => entities.id, { onDelete: "cascade" }),
         // Optional link to prior snapshot (singly-linked version chain)
         previousSnapshotId: integer("previous_snapshot_id"),
         reason: text("reason")

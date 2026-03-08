@@ -1,22 +1,24 @@
 "use server";
 
-import { and, eq, like, ne, or } from "drizzle-orm";
+import { and, eq, getTableColumns, like, ne, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
-import { artworkAccess, artworks, user } from "@/db/schema";
+import { artworkAccess, user } from "@/db/schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
+import { workspaceItems as artworkData } from "@/modules/artworks/schemas/workspace-item.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function assertOwner(artworkId: string, userId: string) {
     const db = await getDb();
-    const row = await db
-        .select({ userId: artworks.userId })
-        .from(artworks)
-        .where(eq(artworks.id, artworkId))
-        .get();
+    const [row] = await db
+        .select({ createdBy: entities.createdBy })
+        .from(entities)
+        .where(eq(entities.id, artworkId))
+        .limit(1);
     if (!row) return null;
-    if (row.userId !== userId) return null;
+    if (row.createdBy !== userId) return null;
     return row;
 }
 
@@ -27,17 +29,18 @@ export async function getArtworkShareDataAction(artworkId: string) {
         const currentUser = await requireAuth();
         const db = await getDb();
 
-        const artwork = await db
+        const [artwork] = await db
             .select({
-                userId: artworks.userId,
-                title: artworks.title,
-                visibility: artworks.visibility,
+                createdBy: entities.createdBy,
+                title: artworkData.title,
+                visibility: entities.visibility,
             })
-            .from(artworks)
-            .where(eq(artworks.id, artworkId))
-            .get();
+            .from(entities)
+            .innerJoin(artworkData, eq(artworkData.id, entities.id))
+            .where(eq(entities.id, artworkId))
+            .limit(1);
 
-        if (!artwork || artwork.userId !== currentUser.id)
+        if (!artwork || artwork.createdBy !== currentUser.id)
             return { success: false as const, error: "Unauthorized" };
 
         const accessList = await db
@@ -58,7 +61,7 @@ export async function getArtworkShareDataAction(artworkId: string) {
             success: true as const,
             title: artwork.title,
             visibility: artwork.visibility ?? "private",
-            ownerId: artwork.userId,
+            ownerId: artwork.createdBy,
             accessList,
         };
     } catch {
@@ -76,16 +79,24 @@ export async function updateArtworkDetailsAction(
             return { success: false as const, error: "Unauthorized" };
 
         const db = await getDb();
-        const set: Record<string, unknown> = {
-            updatedAt: new Date().toISOString(),
-        };
-        if (data.title !== undefined) set.title = data.title;
-        if (data.description !== undefined) set.description = data.description;
+        const now = new Date().toISOString();
+
+        const artworkSet: Record<string, unknown> = {};
+        if (data.title !== undefined) artworkSet.title = data.title;
+        if (data.description !== undefined)
+            artworkSet.description = data.description;
+
+        if (Object.keys(artworkSet).length > 0) {
+            await db
+                .update(artworkData)
+                .set(artworkSet as any)
+                .where(eq(artworkData.id, artworkId));
+        }
 
         await db
-            .update(artworks)
-            .set(set as any)
-            .where(eq(artworks.id, artworkId));
+            .update(entities)
+            .set({ updatedAt: now })
+            .where(eq(entities.id, artworkId));
 
         revalidatePath("/artworks");
         return { success: true as const };
@@ -105,9 +116,9 @@ export async function updateArtworkVisibilityAction(
 
         const db = await getDb();
         await db
-            .update(artworks)
+            .update(entities)
             .set({ visibility, updatedAt: new Date().toISOString() })
-            .where(eq(artworks.id, artworkId));
+            .where(eq(entities.id, artworkId));
 
         revalidatePath("/artworks");
         return { success: true as const };
@@ -126,13 +137,13 @@ export async function searchUsersForShareAction(
             return { success: true as const, users: [] };
 
         const db = await getDb();
-        const artwork = await db
-            .select({ userId: artworks.userId })
-            .from(artworks)
-            .where(eq(artworks.id, artworkId))
-            .get();
+        const [entity] = await db
+            .select({ createdBy: entities.createdBy })
+            .from(entities)
+            .where(eq(entities.id, artworkId))
+            .limit(1);
 
-        if (!artwork || artwork.userId !== currentUser.id)
+        if (!entity || entity.createdBy !== currentUser.id)
             return { success: false as const, error: "Unauthorized" };
 
         const q = `%${query.trim()}%`;
@@ -146,7 +157,7 @@ export async function searchUsersForShareAction(
             .from(user)
             .where(
                 and(
-                    ne(user.id, artwork.userId),
+                    ne(user.id, entity.createdBy),
                     or(like(user.name, q), like(user.email, q)),
                 ),
             )

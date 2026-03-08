@@ -8,7 +8,7 @@ import {
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { user } from "@/modules/auth/schemas/auth.schema";
-import { artworks } from "./artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
 
 /**
  * Known roles for the artwork↔artist relationship.
@@ -50,7 +50,7 @@ export const artworkArtists = sqliteTable(
         id: integer("id").primaryKey({ autoIncrement: true }),
         artworkId: text("artwork_id")
             .notNull()
-            .references(() => artworks.id, { onDelete: "cascade" }),
+            .references(() => entities.id, { onDelete: "cascade" }),
         userId: text("user_id")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),

@@ -1,7 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, getTableColumns } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
-import { workspaceItems as artworks } from "@/modules/artworks/schemas/workspace-item.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
+import { workspaceItems as artworkData } from "@/modules/artworks/schemas/workspace-item.schema";
 import { artworkJobs } from "@/modules/artworks/schemas/artwork-job.schema";
 import { PipelineService } from "@/modules/artworks/services/pipeline.service";
 
@@ -21,10 +22,14 @@ export async function GET(
 
         // 1. Get Artwork
         const [artwork] = await db
-            .select()
-            .from(artworks)
+            .select({
+                ...getTableColumns(entities),
+                ...getTableColumns(artworkData),
+            })
+            .from(entities)
+            .innerJoin(artworkData, eq(artworkData.id, entities.id))
             .where(
-                and(eq(artworks.id, artworkId), eq(artworks.kind, "artwork")),
+                and(eq(entities.id, artworkId), eq(entities.type, "artwork")),
             )
             .limit(1);
 
@@ -37,9 +42,13 @@ export async function GET(
             try {
                 await PipelineService.syncRunningJobs(artworkId);
                 const [refreshed] = await db
-                    .select()
-                    .from(artworks)
-                    .where(eq(artworks.id, artworkId))
+                    .select({
+                        ...getTableColumns(entities),
+                        ...getTableColumns(artworkData),
+                    })
+                    .from(entities)
+                    .innerJoin(artworkData, eq(artworkData.id, entities.id))
+                    .where(eq(entities.id, artworkId))
                     .limit(1);
                 if (refreshed) Object.assign(artwork, refreshed);
             } catch (syncError) {

@@ -1,34 +1,44 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, getTableColumns } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
 import { deleteFromR2, deleteFolderFromR2 } from "@/lib/r2";
 import { ProtectionStatus } from "@/modules/artworks/models/artwork.enum";
-import { workspaceItems as artworks } from "@/modules/artworks/schemas/workspace-item.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
+import { workspaceItems as artworkData } from "@/modules/artworks/schemas/workspace-item.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { PipelineService } from "../services/pipeline.service";
 
 const DASHBOARD_ROUTE = "/artworks";
+
+async function getArtwork(artworkId: string) {
+    const db = await getDb();
+    const [row] = await db
+        .select({
+            ...getTableColumns(entities),
+            ...getTableColumns(artworkData),
+            userId: entities.createdBy,
+        })
+        .from(entities)
+        .innerJoin(artworkData, eq(artworkData.id, entities.id))
+        .where(and(eq(entities.id, artworkId), eq(entities.type, "artwork")))
+        .limit(1);
+    return row ?? null;
+}
 
 export async function deleteArtworkAction(artworkId: string) {
     try {
         const user = await requireAuth();
         const db = await getDb();
 
-        const artwork = await db.query.artworks.findFirst({
-            where: eq(artworks.id, artworkId),
-        });
+        const artwork = await getArtwork(artworkId);
 
         if (!artwork) return { success: false, error: "Artwork not found" };
         if (artwork.userId !== user.id)
             return { success: false, error: "Unauthorized" };
 
         if (artwork.r2Key) {
-            // Check if key is in a folder (Deep Clean)
-            // Expecting format: "{userId}/{hash}/original.png"
-            // We want to delete "{userId}/{hash}" folder.
-
             const lastSlashIndex = artwork.r2Key.lastIndexOf("/");
             if (lastSlashIndex !== -1) {
                 const folderPath = artwork.r2Key.substring(0, lastSlashIndex);
@@ -42,7 +52,8 @@ export async function deleteArtworkAction(artworkId: string) {
             }
         }
 
-        await db.delete(artworks).where(eq(artworks.id, artworkId));
+        // Deleting from entities cascades to artworkData + all FK tables
+        await db.delete(entities).where(eq(entities.id, artworkId));
 
         revalidatePath(DASHBOARD_ROUTE);
         return { success: true };
@@ -56,21 +67,16 @@ export async function cancelProtectionAction(artworkId: string) {
         const user = await requireAuth();
         const db = await getDb();
 
-        const artwork = await db.query.artworks.findFirst({
-            where: eq(artworks.id, artworkId),
-        });
+        const artwork = await getArtwork(artworkId);
 
         if (!artwork) return { success: false, error: "Artwork not found" };
         if (artwork.userId !== user.id)
             return { success: false, error: "Unauthorized" };
 
-        // We can't easily cancel a running Modal job without an API call to Modal (not implemented yet).
-        // But we can stop our pipeline from proceeding.
-
         await db
-            .update(artworks)
+            .update(artworkData)
             .set({ protectionStatus: ProtectionStatus.CANCELED, jobId: null })
-            .where(eq(artworks.id, artworkId));
+            .where(eq(artworkData.id, artworkId));
 
         revalidatePath(DASHBOARD_ROUTE);
         return { success: true };
@@ -83,7 +89,6 @@ export async function retryProtectionAction(artworkId: string) {
     try {
         const user = await requireAuth();
 
-        // Delegate to centralized Pipeline Service
         await PipelineService.resumePipeline(artworkId, user.id);
 
         revalidatePath(DASHBOARD_ROUTE);

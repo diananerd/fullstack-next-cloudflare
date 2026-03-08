@@ -1,5 +1,5 @@
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { artworks } from "./artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
 import {
     ProtectionMethod,
     type ProtectionMethodType,
@@ -22,7 +22,7 @@ export const artworkJobs = sqliteTable(
         id: integer("id").primaryKey({ autoIncrement: true }),
         artworkId: text("artwork_id")
             .notNull()
-            .references(() => artworks.id, { onDelete: "cascade" }),
+            .references(() => entities.id, { onDelete: "cascade" }),
 
         // External Job ID (Modal ID)
         externalId: text("external_id"),

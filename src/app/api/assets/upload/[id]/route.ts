@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
-import { eq } from "drizzle-orm";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
+import { workspaceItems as artworkData } from "@/modules/artworks/schemas/workspace-item.schema";
+import { eq, getTableColumns } from "drizzle-orm";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { PipelineService } from "@/modules/artworks/services/pipeline.service";
 import { ProtectionMethod } from "@/modules/artworks/models/artwork.enum";
@@ -25,9 +26,14 @@ export async function PUT(
 
         const db = await getDb();
         const [artwork] = await db
-            .select()
-            .from(artworks)
-            .where(eq(artworks.id, id))
+            .select({
+                ...getTableColumns(entities),
+                ...getTableColumns(artworkData),
+                userId: entities.createdBy,
+            })
+            .from(entities)
+            .innerJoin(artworkData, eq(artworkData.id, entities.id))
+            .where(eq(entities.id, id))
             .limit(1);
 
         if (!artwork)

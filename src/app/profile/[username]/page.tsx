@@ -1,9 +1,10 @@
-import { and, desc, eq, like } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, like } from "drizzle-orm";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDb } from "@/db";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
+import { workspaceItems as artworkData } from "@/modules/artworks/schemas/workspace-item.schema";
 import { user as userSchema } from "@/modules/auth/schemas/auth.schema";
 import { getSession } from "@/modules/auth/utils/auth-utils";
 import {
@@ -61,15 +62,20 @@ export default async function ProfilePage(props: {
 
     const userArtworks = ownerUserId
         ? await db
-              .select()
-              .from(artworks)
+              .select({
+                  ...getTableColumns(entities),
+                  ...getTableColumns(artworkData),
+              })
+              .from(entities)
+              .innerJoin(artworkData, eq(artworkData.id, entities.id))
               .where(
                   and(
-                      eq(artworks.userId, ownerUserId),
-                      eq(artworks.visibility, "public"),
+                      eq(entities.createdBy, ownerUserId),
+                      eq(entities.type, "artwork"),
+                      eq(entities.visibility, "public"),
                   ),
               )
-              .orderBy(desc(artworks.createdAt))
+              .orderBy(desc(entities.createdAt))
         : [];
 
     const session = await getSession();

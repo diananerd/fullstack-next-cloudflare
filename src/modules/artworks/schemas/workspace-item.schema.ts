@@ -1,8 +1,7 @@
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
-import { user } from "@/modules/auth/schemas/auth.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
 import {
     ProtectionMethod,
     type ProtectionMethodType,
@@ -15,53 +14,29 @@ import {
 } from "@/modules/artworks/models/artwork-media.enum";
 
 /**
- * Unified workspace node.
+ * Artwork subtype table.
+ * Rows exist only for entities with type = 'artwork'.
+ * entity_id is the canonical artwork ID used everywhere (URL params, FK refs, etc.).
  *
- * Both artworks and collections are nodes in the same tree.
- * - `kind = 'artwork'` → artwork-specific fields (r2Key, url, protectionStatus…)
- * - `kind = 'collection'` → collection-specific fields (itemCount)
- * - `parentId = null` → lives at workspace root
- * - `parentId = <nodeId>` → nested inside that collection node
- *
- * This replaces:
- *   artworks, collections, collection_items, collection_placements
+ * The broader entity metadata (visibility, createdBy, timestamps) lives in `entities`.
  */
 export const workspaceItems = sqliteTable(
-    "workspace_items",
+    "artworks",
     {
+        // Primary key: same UUID as entities.id.
+        // Named `id` (DB column `id`) to preserve backward compat with all FK constraints.
         id: text("id")
             .primaryKey()
-            .$defaultFn(() => crypto.randomUUID()),
+            .references(() => entities.id, { onDelete: "cascade" }),
 
-        userId: text("user_id")
-            .notNull()
-            .references(() => user.id, { onDelete: "cascade" }),
-
-        // Tree placement — null = workspace root
-        parentId: text("parent_id").references(
-            (): AnySQLiteColumn => workspaceItems.id,
-            { onDelete: "cascade" },
-        ),
-
-        kind: text("kind").$type<"artwork" | "collection">().notNull(),
-
-        // ── Shared ────────────────────────────────────────────────────────────
         title: text("title").notNull(),
         description: text("description"),
-        visibility: text("visibility").notNull().default("private"),
-        position: integer("position").notNull().default(0),
-        createdAt: text("created_at")
-            .notNull()
-            .$defaultFn(() => new Date().toISOString()),
-        updatedAt: text("updated_at")
-            .notNull()
-            .$defaultFn(() => new Date().toISOString()),
 
-        // ── Artwork-specific (null for collections) ───────────────────────────
         r2Key: text("r2_key"),
         url: text("url"),
         width: integer("width"),
         height: integer("height"),
+
         protectionStatus: text("protection_status")
             .$type<ProtectionStatusType>()
             .default(ProtectionStatus.IDLE),
@@ -76,32 +51,55 @@ export const workspaceItems = sqliteTable(
         semanticType: text("semantic_type")
             .$type<ArtworkSemanticTypeValue>()
             .default(ArtworkSemanticType.DIGITAL_ART),
-
-        // ── Collection-specific (0 for artworks) ─────────────────────────────
-        itemCount: integer("item_count").notNull().default(0),
     },
     (table) => [
-        index("idx_workspace_items_user_parent").on(
-            table.userId,
-            table.parentId,
-        ),
-        index("idx_workspace_items_user_kind").on(table.userId, table.kind),
-        index("idx_workspace_items_status").on(table.protectionStatus),
-        index("idx_workspace_items_job").on(table.jobId),
-        index("idx_workspace_items_created").on(table.createdAt),
+        index("idx_artworks_status").on(table.protectionStatus),
+        index("idx_artworks_job").on(table.jobId),
     ],
 );
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Merged entity + subtype view type ────────────────────────────────────────
 
-export type WorkspaceItemRow = typeof workspaceItems.$inferSelect;
-export type NewWorkspaceItem = typeof workspaceItems.$inferInsert;
+/**
+ * Full artwork record: entity base fields merged with artwork-specific fields.
+ * `userId` is an alias for `createdBy` for backward compatibility.
+ * `id` is from workspaceItems (= entities.id — same UUID).
+ */
+export type WorkspaceItemRow = Omit<
+    typeof entities.$inferSelect,
+    "id" | "type"
+> &
+    typeof workspaceItems.$inferSelect & {
+        /** Alias for createdBy — kept for backward compatibility */
+        userId: string;
+        /** Always 'artwork' for this merged type */
+        kind: "artwork";
+    };
 
-// Narrowed helpers — use these in component props
-export type ArtworkNode = WorkspaceItemRow & { kind: "artwork" };
-export type CollectionNode = WorkspaceItemRow & { kind: "collection" };
+export type NewWorkspaceItem = typeof workspaceItems.$inferInsert & {
+    createdBy: string;
+    visibility?: string;
+    workspaceId?: string | null;
+};
 
-// Legacy alias — components that import `Artwork` continue to work
+// Narrowed helpers
+export type ArtworkNode = WorkspaceItemRow;
+export type CollectionNode = {
+    kind: "collection";
+    id: string;
+    userId: string;
+    createdBy: string;
+    workspaceId: string | null;
+    visibility: string;
+    createdAt: string;
+    updatedAt: string;
+    title: string;
+    description: string | null;
+    coverImageUrl: string | null;
+    itemCount: number;
+};
+
+// Legacy aliases
 export type Artwork = ArtworkNode;
 export type Collection = CollectionNode;
 
@@ -110,20 +108,24 @@ export type Collection = CollectionNode;
 export const insertArtworkSchema = createInsertSchema(workspaceItems, {
     title: z.string().min(1).max(255),
     description: z.string().max(1000).optional(),
-    userId: z.string().min(1),
     r2Key: z.string().min(1).optional(),
     url: z.string().url().optional(),
     width: z.number().int().optional(),
     height: z.number().int().optional(),
     size: z.number().int().optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
+}).extend({
+    createdBy: z.string().min(1),
+    visibility: z.string().optional(),
+    workspaceId: z.string().nullable().optional(),
+    // Legacy field accepted for backward compat but maps to createdBy
+    userId: z.string().min(1).optional(),
+    parentId: z.string().nullable().optional(),
 });
 
 export const selectArtworkSchema = createSelectSchema(workspaceItems);
 
 export const updateArtworkSchema = insertArtworkSchema.partial().omit({
     id: true,
-    userId: true,
-    createdAt: true,
-    r2Key: true,
+    createdBy: true,
 });

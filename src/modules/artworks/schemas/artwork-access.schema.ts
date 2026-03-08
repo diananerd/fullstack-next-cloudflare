@@ -6,7 +6,7 @@ import {
     uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { user } from "@/modules/auth/schemas/auth.schema";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
 import {
     ArtworkAccessRole,
     ArtworkAccessSource,
@@ -34,7 +34,7 @@ export const artworkAccess = sqliteTable(
         id: integer("id").primaryKey({ autoIncrement: true }),
         artworkId: text("artwork_id")
             .notNull()
-            .references(() => artworks.id, { onDelete: "cascade" }),
+            .references(() => entities.id, { onDelete: "cascade" }),
         userId: text("user_id")
             .notNull()
             .references(() => user.id, { onDelete: "cascade" }),

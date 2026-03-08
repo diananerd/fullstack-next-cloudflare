@@ -9,10 +9,11 @@ import {
     ProtectionStatus,
     type ProtectionStatusType,
 } from "@/modules/artworks/models/artwork.enum";
-import {
-    workspaceItems,
-    insertArtworkSchema,
-} from "@/modules/artworks/schemas/workspace-item.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
+import { workspaceItems } from "@/modules/artworks/schemas/workspace-item.schema";
+import { collectionNodes } from "@/modules/artworks/schemas/collection-node.schema";
+import { entityRelations } from "@/modules/artworks/schemas/entity-relation.schema";
+import { RELATION_TYPES } from "@/constants/relation-types";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { CreditService } from "@/modules/credits/services/credit.service";
 import { Analytics } from "@/lib/analytics";
@@ -33,8 +34,9 @@ async function checkDuplicateHash(userId: string, hash: string) {
         // Fetch all uploads by this user to guarantee uniqueness
         const userUploads = await db
             .select({ metadata: workspaceItems.metadata })
-            .from(workspaceItems)
-            .where(eq(workspaceItems.userId, userId));
+            .from(entities)
+            .innerJoin(workspaceItems, eq(workspaceItems.id, entities.id))
+            .where(eq(entities.createdBy, userId));
 
         // Check if any of them match the hash
         const isDuplicate = userUploads.some((artwork) => {
@@ -186,49 +188,38 @@ export async function createArtworkAction(formData: FormData) {
         // Validate and Prepare data
         // We let Zod parse it, but we need to supply the R2 data
 
-        const artworkData = {
-            kind: "artwork" as const,
-            title: title || "Untitled",
-            description: description,
-            userId: user.id,
-            parentId: collectionId ?? null,
-            r2Key: uploadResult.key,
-            url: uploadResult.url,
-            protectionStatus: ProtectionStatus.IDLE,
-            size: imageFile.size,
-            method: method,
-            metadata: {
-                inputSha256: hash,
-            },
-        };
-
-        const validatedData = insertArtworkSchema.parse(artworkData);
-        // Explicit cast to fix Drizzle type inference issue with Zod optional enums
-        const safeData = {
-            kind: "artwork" as const,
-            title: validatedData.title,
-            description: validatedData.description,
-            userId: validatedData.userId,
-            parentId: validatedData.parentId ?? null,
-            r2Key: validatedData.r2Key,
-            url: validatedData.url,
-            metadata: validatedData.metadata,
-            protectionStatus: ProtectionStatus.IDLE,
-            size: validatedData.size,
-            method: validatedData.method as ProtectionMethodType,
-        };
-
         const db = await getDb();
         console.log(
             `[CreateArtworkAction] Saving to DB. User: ${user.id}, Key: ${uploadResult.key}`,
         );
 
+        const newId = crypto.randomUUID();
+
         // biome-ignore lint/suspicious/noExplicitAny: DB result type
         let result: any;
         try {
+            // 1. Insert entity base row
+            await db.insert(entities).values({
+                id: newId,
+                type: "artwork",
+                createdBy: user.id,
+                visibility: "private",
+            });
+
+            // 2. Insert artwork subtype row
             result = await db
                 .insert(workspaceItems)
-                .values(safeData)
+                .values({
+                    id: newId,
+                    title: title || "Untitled",
+                    description: description,
+                    r2Key: uploadResult.key,
+                    url: uploadResult.url,
+                    protectionStatus: ProtectionStatus.IDLE,
+                    size: imageFile.size,
+                    method: method as ProtectionMethodType,
+                    metadata: { inputSha256: hash },
+                })
                 .returning({ insertedId: workspaceItems.id });
 
             console.log(
@@ -256,19 +247,23 @@ export async function createArtworkAction(formData: FormData) {
             );
         }
 
-        // Update itemCount on parent collection node
+        // Link to parent collection via entity_relations
         if (newArtworkId && collectionId) {
             try {
+                await db.insert(entityRelations).values({
+                    fromId: collectionId,
+                    toId: newArtworkId,
+                    type: RELATION_TYPES.CONTAINS,
+                    createdBy: user.id,
+                });
+                // Update denormalized itemCount on collection node
                 await db
-                    .update(workspaceItems)
-                    .set({
-                        itemCount: sql`item_count + 1`,
-                        updatedAt: new Date().toISOString(),
-                    })
-                    .where(eq(workspaceItems.id, collectionId));
+                    .update(collectionNodes)
+                    .set({ itemCount: sql`item_count + 1` })
+                    .where(eq(collectionNodes.id, collectionId));
             } catch (collErr) {
                 console.error(
-                    "[CreateArtworkAction] Failed to update collection itemCount:",
+                    "[CreateArtworkAction] Failed to link to collection:",
                     collErr,
                 );
             }

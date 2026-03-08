@@ -6,7 +6,7 @@ import {
     uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { user } from "@/modules/auth/schemas/auth.schema";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
 import {
     ArtworkCreditRole,
     type ArtworkCreditRoleValue,
@@ -28,7 +28,7 @@ export const artworkCredits = sqliteTable(
         id: integer("id").primaryKey({ autoIncrement: true }),
         artworkId: text("artwork_id")
             .notNull()
-            .references(() => artworks.id, { onDelete: "cascade" }),
+            .references(() => entities.id, { onDelete: "cascade" }),
         // userId is nullable: allows crediting external people not on the platform
         userId: text("user_id").references(() => user.id, {
             onDelete: "set null",

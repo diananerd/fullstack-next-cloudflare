@@ -1,8 +1,9 @@
 "use server";
 
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, getTableColumns } from "drizzle-orm";
 import { getDb } from "@/db";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
+import { workspaceItems as artworkData } from "@/modules/artworks/schemas/workspace-item.schema";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 
 export async function getArtworksAction() {
@@ -11,10 +12,15 @@ export async function getArtworksAction() {
         const db = await getDb();
 
         const data = await db
-            .select()
-            .from(artworks)
-            .where(eq(artworks.userId, user.id))
-            .orderBy(desc(artworks.createdAt));
+            .select({
+                ...getTableColumns(entities),
+                ...getTableColumns(artworkData),
+                userId: entities.createdBy,
+            })
+            .from(entities)
+            .innerJoin(artworkData, eq(artworkData.id, entities.id))
+            .where(eq(entities.createdBy, user.id))
+            .orderBy(desc(entities.createdAt));
 
         return { success: true, data };
     } catch (error: unknown) {

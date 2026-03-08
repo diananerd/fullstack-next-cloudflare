@@ -6,7 +6,7 @@ import { getDb } from "@/db";
 import { eq, count, inArray } from "drizzle-orm";
 import { requireAuth } from "@/modules/auth/utils/auth-utils";
 import { deleteFromR2, deleteFolderFromR2 } from "@/lib/r2";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
 import {
     user,
     session,
@@ -40,9 +40,8 @@ export async function deleteAccountAction() {
             .delete(creditTransactions)
             .where(eq(creditTransactions.userId, userId));
 
-        // Artworks (Cascade on userId)
-        // Jobs will cascade from Artworks
-        await db.delete(artworks).where(eq(artworks.userId, userId));
+        // Entities (artworks, collections — cascade to subtypes + jobs)
+        await db.delete(entities).where(eq(entities.createdBy, userId));
 
         // Auth Tables (Cascade on userId usually)
         await db.delete(session).where(eq(session.userId, userId));

@@ -1,3 +1,9 @@
+// Hypergraph core
+export { entities } from "@/modules/artworks/schemas/entity.schema";
+export { entityRelations } from "@/modules/artworks/schemas/entity-relation.schema";
+export { collectionNodes } from "@/modules/artworks/schemas/collection-node.schema";
+export { workspaces } from "@/modules/profiles/schemas/workspace.schema";
+// Artworks subtype (table name: artworks)
 export { artworks } from "@/modules/artworks/schemas/artwork.schema";
 export { workspaceItems } from "@/modules/artworks/schemas/workspace-item.schema";
 export {

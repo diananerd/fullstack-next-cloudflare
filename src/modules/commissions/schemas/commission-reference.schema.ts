@@ -1,5 +1,5 @@
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
 import { commissions } from "@/modules/commissions/schemas/commission.schema";
 
 export const commissionReferenceArtworks = sqliteTable(
@@ -9,7 +9,7 @@ export const commissionReferenceArtworks = sqliteTable(
         commissionId: text("commission_id")
             .notNull()
             .references(() => commissions.id, { onDelete: "cascade" }),
-        artworkId: text("artwork_id").references(() => artworks.id, {
+        artworkId: text("artwork_id").references(() => entities.id, {
             onDelete: "set null",
         }),
         externalUrl: text("external_url"),

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { artworkJobs } from "@/modules/artworks/schemas/artwork-job.schema";
-import { artworks } from "@/modules/artworks/schemas/artwork.schema";
-import { eq, desc } from "drizzle-orm";
+import { entities } from "@/modules/artworks/schemas/entity.schema";
+import { workspaceItems as artworkData } from "@/modules/artworks/schemas/workspace-item.schema";
+import { eq, desc, getTableColumns } from "drizzle-orm";
 import { JobStatus } from "@/modules/artworks/schemas/artwork-job.schema";
 
 export const runtime = "edge";
@@ -50,9 +51,13 @@ export async function GET(
         if (!job) {
             // Maybe it's just uploaded but not started?
             const [artwork] = await db
-                .select()
-                .from(artworks)
-                .where(eq(artworks.id, artworkId))
+                .select({
+                    ...getTableColumns(entities),
+                    ...getTableColumns(artworkData),
+                })
+                .from(entities)
+                .innerJoin(artworkData, eq(artworkData.id, entities.id))
+                .where(eq(entities.id, artworkId))
                 .limit(1);
             if (artwork) {
                 return NextResponse.json({
