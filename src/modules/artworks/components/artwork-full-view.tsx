@@ -11,6 +11,7 @@ import {
     Loader2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,12 @@ interface ArtworkFullViewProps {
     artwork: Artwork;
     isOpen: boolean;
     onClose: () => void;
+    /** Hide all edit/protect/delete controls — for public/read-only views */
+    readOnly?: boolean;
+    /** Author display name shown when readOnly=true */
+    authorName?: string | null;
+    /** Author slug for /@slug link shown when readOnly=true */
+    authorSlug?: string | null;
 }
 
 type VariantType =
@@ -50,6 +57,9 @@ export function ArtworkFullView({
     artwork,
     isOpen,
     onClose,
+    readOnly = false,
+    authorName,
+    authorSlug,
 }: ArtworkFullViewProps) {
     const actions = useArtworkActions(artwork);
     const { isProtected, isProcessing, optimisticStatus } = actions;
@@ -404,8 +414,8 @@ export function ArtworkFullView({
                                     onLoad={handleImageLoad}
                                     onError={handleImageError}
                                 />
-                                {/* VARIANT SWITCHER OVERLAY — shield service only */}
-                                {FEATURES.shield && (
+                                {/* VARIANT SWITCHER OVERLAY — shield service only, owner only */}
+                                {!readOnly && FEATURES.shield && (
                                     <div className="absolute bottom-4 left-0 right-0 z-30 flex justify-center pointer-events-none">
                                         <div className="pointer-events-auto flex flex-col items-center gap-2 max-w-[92vw]">
                                             {/* ── Attack type selector — pick which simulation to compare ── */}
@@ -707,7 +717,7 @@ export function ArtworkFullView({
                         <div className="absolute inset-0 p-4 flex flex-col justify-between pointer-events-none">
                             {/* Top Row */}
                             <div className="flex justify-between items-start w-full">
-                                {/* Top-Left: Close Button + Status */}
+                                {/* Top-Left: Close Button + Status / Author */}
                                 <div className="pointer-events-auto flex items-center gap-3">
                                     <Button
                                         variant="secondary"
@@ -718,7 +728,7 @@ export function ArtworkFullView({
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
-                                    {FEATURES.shield && (
+                                    {!readOnly && FEATURES.shield && (
                                         <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded-full text-xs font-medium text-white/90 select-none border border-white/5">
                                             <ArtworkStatusBadge
                                                 status={
@@ -727,17 +737,30 @@ export function ArtworkFullView({
                                             />
                                         </div>
                                     )}
+                                    {readOnly && authorSlug && (
+                                        <Link
+                                            href={`/@${authorSlug}`}
+                                            onClick={onClose}
+                                            className="bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white/80 hover:text-white border border-white/5 transition-colors"
+                                        >
+                                            {authorName ?? `@${authorSlug}`}
+                                        </Link>
+                                    )}
                                 </div>
 
-                                {/* Top-Right: Action Group */}
-                                <div className="flex items-center gap-2 pointer-events-auto">
-                                    <ArtworkActionButtons actions={actions} />
-                                </div>
+                                {/* Top-Right: Action Group (owner only) */}
+                                {!readOnly && (
+                                    <div className="flex items-center gap-2 pointer-events-auto">
+                                        <ArtworkActionButtons
+                                            actions={actions}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        {/* Sidebar Toggle Tab - Attached to Layout */}
-                        {FEATURES.shield && hasReport && (
+                        {/* Sidebar Toggle Tab - owner only */}
+                        {!readOnly && FEATURES.shield && hasReport && (
                             <button
                                 onClick={() => setShowAudit(!showAudit)}
                                 className={cn(
@@ -758,8 +781,8 @@ export function ArtworkFullView({
                         )}
                     </div>
 
-                    {/* Sidebar: Audit Report Panel — shield service only */}
-                    {FEATURES.shield && (
+                    {/* Sidebar: Audit Report Panel — owner only */}
+                    {!readOnly && FEATURES.shield && (
                         <div
                             className={cn(
                                 "h-full bg-zinc-950 border-l border-white/10 flex flex-col transition-all duration-300 ease-in-out shrink-0",

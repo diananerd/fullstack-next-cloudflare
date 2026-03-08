@@ -4,8 +4,9 @@ import { Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ArtworkFullView } from "@/modules/artworks/components/artwork-full-view";
 import type { DiscoverItem } from "@/modules/artworks/actions/get-discover-items.action";
+import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 
 interface DiscoverArtworkCardProps {
     item: DiscoverItem;
@@ -14,6 +15,29 @@ interface DiscoverArtworkCardProps {
 export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
     const [open, setOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
+
+    const artwork: Artwork = {
+        id: item.id,
+        title: item.title,
+        description: null,
+        userId: "",
+        createdBy: "",
+        workspaceId: null,
+        r2Key: item.r2Key,
+        url: item.url,
+        method: "shield",
+        protectionStatus: item.protectionStatus,
+        jobId: null,
+        metadata: null,
+        width: item.width,
+        height: item.height,
+        size: null,
+        semanticType: "digital_art",
+        visibility: item.visibility,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        kind: "artwork",
+    } as Artwork;
 
     const handleDownload = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -27,8 +51,7 @@ export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            const safe = item.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-            a.download = `${safe}.png`;
+            a.download = `${item.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -58,7 +81,7 @@ export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
                     onDragStart={(e) => e.preventDefault()}
                 />
 
-                {/* Gradient scrim for bottom text */}
+                {/* Gradient scrim */}
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 
                 <div className="absolute inset-0 p-3 flex flex-col pointer-events-none">
@@ -123,37 +146,14 @@ export function DiscoverArtworkCard({ item }: DiscoverArtworkCardProps) {
                 </div>
             </div>
 
-            {/* Full-view lightbox */}
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-w-4xl p-0 bg-zinc-950 border-zinc-800 overflow-hidden">
-                    <div className="flex flex-col">
-                        {/* biome-ignore lint/performance/noImgElement: full view */}
-                        <img
-                            src={item.url}
-                            alt={item.title}
-                            className="w-full h-auto max-h-[80vh] object-contain"
-                            onContextMenu={(e) => e.preventDefault()}
-                            onDragStart={(e) => e.preventDefault()}
-                        />
-                        <div className="px-4 py-3 border-t border-zinc-800 flex items-center justify-between gap-4">
-                            {item.title && (
-                                <p className="text-sm font-medium text-white/90 truncate">
-                                    {item.title}
-                                </p>
-                            )}
-                            {item.ownerSlug && (
-                                <Link
-                                    href={`/@${item.ownerSlug}`}
-                                    onClick={() => setOpen(false)}
-                                    className="text-xs text-white/50 hover:text-white/80 transition-colors whitespace-nowrap shrink-0"
-                                >
-                                    {item.ownerName ?? `@${item.ownerSlug}`}
-                                </Link>
-                            )}
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <ArtworkFullView
+                artwork={artwork}
+                isOpen={open}
+                onClose={() => setOpen(false)}
+                readOnly
+                authorName={item.ownerName}
+                authorSlug={item.ownerSlug}
+            />
         </>
     );
 }

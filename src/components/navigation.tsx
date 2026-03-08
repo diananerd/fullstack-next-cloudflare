@@ -11,10 +11,7 @@ export async function Navigation() {
             <div className="w-full px-4 md:px-6 py-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-6">
-                        <Link
-                            href="/discover"
-                            className="flex items-center gap-2"
-                        >
+                        <Link href="/" className="flex items-center gap-2">
                             <Image
                                 src="/icon.png"
                                 alt="Drimit"

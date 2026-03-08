@@ -82,7 +82,7 @@ export default async function HomePage() {
 
             {/* Slogan — just below nav, visually separated */}
             <div className="relative z-10 px-6 md:px-10 pt-6">
-                <p className="text-2xl md:text-3xl font-medium text-white/80 tracking-tight leading-snug max-w-xs">
+                <p className="text-2xl md:text-3xl font-medium text-white/80 tracking-tight leading-snug">
                     A home for your creative work.
                 </p>
             </div>
@@ -134,7 +134,7 @@ export default async function HomePage() {
                 <div className="self-end sm:self-auto">
                     <Link href={session ? "/discover" : "/signup"}>
                         <Button className="h-10 px-6 rounded-full bg-white text-stone-900 hover:bg-stone-100 text-sm font-medium border-0 shadow-none">
-                            {session ? "Open Drimit" : "Get Started"}
+                            Discover
                             <ChevronRight className="ml-1 h-4 w-4" />
                         </Button>
                     </Link>

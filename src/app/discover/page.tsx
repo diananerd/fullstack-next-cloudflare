@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { parseWorkspaceQuery } from "@/modules/artworks/models/workspace-item.model";
-import { getDiscoverItemsAction } from "@/modules/artworks/actions/get-discover-items.action";
+import { getDiscoverWorkspaceItemsAction } from "@/modules/artworks/actions/get-discover-workspace-items.action";
 import { WorkspaceToolbar } from "@/modules/artworks/components/workspace-toolbar";
+import { WorkspaceBreadcrumb } from "@/modules/artworks/components/workspace-breadcrumb";
 import { ArtworkGallerySkeleton } from "@/modules/artworks/components/artwork-gallery.skeleton";
-import { DiscoverGrid } from "@/modules/artworks/components/discover-grid";
-import type { DiscoverItem } from "@/modules/artworks/actions/get-discover-items.action";
+import { DiscoverWorkspaceGrid } from "@/modules/artworks/components/discover-workspace-grid";
 
 export default async function DiscoverPage({
     searchParams,
@@ -12,28 +12,42 @@ export default async function DiscoverPage({
     searchParams: Promise<Record<string, string | undefined>>;
 }) {
     const params = await searchParams;
-    const { sort, order, offset, limit } = parseWorkspaceQuery(params);
-    const query = { sort, order, offset, limit };
+    const collectionId = params.collectionId;
+    const query = parseWorkspaceQuery(params, collectionId);
 
-    const initialResult = await getDiscoverItemsAction(query);
+    const initialResult = await getDiscoverWorkspaceItemsAction(query);
 
     return (
         <div className="w-full">
-            {/* Title + Filters bar — sticky below Navigation */}
+            {/* Breadcrumb + Filters bar — sticky below Navigation */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 md:px-6 py-2 border-b border-gray-100 bg-white sticky top-[57px] z-10">
-                <span className="text-sm font-medium text-gray-700">
-                    Discover
-                </span>
+                <WorkspaceBreadcrumb
+                    collectionId={collectionId}
+                    basePath="/discover"
+                />
                 <Suspense fallback={null}>
                     <WorkspaceToolbar
-                        sort={sort}
-                        order={order}
+                        sort={query.sort}
+                        order={query.order}
                         visibility="public"
-                        insideCollection={false}
+                        insideCollection={!!collectionId}
                         hideVisibility={true}
                     />
                 </Suspense>
             </div>
+
+            {/* Title + Description — shown only at root */}
+            {!collectionId && (
+                <div className="px-4 pt-6 pb-2 md:px-6 md:pt-6">
+                    <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                        Discover
+                    </h1>
+                    <p className="text-gray-600 text-sm md:text-base mt-1">
+                        Explore public artworks and collections from creators on
+                        Drimit
+                    </p>
+                </div>
+            )}
 
             {/* Gallery */}
             <div className="px-2 pb-6 pt-4">
@@ -43,7 +57,7 @@ export default async function DiscoverPage({
                             No public artworks yet.
                         </p>
                     ) : (
-                        <DiscoverGrid
+                        <DiscoverWorkspaceGrid
                             initialItems={initialResult.items}
                             initialHasMore={initialResult.hasMore}
                             query={query}
