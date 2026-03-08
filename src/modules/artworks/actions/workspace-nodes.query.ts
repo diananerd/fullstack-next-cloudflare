@@ -25,9 +25,16 @@ import type { getDb } from "@/db";
 type DB = Awaited<ReturnType<typeof getDb>>;
 
 export interface NodeQueryScope {
-    /** Restrict to a specific owner. Omit for platform-wide queries (discover). */
+    /**
+     * Restrict nodes to a specific owner. Applied at root level only.
+     * NOT applied to items inside a collection — a board can contain artworks
+     * from multiple owners; access to the collection itself is the authorization gate.
+     */
     ownerFilter?: SQL;
-    /** Restrict to a specific visibility. Omit for no restriction. */
+    /**
+     * Restrict to a specific visibility. Applied both at root and inside collections.
+     * Public views pass eq(nodes.visibility, "public"); owner views omit this.
+     */
     visibilityFilter?: SQL;
     /** Role to assign to collection items in the result. */
     collectionRole?: string;
@@ -156,13 +163,11 @@ export async function queryCollectionItems(
             and(eq(collectionNodes.id, nodes.id), eq(nodes.type, "collection")),
         );
 
+    // ownerFilter intentionally NOT applied here: the collection edge is the
+    // authorization gate. Items can come from any owner (cross-user boards).
+    // visibilityFilter still applies so public views only show public items.
     const rows = await withJoins
-        .where(
-            and(
-                ...(ownerFilter ? [ownerFilter] : []),
-                ...(visibilityFilter ? [visibilityFilter] : []),
-            ),
-        )
+        .where(and(...(visibilityFilter ? [visibilityFilter] : [])))
         .orderBy(asc(nodeRelations.position))
         .limit(limit + 1)
         .offset(offset);
