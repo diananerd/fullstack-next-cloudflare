@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { ArtworkFullView } from "@/modules/artworks/components/artwork-full-view";
-import type { DiscoverItem } from "@/modules/artworks/actions/get-discover-items.action";
+import type { DiscoverItem } from "@/modules/artworks/actions/get-discover-workspace-items.action";
 import type { Artwork } from "@/modules/artworks/schemas/artwork.schema";
 
 interface DiscoverArtworkCardProps {
